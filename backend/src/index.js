@@ -3,13 +3,14 @@ const express = require('express');
 const cors = require('cors');
 const authRoutes = require('./routes/auth.routes');
 const vacancyRoutes = require('./routes/vacancy.routes');
+const employeeRoutes = require('./routes/employee.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middlewares
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: process.env.CORS_ORIGIN || ['http://localhost:3000', 'http://localhost:3002'],
   credentials: true
 }));
 app.use(express.json());
@@ -23,6 +24,7 @@ app.get('/api/health', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api', vacancyRoutes);
+app.use('/api', employeeRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

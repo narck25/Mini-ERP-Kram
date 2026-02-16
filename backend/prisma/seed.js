@@ -6,12 +6,17 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Iniciando seed de la base de datos...');
 
-  // Limpiar datos existentes
+  // Limpiar datos existentes (incluyendo nuevos modelos)
   await prisma.session.deleteMany();
   await prisma.candidate.deleteMany();
   await prisma.jobActivity.deleteMany();
   await prisma.jobVacancy.deleteMany();
+  await prisma.candidateRH.deleteMany();
+  await prisma.vacancyComment.deleteMany();
+  await prisma.jobVacancyRH.deleteMany();
+  await prisma.employeeDocument.deleteMany();
   await prisma.employee.deleteMany();
+  await prisma.department.deleteMany();
   await prisma.role.deleteMany();
   await prisma.user.deleteMany();
 
@@ -91,39 +96,117 @@ async function main() {
 
   console.log('✅ Usuarios creados');
 
-  // Crear empleados asociados a usuarios
+  // Crear departamentos primero
+  const departments = [
+    {
+      nombre: 'Sistemas',
+      descripcion: 'Departamento de Tecnologías de la Información'
+    },
+    {
+      nombre: 'Compras',
+      descripcion: 'Departamento de Adquisiciones y Proveedores'
+    },
+    {
+      nombre: 'RH',
+      descripcion: 'Recursos Humanos'
+    },
+    {
+      nombre: 'Administración',
+      descripcion: 'Administración y Finanzas'
+    },
+    {
+      nombre: 'Ventas',
+      descripcion: 'Departamento de Ventas'
+    },
+    {
+      nombre: 'Marketing',
+      descripcion: 'Marketing y Publicidad'
+    }
+  ];
+
+  const createdDepartments = [];
+  for (const deptData of departments) {
+    const department = await prisma.department.create({
+      data: deptData
+    });
+    createdDepartments.push(department);
+  }
+
+  console.log('✅ Departamentos creados');
+
+  // Crear empleados asociados a usuarios (con nuevos campos requeridos)
   const employees = [
     {
+      nombre: 'Carlos López',
+      rfc: 'LOPC830101ABC',
+      curp: 'LOPC830101HDFLPR01',
+      nss: '12345678901',
+      fecha_ingreso: new Date('2023-01-15'),
+      estatus: 'Activo',
+      puesto: 'Jefe de Sistemas',
+      departamento_id: createdDepartments.find(d => d.nombre === 'Sistemas').id,
       userId: createdUsers.find(u => u.email === 'sistemas@kram.com').id,
-      department: 'Sistemas',
-      position: 'Jefe de Sistemas',
-      hireDate: new Date('2023-01-15'),
-      salary: 45000,
-      isActive: true
+      salary: 45000
     },
     {
+      nombre: 'Ana Martínez',
+      rfc: 'MARA830202DEF',
+      curp: 'MARA830202MDFNTR02',
+      nss: '12345678902',
+      fecha_ingreso: new Date('2023-02-20'),
+      estatus: 'Activo',
+      puesto: 'Jefe de Compras',
+      departamento_id: createdDepartments.find(d => d.nombre === 'Compras').id,
       userId: createdUsers.find(u => u.email === 'compras@kram.com').id,
-      department: 'Compras',
-      position: 'Jefe de Compras',
-      hireDate: new Date('2023-02-20'),
-      salary: 42000,
-      isActive: true
+      salary: 42000
     },
     {
+      nombre: 'Roberto Sánchez',
+      rfc: 'SANR830303GHI',
+      curp: 'SANR830303HDFSNR03',
+      nss: '12345678903',
+      fecha_ingreso: new Date('2023-03-10'),
+      estatus: 'Activo',
+      puesto: 'Desarrollador Senior',
+      departamento_id: createdDepartments.find(d => d.nombre === 'Sistemas').id,
       userId: createdUsers.find(u => u.email === 'sistemas2@kram.com').id,
-      department: 'Sistemas',
-      position: 'Desarrollador Senior',
-      hireDate: new Date('2023-03-10'),
-      salary: 38000,
-      isActive: true
+      salary: 38000
     },
     {
+      nombre: 'Laura González',
+      rfc: 'GONL830404JKL',
+      curp: 'GONL830404MDFGNR04',
+      nss: '12345678904',
+      fecha_ingreso: new Date('2023-04-05'),
+      estatus: 'Activo',
+      puesto: 'Analista de Compras',
+      departamento_id: createdDepartments.find(d => d.nombre === 'Compras').id,
       userId: createdUsers.find(u => u.email === 'compras2@kram.com').id,
-      department: 'Compras',
-      position: 'Analista de Compras',
-      hireDate: new Date('2023-04-05'),
-      salary: 35000,
-      isActive: true
+      salary: 35000
+    },
+    {
+      nombre: 'María Rodríguez',
+      rfc: 'RODM830505MNO',
+      curp: 'RODM830505MDFRDR05',
+      nss: '12345678905',
+      fecha_ingreso: new Date('2022-06-15'),
+      estatus: 'Activo',
+      puesto: 'Gerente de RH',
+      departamento_id: createdDepartments.find(d => d.nombre === 'RH').id,
+      userId: createdUsers.find(u => u.email === 'rh@kram.com').id,
+      salary: 48000
+    },
+    {
+      nombre: 'Administrador Principal',
+      rfc: 'ADMA830606PQR',
+      curp: 'ADMA830606HDFDMR06',
+      nss: '12345678906',
+      fecha_ingreso: new Date('2022-01-10'),
+      estatus: 'Activo',
+      puesto: 'Director General',
+      departamento_id: createdDepartments.find(d => d.nombre === 'Administración').id,
+      userId: createdUsers.find(u => u.email === 'admin@kram.com').id,
+      salary: 55000
     }
   ];
 
@@ -148,7 +231,7 @@ async function main() {
       requirements: ['3+ años de experiencia en desarrollo web', 'Conocimiento en Node.js y React', 'Experiencia con bases de datos SQL/NoSQL', 'Inglés intermedio'],
       responsibilities: ['Desarrollo de nuevas funcionalidades', 'Mantenimiento de aplicaciones existentes', 'Colaboración con equipo de diseño', 'Participación en code reviews'],
       status: 'APROBADA',
-      createdById: createdEmployees.find(e => e.department === 'Sistemas' && e.position === 'Jefe de Sistemas').id,
+      createdById: createdEmployees.find(e => e.puesto === 'Jefe de Sistemas').id,
       approvedById: createdUsers.find(u => u.email === 'rh@kram.com').id,
       approvedAt: new Date('2024-01-10'),
       createdAt: new Date('2024-01-05')
@@ -162,7 +245,7 @@ async function main() {
       requirements: ['Licenciatura en Administración o afín', '2+ años de experiencia en compras', 'Conocimiento en procesos de licitación', 'Excel avanzado'],
       responsibilities: ['Gestión de proveedores', 'Negociación de precios', 'Control de inventarios', 'Elaboración de reportes'],
       status: 'BUSCANDO',
-      createdById: createdEmployees.find(e => e.department === 'Compras' && e.position === 'Jefe de Compras').id,
+      createdById: createdEmployees.find(e => e.puesto === 'Jefe de Compras').id,
       approvedById: createdUsers.find(u => u.email === 'rh@kram.com').id,
       approvedAt: new Date('2024-01-15'),
       createdAt: new Date('2024-01-12')
@@ -176,7 +259,7 @@ async function main() {
       requirements: ['Certificación en redes o soporte técnico', 'Experiencia en help desk', 'Conocimiento de Windows/Linux', 'Habilidades de comunicación'],
       responsibilities: ['Atención a tickets de soporte', 'Resolución de incidencias', 'Mantenimiento preventivo', 'Capacitación a usuarios'],
       status: 'PENDIENTE',
-      createdById: createdEmployees.find(e => e.department === 'Sistemas' && e.position === 'Jefe de Sistemas').id,
+      createdById: createdEmployees.find(e => e.puesto === 'Jefe de Sistemas').id,
       createdAt: new Date('2024-01-20')
     },
     {
@@ -188,7 +271,7 @@ async function main() {
       requirements: ['Experiencia en logística', 'Conocimiento de sistemas de gestión', 'Habilidades de liderazgo', 'Disponibilidad para viajar'],
       responsibilities: ['Planificación de rutas', 'Coordinación de entregas', 'Gestión de flota', 'Optimización de procesos'],
       status: 'CERRADA',
-      createdById: createdEmployees.find(e => e.department === 'Compras' && e.position === 'Jefe de Compras').id,
+      createdById: createdEmployees.find(e => e.puesto === 'Jefe de Compras').id,
       approvedById: createdUsers.find(u => u.email === 'rh@kram.com').id,
       approvedAt: new Date('2023-12-10'),
       closedAt: new Date('2024-01-05'),

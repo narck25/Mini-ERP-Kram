@@ -29,6 +29,7 @@ model User {
   sessions  Session[]
   employee  Employee? // Relación con Employee
   approvedVacancies JobVacancy[] @relation("approvedBy") // Vacantes aprobadas por este usuario
+  vacancyComments VacancyComment[] // Comentarios en vacantes RH
 
   @@map("users")
 }
@@ -65,18 +66,43 @@ enum JobVacancyStatus {
   CERRADA
 }
 
+enum EmployeeStatus {
+  Activo
+  Inactivo
+}
+
+enum VacancyStatus {
+  Solicitada
+  Aprobada
+  Buscando
+  Cerrada
+}
+
+enum CandidateStatus {
+  En_Revision
+  Descartado
+  Seleccionado
+}
+
 model Employee {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id])
-  department  String
-  position    String
-  hireDate    DateTime
-  salary      Float?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  nombre       String
+  rfc          String   @unique
+  curp         String   @unique
+  nss          String   @unique
+  fecha_ingreso DateTime
+  estatus      EmployeeStatus @default(Activo)
+  puesto       String
+  departamento_id String
+  departamento   Department? @relation(fields: [departamento_id], references: [id])
+  userId       String?  @unique
+  user         User?    @relation(fields: [userId], references: [id])
+  salary       Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  documents    EmployeeDocument[]
   jobVacancies JobVacancy[] // Vacantes creadas por este empleado
+  jobVacanciesRH JobVacancyRH[] // Vacantes RH solicitadas por este empleado
 
   @@map("employees")
 }
@@ -138,4 +164,75 @@ model Candidate {
 
   @@unique([vacancyId, email])
   @@map("candidates")
+}
+
+// Módulo de RH - Gestión de Talento
+
+model Department {
+  id          String   @id @default(cuid())
+  nombre      String   @unique
+  descripcion String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  employees   Employee[]
+  jobVacanciesRH JobVacancyRH[]
+
+  @@map("departments")
+}
+
+model EmployeeDocument {
+  id             String   @id @default(cuid())
+  tipo_documento String
+  url_archivo    String
+  employee_id    String
+  employee       Employee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("employee_documents")
+}
+
+// JobVacancy para reclutamiento (actualizado según requerimientos)
+model JobVacancyRH {
+  id                   String       @id @default(cuid())
+  titulo               String
+  departamento_id      String
+  departamento         Department   @relation(fields: [departamento_id], references: [id])
+  solicitante_id       String
+  solicitante          Employee     @relation(fields: [solicitante_id], references: [id])
+  estatus              VacancyStatus @default(Solicitada)
+  requerimientos_tecnicos Json
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  comments             VacancyComment[]
+  candidatesRH         CandidateRH[]
+
+  @@map("job_vacancies_rh")
+}
+
+model VacancyComment {
+  id         String   @id @default(cuid())
+  vacancy_id String
+  vacancy    JobVacancyRH @relation(fields: [vacancy_id], references: [id], onDelete: Cascade)
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id])
+  mensaje    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("vacancy_comments")
+}
+
+model CandidateRH {
+  id           String         @id @default(cuid())
+  vacancy_id   String
+  vacancy      JobVacancyRH   @relation(fields: [vacancy_id], references: [id], onDelete: Cascade)
+  nombre       String
+  cv_url       String?
+  estatus      CandidateStatus @default(En_Revision)
+  comentarios_rh String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@map("candidates_rh")
 }
