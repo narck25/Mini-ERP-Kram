@@ -1,0 +1,37 @@
+{
+  "name": "kram-erp-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Frontend del ERP para KRAM construido con Next.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "14.0.0",
+    "react": "^18",
+    "react-dom": "^18",
+    "axios": "^1.6.2",
+    "react-hook-form": "^7.47.0",
+    "zod": "^3.22.4",
+    "@hookform/resolvers": "^3.3.2",
+    "jwt-decode": "^4.0.0",
+    "react-hot-toast": "^2.4.1",
+    "tailwindcss": "^3.3.0",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.0.0",
+    "typescript": "^5"
+  },
+  "keywords": ["erp", "kram", "nextjs", "react", "dashboard"],
+  "author": "KRAM Team",
+  "license": "MIT"
+}
