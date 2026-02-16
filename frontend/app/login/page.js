@@ -43,10 +43,10 @@ export default function LoginPage() {
 
   const handleDemoLogin = (role) => {
     const demoUsers = {
-      admin: { email: 'admin@kram.com', password: 'admin123' },
-      rh: { email: 'rh@kram.com', password: 'rh123' },
-      sistemas: { email: 'sistemas@kram.com', password: 'sistemas123' },
-      compras: { email: 'compras@kram.com', password: 'compras123' },
+      admin: { email: 'admin@kram.com', password: 'password123' },
+      rh: { email: 'rh@kram.com', password: 'password123' },
+      sistemas: { email: 'sistemas@kram.com', password: 'password123' },
+      compras: { email: 'compras@kram.com', password: 'password123' },
     }
     
     const user = demoUsers[role]

@@ -27,6 +27,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   sessions  Session[]
+  employee  Employee? // Relación con Employee
+  approvedVacancies JobVacancy[] @relation("approvedBy") // Vacantes aprobadas por este usuario
 
   @@map("users")
 }
@@ -52,4 +54,88 @@ model Session {
   createdAt DateTime @default(now())
 
   @@map("sessions")
+}
+
+// Módulo de Reclutamiento
+
+enum JobVacancyStatus {
+  PENDIENTE
+  APROBADA
+  BUSCANDO
+  CERRADA
+}
+
+model Employee {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  department  String
+  position    String
+  hireDate    DateTime
+  salary      Float?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  jobVacancies JobVacancy[] // Vacantes creadas por este empleado
+
+  @@map("employees")
+}
+
+model JobVacancy {
+  id          String          @id @default(cuid())
+  title       String
+  description String
+  department  String
+  position    String
+  salaryRange String?         // Ej: "$30,000 - $40,000"
+  requirements Json           // JSON array de requisitos
+  responsibilities Json       // JSON array de responsabilidades
+  status      JobVacancyStatus @default(PENDIENTE)
+  createdById String
+  createdBy   Employee        @relation(fields: [createdById], references: [id])
+  approvedById String?        // ID del usuario de RH que aprobó
+  approvedBy   User?          @relation(fields: [approvedById], references: [id], name: "approvedBy")
+  approvedAt   DateTime?
+  closedAt     DateTime?
+  activities   JobActivity[]  // Actividades del puesto
+  candidates   Candidate[]    // Candidatos para esta vacante
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@map("job_vacancies")
+}
+
+model JobActivity {
+  id           String   @id @default(cuid())
+  vacancyId    String
+  vacancy      JobVacancy @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+  activityType String   // Ej: "Entrevista técnica", "Prueba práctica", etc.
+  description  String
+  duration     String?  // Ej: "2 horas"
+  priority     Int      @default(1) // 1: baja, 2: media, 3: alta
+  isCompleted  Boolean  @default(false)
+  completedAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("job_activities")
+}
+
+model Candidate {
+  id           String   @id @default(cuid())
+  vacancyId    String
+  vacancy      JobVacancy @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+  firstName    String
+  lastName     String
+  email        String
+  phone        String?
+  resumeUrl    String?  // URL del CV
+  status       String   @default("PENDIENTE") // PENDIENTE, EN_PROCESO, RECHAZADO, CONTRATADO
+  notes        String?
+  interviewDate DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([vacancyId, email])
+  @@map("candidates")
 }

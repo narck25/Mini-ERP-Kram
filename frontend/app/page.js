@@ -64,8 +64,8 @@ export default async function HomePage() {
           
           <div className="mt-12 pt-8 border-t border-gray-200">
             <p className="text-gray-500">
-              Usuarios de prueba disponibles: admin@kram.com (admin123), rh@kram.com (rh123), 
-              sistemas@kram.com (sistemas123), compras@kram.com (compras123)
+              Usuarios de prueba disponibles: admin@kram.com (password123), rh@kram.com (password123), 
+              sistemas@kram.com (password123), compras@kram.com (password123)
             </p>
           </div>
         </div>

@@ -1,3 +1,4 @@
+
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/auth'
 import DashboardLayout from '@/components/DashboardLayout'
@@ -139,9 +140,14 @@ export default async function DashboardPage() {
               <div className="p-4 bg-blue-50 rounded-lg">
                 <h4 className="font-medium text-blue-800">Recursos Humanos</h4>
                 <p className="text-blue-600 mt-1">
-                  Acceso a módulos de gestión de personal, nóminas, vacaciones, capacitaciones 
-                  y evaluación de desempeño.
+                  Acceso a módulos de gestión de personal, nóminas, vacaciones, capacitaciones, 
+                  evaluación de desempeño y <strong>reclutamiento de personal</strong>.
                 </p>
+                <div className="mt-3">
+                  <a href="/rh-dashboard" className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
+                    Ir al Dashboard de Reclutamiento
+                  </a>
+                </div>
               </div>
             )}
 
@@ -149,9 +155,14 @@ export default async function DashboardPage() {
               <div className="p-4 bg-green-50 rounded-lg">
                 <h4 className="font-medium text-green-800">Sistemas</h4>
                 <p className="text-green-600 mt-1">
-                  Acceso a configuración del sistema, mantenimiento, backups, monitoreo 
-                  y gestión de tickets de soporte.
+                  Acceso a configuración del sistema, mantenimiento, backups, monitoreo, 
+                  gestión de tickets de soporte y <strong>solicitud de vacantes</strong>.
                 </p>
+                <div className="mt-3">
+                  <a href="/my-vacancies" className="inline-block px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm">
+                    Mis Solicitudes de Vacantes
+                  </a>
+                </div>
               </div>
             )}
 
@@ -160,8 +171,13 @@ export default async function DashboardPage() {
                 <h4 className="font-medium text-yellow-800">Compras</h4>
                 <p className="text-yellow-600 mt-1">
                   Acceso a módulos de gestión de proveedores, órdenes de compra, inventario, 
-                  cotizaciones y control de gastos.
+                  cotizaciones, control de gastos y <strong>solicitud de vacantes</strong>.
                 </p>
+                <div className="mt-3">
+                  <a href="/my-vacancies" className="inline-block px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm">
+                    Mis Solicitudes de Vacantes
+                  </a>
+                </div>
               </div>
             )}
           </div>
@@ -171,17 +187,21 @@ export default async function DashboardPage() {
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Acciones rápidas</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <button className="btn-primary py-3">
-              Nuevo Reporte
-            </button>
+            {['SISTEMAS', 'COMPRAS'].includes(user.role) && (
+              <a href="/my-vacancies" className="btn-primary py-3 text-center">
+                Nueva Vacante
+              </a>
+            )}
+            {['RH', 'ADMIN'].includes(user.role) && (
+              <a href="/rh-dashboard" className="btn-primary py-3 text-center">
+                Dashboard RH
+              </a>
+            )}
             <button className="btn-secondary py-3">
               Ver Inventario
             </button>
             <button className="btn-secondary py-3">
               Calendario
-            </button>
-            <button className="btn-secondary py-3">
-              Mensajes
             </button>
           </div>
         </div>

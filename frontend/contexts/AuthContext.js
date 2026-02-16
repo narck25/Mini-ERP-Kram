@@ -45,17 +45,29 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       setLoading(true)
+      console.log('Attempting login with:', { email })
       const response = await authApi.login({ email, password })
+      console.log('Login response:', response.data)
       
       const { user, token } = response.data
+      console.log('Token received:', token ? 'Yes' : 'No')
+      console.log('User received:', user)
+      
+      // Guardar token en localStorage (para cliente)
       localStorage.setItem('token', token)
+      
+      // Guardar token en cookie (para servidor)
+      document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Strict`
+      
       setUser(user)
       
       toast.success('¡Inicio de sesión exitoso!')
+      console.log('Redirecting to dashboard...')
       router.push('/dashboard')
       
       return { success: true }
     } catch (error) {
+      console.error('Login error:', error)
       const message = error.response?.data?.error || 'Error al iniciar sesión'
       toast.error(message)
       return { success: false, error: message }
@@ -92,7 +104,12 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Logout error:', error)
     } finally {
+      // Eliminar token de localStorage
       localStorage.removeItem('token')
+      
+      // Eliminar cookie
+      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict'
+      
       setUser(null)
       toast.success('Sesión cerrada correctamente')
       router.push('/')
