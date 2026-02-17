@@ -68,9 +68,12 @@ export default function EmpleadosPage() {
 
   const fetchDepartments = async () => {
     try {
-      // En un proyecto real, tendrías un endpoint para departamentos
-      // Por ahora, simularemos datos o puedes crear el endpoint después
-      const mockDepartments = [
+      const response = await api.get('/departments');
+      setDepartments(response.data.departments);
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+      // Si falla, usar datos por defecto
+      const defaultDepartments = [
         { id: '1', nombre: 'Sistemas', descripcion: 'Departamento de Sistemas' },
         { id: '2', nombre: 'Compras', descripcion: 'Departamento de Compras' },
         { id: '3', nombre: 'RH', descripcion: 'Recursos Humanos' },
@@ -80,9 +83,7 @@ export default function EmpleadosPage() {
         { id: '7', nombre: 'Marketing', descripcion: 'Marketing' },
         { id: '8', nombre: 'Producción', descripcion: 'Producción' }
       ];
-      setDepartments(mockDepartments);
-    } catch (error) {
-      console.error('Error fetching departments:', error);
+      setDepartments(defaultDepartments);
     }
   };
 
@@ -286,7 +287,7 @@ export default function EmpleadosPage() {
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
                 placeholder="Nombre, RFC, CURP, NSS..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="form-input"
               />
             </div>
             <div>
@@ -294,7 +295,7 @@ export default function EmpleadosPage() {
               <select
                 value={filters.estatus}
                 onChange={(e) => handleFilterChange('estatus', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="form-select"
               >
                 <option value="">Todos</option>
                 <option value="Activo">Activo</option>
@@ -306,7 +307,7 @@ export default function EmpleadosPage() {
               <select
                 value={filters.departamento_id}
                 onChange={(e) => handleFilterChange('departamento_id', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="form-select"
               >
                 <option value="">Todos</option>
                 {departments.map(dept => (
@@ -472,7 +473,7 @@ export default function EmpleadosPage() {
                         required
                         value={formData.nombre}
                         onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-input"
                       />
                     </div>
                     <div>
@@ -482,7 +483,7 @@ export default function EmpleadosPage() {
                         required
                         value={formData.rfc}
                         onChange={(e) => setFormData({ ...formData, rfc: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-input"
                       />
                     </div>
                     <div>
@@ -492,7 +493,7 @@ export default function EmpleadosPage() {
                         required
                         value={formData.curp}
                         onChange={(e) => setFormData({ ...formData, curp: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-input"
                       />
                     </div>
                     <div>
@@ -502,7 +503,7 @@ export default function EmpleadosPage() {
                         required
                         value={formData.nss}
                         onChange={(e) => setFormData({ ...formData, nss: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-input"
                       />
                     </div>
                     <div>
@@ -512,7 +513,7 @@ export default function EmpleadosPage() {
                         required
                         value={formData.fecha_ingreso}
                         onChange={(e) => setFormData({ ...formData, fecha_ingreso: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-input"
                       />
                     </div>
                     <div>
@@ -520,7 +521,7 @@ export default function EmpleadosPage() {
                       <select
                         value={formData.estatus}
                         onChange={(e) => setFormData({ ...formData, estatus: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-select"
                       >
                         <option value="Activo">Activo</option>
                         <option value="Inactivo">Inactivo</option>
@@ -533,7 +534,7 @@ export default function EmpleadosPage() {
                         required
                         value={formData.puesto}
                         onChange={(e) => setFormData({ ...formData, puesto: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-input"
                       />
                     </div>
                     <div>
@@ -542,7 +543,7 @@ export default function EmpleadosPage() {
                         required
                         value={formData.departamento_id}
                         onChange={(e) => setFormData({ ...formData, departamento_id: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-select"
                       >
                         <option value="">Seleccionar departamento</option>
                         {departments.map(dept => (
@@ -557,7 +558,7 @@ export default function EmpleadosPage() {
                         step="0.01"
                         value={formData.salary}
                         onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-input"
                       />
                     </div>
                     <div>
@@ -566,7 +567,7 @@ export default function EmpleadosPage() {
                         type="text"
                         value={formData.userId}
                         onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-input"
                         placeholder="Dejar vacío si no tiene usuario"
                       />
                     </div>
@@ -624,7 +625,7 @@ export default function EmpleadosPage() {
                         required
                         value={formData.nombre}
                         onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-input"
                       />
                     </div>
                     <div>
@@ -634,7 +635,7 @@ export default function EmpleadosPage() {
                         required
                         value={formData.rfc}
                         onChange={(e) => setFormData({ ...formData, rfc: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-input"
                       />
                     </div>
                     <div>
@@ -644,7 +645,7 @@ export default function EmpleadosPage() {
                         required
                         value={formData.curp}
                         onChange={(e) => setFormData({ ...formData, curp: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-input"
                       />
                     </div>
                     <div>
@@ -654,7 +655,7 @@ export default function EmpleadosPage() {
                         required
                         value={formData.nss}
                         onChange={(e) => setFormData({ ...formData, nss: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-input"
                       />
                     </div>
                     <div>
@@ -664,7 +665,7 @@ export default function EmpleadosPage() {
                         required
                         value={formData.fecha_ingreso}
                         onChange={(e) => setFormData({ ...formData, fecha_ingreso: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-input"
                       />
                     </div>
                     <div>
@@ -672,7 +673,7 @@ export default function EmpleadosPage() {
                       <select
                         value={formData.estatus}
                         onChange={(e) => setFormData({ ...formData, estatus: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-select"
                       >
                         <option value="Activo">Activo</option>
                         <option value="Inactivo">Inactivo</option>
@@ -685,7 +686,7 @@ export default function EmpleadosPage() {
                         required
                         value={formData.puesto}
                         onChange={(e) => setFormData({ ...formData, puesto: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-input"
                       />
                     </div>
                     <div>
@@ -694,7 +695,7 @@ export default function EmpleadosPage() {
                         required
                         value={formData.departamento_id}
                         onChange={(e) => setFormData({ ...formData, departamento_id: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-select"
                       >
                         <option value="">Seleccionar departamento</option>
                         {departments.map(dept => (
@@ -709,7 +710,7 @@ export default function EmpleadosPage() {
                         step="0.01"
                         value={formData.salary}
                         onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-input"
                       />
                     </div>
                     <div>
@@ -718,7 +719,7 @@ export default function EmpleadosPage() {
                         type="text"
                         value={formData.userId}
                         onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="form-input"
                         placeholder="Dejar vacío si no tiene usuario"
                       />
                     </div>

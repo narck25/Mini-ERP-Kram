@@ -144,7 +144,7 @@ export default async function DashboardPage() {
                   evaluación de desempeño y <strong>reclutamiento de personal</strong>.
                 </p>
                 <div className="mt-3">
-                  <a href="/rh-dashboard" className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
+                  <a href="/rh/reclutamiento" className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
                     Ir al Dashboard de Reclutamiento
                   </a>
                 </div>
@@ -193,7 +193,7 @@ export default async function DashboardPage() {
               </a>
             )}
             {['RH', 'ADMIN'].includes(user.role) && (
-              <a href="/rh-dashboard" className="btn-primary py-3 text-center">
+              <a href="/rh/reclutamiento" className="btn-primary py-3 text-center">
                 Dashboard RH
               </a>
             )}

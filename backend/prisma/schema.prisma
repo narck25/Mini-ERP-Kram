@@ -183,9 +183,14 @@ model Department {
 model EmployeeDocument {
   id             String   @id @default(cuid())
   tipo_documento String
+  nombre_archivo String
   url_archivo    String
+  mime_type      String   @default("application/octet-stream")
+  size_bytes     Int?
   employee_id    String
   employee       Employee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+  uploaded_by    String?  // ID del usuario que subió el documento
+  uploaded_at    DateTime @default(now())
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

@@ -184,7 +184,7 @@ exports.createEmployee = async (req, res) => {
     }
 
     // Si se proporciona userId, verificar que exista
-    if (userId) {
+    if (userId && userId.trim() !== '') {
       const user = await prisma.user.findUnique({
         where: { id: userId }
       });
@@ -213,7 +213,7 @@ exports.createEmployee = async (req, res) => {
         estatus: estatus || 'Activo',
         puesto,
         departamento_id,
-        userId,
+        userId: userId && userId.trim() !== '' ? userId : null,
         salary: salary ? parseFloat(salary) : null
       },
       include: {
@@ -637,5 +637,33 @@ exports.getEmployeeStats = async (req, res) => {
   } catch (error) {
     console.error('Error getting employee stats:', error);
     res.status(500).json({ error: 'Error al obtener estadísticas de empleados' });
+  }
+};
+
+// Obtener todos los departamentos
+exports.getDepartments = async (req, res) => {
+  try {
+    // Verificar que el usuario esté autenticado
+    if (!req.user) {
+      return res.status(401).json({ error: 'No autenticado' });
+    }
+
+    const departments = await prisma.department.findMany({
+      select: {
+        id: true,
+        nombre: true,
+        descripcion: true,
+        createdAt: true,
+        updatedAt: true
+      },
+      orderBy: {
+        nombre: 'asc'
+      }
+    });
+
+    res.json({ departments });
+  } catch (error) {
+    console.error('Error getting departments:', error);
+    res.status(500).json({ error: 'Error al obtener los departamentos' });
   }
 };

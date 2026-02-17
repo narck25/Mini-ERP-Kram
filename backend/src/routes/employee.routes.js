@@ -34,4 +34,7 @@ router.delete('/employees/:id', employeeController.deleteEmployee);
 router.post('/employees/import', upload.single('file'), employeeController.importEmployees);
 router.get('/employees/export', employeeController.exportEmployees);
 
+// Ruta para obtener departamentos
+router.get('/departments', employeeController.getDepartments);
+
 module.exports = router;

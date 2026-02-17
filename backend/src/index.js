@@ -4,6 +4,8 @@ const cors = require('cors');
 const authRoutes = require('./routes/auth.routes');
 const vacancyRoutes = require('./routes/vacancy.routes');
 const employeeRoutes = require('./routes/employee.routes');
+const employeeDocumentRoutes = require('./routes/employeeDocument.routes');
+const recruitmentRoutes = require('./routes/recruitment.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -25,6 +27,8 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api', vacancyRoutes);
 app.use('/api', employeeRoutes);
+app.use('/api', employeeDocumentRoutes);
+app.use('/api', recruitmentRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

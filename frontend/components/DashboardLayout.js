@@ -11,7 +11,10 @@ const navigation = [
   { name: 'Inventario', href: '/dashboard/inventory', icon: '📦', roles: ['ADMIN', 'COMPRAS', 'SISTEMAS'] },
   { name: 'Compras', href: '/dashboard/purchases', icon: '🛒', roles: ['ADMIN', 'COMPRAS'] },
   { name: 'Ventas', href: '/dashboard/sales', icon: '💰', roles: ['ADMIN'] },
-  { name: 'RH', href: '/dashboard/rh', icon: '👨‍💼', roles: ['ADMIN', 'RH'] },
+  { name: 'RH - Dashboard', href: '/rh-dashboard', icon: '📋', roles: ['ADMIN', 'RH'] },
+  { name: 'RH - Empleados', href: '/rh/empleados', icon: '👨‍💼', roles: ['ADMIN', 'RH'] },
+  { name: 'RH - Reclutamiento', href: '/rh/reclutamiento', icon: '📝', roles: ['ADMIN', 'RH'] },
+  { name: 'Mis Solicitudes', href: '/reclutamiento/mis-solicitudes', icon: '📋', roles: ['SISTEMAS', 'COMPRAS'] },
   { name: 'Reportes', href: '/dashboard/reports', icon: '📊', roles: ['ADMIN', 'RH', 'SISTEMAS', 'COMPRAS'] },
   { name: 'Configuración', href: '/dashboard/settings', icon: '⚙️', roles: ['ADMIN', 'SISTEMAS'] },
 ]

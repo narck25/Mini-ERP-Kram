@@ -59,3 +59,48 @@ body {
     @apply bg-primary-50 text-primary-700 font-medium;
   }
 }
+
+/* Estilos para mejorar la visibilidad de inputs y selects */
+input, select, textarea {
+  @apply text-gray-900 bg-white;
+}
+
+input::placeholder, textarea::placeholder {
+  @apply text-gray-500;
+}
+
+select option {
+  @apply text-gray-900 bg-white;
+}
+
+/* Estilos específicos para formularios */
+.form-input {
+  @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white;
+}
+
+.form-select {
+  @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white;
+}
+
+.form-textarea {
+  @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white;
+}
+
+/* Asegurar que los textos sean visibles en modo claro y oscuro */
+@media (prefers-color-scheme: dark) {
+  input, select, textarea {
+    @apply text-white bg-gray-800 border-gray-600;
+  }
+  
+  input::placeholder, textarea::placeholder {
+    @apply text-gray-400;
+  }
+  
+  select option {
+    @apply text-white bg-gray-800;
+  }
+  
+  .form-input, .form-select, .form-textarea {
+    @apply text-white bg-gray-800 border-gray-600;
+  }
+}
