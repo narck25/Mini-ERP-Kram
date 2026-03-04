@@ -15,6 +15,11 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
   const [submitting, setSubmitting] = useState(false);
   const [editingObservations, setEditingObservations] = useState(null);
   const [observationsText, setObservationsText] = useState('');
+  
+  // Estado para el modal de PDF
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState('');
+  const [pdfTitle, setPdfTitle] = useState('');
 
   // Verificar si el usuario tiene acceso al módulo de Reclutamiento y es RH/ADMIN
   const isRH = user.accessibleModules?.includes('RECLUTAMIENTO') && (user.role === 'RH' || user.role === 'ADMIN');
@@ -125,30 +130,30 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
     }
   };
 
-  const handleDownloadCV = async (candidate) => {
-    try {
-      const response = await api.get(`/recruitment/candidates/${candidate.id}/cv`);
-      
-      // En un entorno real, aquí descargarías el archivo
-      // Por ahora, mostramos la información
-      toast.success(`CV disponible: ${response.data.filename}`);
-      console.log('CV URL:', response.data.cv_url);
-    } catch (error) {
-      console.error('Error downloading CV:', error);
-      toast.error('Error al descargar el CV');
+  const handleViewCV = (candidate) => {
+    if (!candidate.cv_url) {
+      toast.error('CV no disponible');
+      return;
     }
+    
+    // Construir la URL completa del PDF
+    const fullUrl = `http://localhost:3001${candidate.cv_url}`;
+    setPdfUrl(fullUrl);
+    setPdfTitle(`CV - ${candidate.nombre}`);
+    setShowPdfModal(true);
   };
 
-  const handleDownloadPsychTest = async (candidate) => {
-    try {
-      // Nota: Necesitaríamos un endpoint específico para descargar pruebas psicométricas
-      // Por ahora, mostramos la información
-      toast.success(`Pruebas psicométricas disponibles para ${candidate.nombre}`);
-      console.log('Pruebas psicométricas URL:', candidate.psych_test_url);
-    } catch (error) {
-      console.error('Error downloading psych tests:', error);
-      toast.error('Error al descargar las pruebas psicométricas');
+  const handleViewPsychTest = (candidate) => {
+    if (!candidate.psych_test_url) {
+      toast.error('Pruebas psicométricas no disponibles');
+      return;
     }
+    
+    // Construir la URL completa del PDF
+    const fullUrl = `http://localhost:3001${candidate.psych_test_url}`;
+    setPdfUrl(fullUrl);
+    setPdfTitle(`Pruebas Psicométricas - ${candidate.nombre}`);
+    setShowPdfModal(true);
   };
 
   const getCandidateStatusColor = (estatus) => {
@@ -339,10 +344,10 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
                     </button>
                   )}
 
-                  {/* Descargar CV y Pruebas Psicométricas */}
+                  {/* Ver CV y Pruebas Psicométricas en modal */}
                   {candidate.cv_url && (
                     <button
-                      onClick={() => handleDownloadCV(candidate)}
+                      onClick={() => handleViewCV(candidate)}
                       className="px-3 py-1 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-md text-sm"
                     >
                       📄 Ver CV
@@ -350,7 +355,7 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
                   )}
                   {candidate.psych_test_url && (
                     <button
-                      onClick={() => handleDownloadPsychTest(candidate)}
+                      onClick={() => handleViewPsychTest(candidate)}
                       className="px-3 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-md text-sm"
                     >
                       📊 Ver Pruebas
@@ -447,6 +452,57 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
           <li>• Una vez seleccionado un candidato, la vacante se cerrará automáticamente.</li>
         </ul>
       </div>
+
+      {/* Modal para visualizar PDFs */}
+      {showPdfModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl w-11/12 max-w-6xl h-5/6 flex flex-col">
+            {/* Encabezado del modal */}
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">{pdfTitle}</h3>
+              <button
+                onClick={() => setShowPdfModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                &times;
+              </button>
+            </div>
+            
+            {/* Contenido del PDF */}
+            <div className="flex-1 overflow-hidden">
+              <iframe
+                src={pdfUrl}
+                title={pdfTitle}
+                className="w-full h-full border-0"
+                style={{ minHeight: '500px' }}
+              />
+            </div>
+            
+            {/* Pie del modal */}
+            <div className="flex justify-between items-center p-4 border-t">
+              <div className="text-sm text-gray-600">
+                <p>Para descargar el PDF, haz clic derecho en el documento y selecciona "Guardar como"</p>
+              </div>
+              <div className="flex gap-2">
+                <a
+                  href={pdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm"
+                >
+                  Abrir en nueva pestaña
+                </a>
+                <button
+                  onClick={() => setShowPdfModal(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
