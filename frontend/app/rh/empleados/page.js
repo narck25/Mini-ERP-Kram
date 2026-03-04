@@ -336,7 +336,7 @@ function EmpleadosPageContent() {
     }
   };
 
-  if (!user || (user.role !== 'RH' && user.role !== 'ADMIN' && !user.accessibleModules?.includes('EMPLEADOS'))) {
+  if (!user || !user.accessibleModules?.includes('EMPLEADOS')) {
     return (
       <DashboardLayout>
         <div className="p-6">
@@ -349,6 +349,10 @@ function EmpleadosPageContent() {
     );
   }
 
+  // Determinar qué información mostrar según el rol
+  const isRHOrAdmin = user.role === 'RH' || user.role === 'ADMIN';
+  const isJefeArea = ['SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(user.role);
+
   return (
     <DashboardLayout>
       <div className="p-6">
@@ -357,34 +361,40 @@ function EmpleadosPageContent() {
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Gestión de Empleados</h1>
-              <p className="text-gray-600">Administra el expediente digital de los empleados de la empresa</p>
+              <p className="text-gray-600">
+                {isRHOrAdmin 
+                  ? 'Administra el expediente digital de los empleados de la empresa' 
+                  : 'Consulta la información básica de los empleados de la empresa'}
+              </p>
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={handleDownloadTemplate}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
-              >
-                Descargar Plantilla
-              </button>
-              <button
-                onClick={() => setShowImportModal(true)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
-              >
-                Importar CSV
-              </button>
-              <button
-                onClick={handleExport}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
-              >
-                Exportar CSV
-              </button>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
-              >
-                + Nuevo Empleado
-              </button>
-            </div>
+            {isRHOrAdmin && (
+              <div className="flex gap-3">
+                <button
+                  onClick={handleDownloadTemplate}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
+                >
+                  Descargar Plantilla
+                </button>
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
+                >
+                  Importar CSV
+                </button>
+                <button
+                  onClick={handleExport}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
+                >
+                  Exportar CSV
+                </button>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
+                >
+                  + Nuevo Empleado
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -452,12 +462,14 @@ function EmpleadosPageContent() {
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No hay empleados</h3>
             <p className="text-gray-600 mb-4">No se encontraron empleados con los filtros seleccionados.</p>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
-            >
-              + Agregar Primer Empleado
-            </button>
+            {isRHOrAdmin && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
+              >
+                + Agregar Primer Empleado
+              </button>
+            )}
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -480,9 +492,16 @@ function EmpleadosPageContent() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Fecha Ingreso
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Acciones
-                    </th>
+                    {isRHOrAdmin && (
+                      <>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Salario
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Acciones
+                        </th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -523,39 +542,45 @@ function EmpleadosPageContent() {
                         <div className="text-sm text-gray-900">
                           {employee.fecha_ingreso || employee.fechaAlta ? new Date(employee.fecha_ingreso || employee.fechaAlta).toLocaleDateString('es-MX') : 'No especificada'}
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {employee.salarioMensual || employee.salary ? `$${(employee.salarioMensual || employee.salary).toLocaleString('es-MX')}` : 'Sin salario'}
-                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEditClick(employee)}
-                            className="text-blue-600 hover:text-blue-900"
-                          >
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => handleDeleteEmployee(employee.id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            Baja
-                          </button>
-                          <button
-                            onClick={() => handleDeletePermanently(employee.id, employee.nombres || employee.nombre || 'Empleado')}
-                            className="text-red-800 hover:text-red-900 font-bold"
-                            title="Eliminar permanentemente"
-                          >
-                            Eliminar
-                          </button>
-                          <Link
-                            href={`/rh/empleados/${employee.id}`}
-                            className="text-green-600 hover:text-green-900"
-                          >
-                            Ver
-                          </Link>
-                        </div>
-                      </td>
+                      {isRHOrAdmin && (
+                        <>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {employee.salarioMensual || employee.salary ? `$${(employee.salarioMensual || employee.salary).toLocaleString('es-MX')}` : 'Sin salario'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleEditClick(employee)}
+                                className="text-blue-600 hover:text-blue-900"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => handleDeleteEmployee(employee.id)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                Baja
+                              </button>
+                              <button
+                                onClick={() => handleDeletePermanently(employee.id, employee.nombres || employee.nombre || 'Empleado')}
+                                className="text-red-800 hover:text-red-900 font-bold"
+                                title="Eliminar permanentemente"
+                              >
+                                Eliminar
+                              </button>
+                              <Link
+                                href={`/rh/empleados/${employee.id}`}
+                                className="text-green-600 hover:text-green-900"
+                              >
+                                Ver
+                              </Link>
+                            </div>
+                          </td>
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>

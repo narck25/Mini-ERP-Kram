@@ -10,24 +10,11 @@ import Link from 'next/link';
 export default function MisSolicitudesPage() {
   const { user } = useAuth();
   const [vacancies, setVacancies] = useState([]);
-  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  
-  // Formulario de nueva vacante
-  const [formData, setFormData] = useState({
-    titulo: '',
-    departamento_id: '',
-    requerimientos_tecnicos: []
-  });
-
-  // Nuevo requerimiento temporal
-  const [newRequirement, setNewRequirement] = useState('');
 
   useEffect(() => {
     if (user && ['SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(user.role)) {
       fetchMyVacancies();
-      fetchDepartments();
     }
   }, [user]);
 
@@ -42,65 +29,6 @@ export default function MisSolicitudesPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchDepartments = async () => {
-    try {
-      // En un proyecto real, tendrías un endpoint para departamentos
-      const mockDepartments = [
-        { id: '1', nombre: 'Sistemas', descripcion: 'Departamento de Sistemas' },
-        { id: '2', nombre: 'Compras', descripcion: 'Departamento de Compras' },
-        { id: '3', nombre: 'RH', descripcion: 'Recursos Humanos' },
-        { id: '4', nombre: 'Administración', descripcion: 'Administración' },
-        { id: '5', nombre: 'Finanzas', descripcion: 'Finanzas y Contabilidad' },
-        { id: '6', nombre: 'Ventas', descripcion: 'Departamento de Ventas' },
-        { id: '7', nombre: 'Marketing', descripcion: 'Marketing' },
-        { id: '8', nombre: 'Producción', descripcion: 'Producción' }
-      ];
-      setDepartments(mockDepartments);
-    } catch (error) {
-      console.error('Error fetching departments:', error);
-    }
-  };
-
-  const handleCreateVacancy = async (e) => {
-    e.preventDefault();
-    try {
-      await api.post('/recruitment/vacancies', formData);
-      toast.success('Solicitud de vacante creada exitosamente');
-      setShowCreateModal(false);
-      resetForm();
-      fetchMyVacancies();
-    } catch (error) {
-      console.error('Error creating vacancy:', error);
-      toast.error(error.response?.data?.error || 'Error al crear la solicitud');
-    }
-  };
-
-  const addRequirement = () => {
-    if (newRequirement.trim() === '') return;
-    
-    setFormData(prev => ({
-      ...prev,
-      requerimientos_tecnicos: [...prev.requerimientos_tecnicos, newRequirement.trim()]
-    }));
-    setNewRequirement('');
-  };
-
-  const removeRequirement = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      requerimientos_tecnicos: prev.requerimientos_tecnicos.filter((_, i) => i !== index)
-    }));
-  };
-
-  const resetForm = () => {
-    setFormData({
-      titulo: '',
-      departamento_id: '',
-      requerimientos_tecnicos: []
-    });
-    setNewRequirement('');
   };
 
   const getStatusColor = (estatus) => {
@@ -149,16 +77,10 @@ export default function MisSolicitudesPage() {
             <div className="flex gap-3">
               <Link
                 href="/reclutamiento/solicitar-vacante"
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
               >
                 📋 Formulario Digitalizado
               </Link>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
-              >
-                + Nueva Vacante
-              </button>
             </div>
           </div>
           <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -195,13 +117,13 @@ export default function MisSolicitudesPage() {
               </svg>
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No hay solicitudes</h3>
-            <p className="text-gray-600 mb-4">Crea tu primera solicitud de vacante para tu área.</p>
-            <button
-              onClick={() => setShowCreateModal(true)}
+            <p className="text-gray-600 mb-4">Usa el Formulario Digitalizado para crear tu primera solicitud de vacante.</p>
+            <Link
+              href="/reclutamiento/solicitar-vacante"
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
             >
-              + Crear Primera Solicitud
-            </button>
+              📋 Ir al Formulario Digitalizado
+            </Link>
           </div>
         ) : (
           <div className="space-y-6">
@@ -267,128 +189,6 @@ export default function MisSolicitudesPage() {
                 </div>
               </div>
             ))}
-          </div>
-        )}
-
-        {/* Modal para crear nueva vacante */}
-        {showCreateModal && (
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900">Nueva Solicitud de Vacante</h3>
-                  <button
-                    onClick={() => {
-                      setShowCreateModal(false);
-                      resetForm();
-                    }}
-                    className="text-gray-400 hover:text-gray-500"
-                  >
-                    <span className="sr-only">Cerrar</span>
-                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                <form onSubmit={handleCreateVacancy}>
-                  <div className="space-y-4 mb-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Título de la vacante *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.titulo}
-                        onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
-                        placeholder="Ej: Desarrollador Full Stack Senior"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Departamento *
-                      </label>
-                      <select
-                        required
-                        value={formData.departamento_id}
-                        onChange={(e) => setFormData({ ...formData, departamento_id: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Seleccionar departamento</option>
-                        {departments.map(dept => (
-                          <option key={dept.id} value={dept.id}>{dept.nombre}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Requerimientos técnicos (opcional)
-                      </label>
-                      <div className="flex gap-2 mb-2">
-                        <input
-                          type="text"
-                          value={newRequirement}
-                          onChange={(e) => setNewRequirement(e.target.value)}
-                          placeholder="Ej: 3+ años de experiencia en React"
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addRequirement())}
-                        />
-                        <button
-                          type="button"
-                          onClick={addRequirement}
-                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md"
-                        >
-                          Agregar
-                        </button>
-                      </div>
-                      
-                      {formData.requerimientos_tecnicos.length > 0 && (
-                        <div className="mt-2">
-                          <ul className="space-y-1">
-                            {formData.requerimientos_tecnicos.map((req, index) => (
-                              <li key={index} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded">
-                                <span className="text-sm text-gray-700">{req}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => removeRequirement(index)}
-                                  className="text-red-500 hover:text-red-700"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end gap-3 pt-6 border-t">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowCreateModal(false);
-                        resetForm();
-                      }}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
-                    >
-                      Enviar Solicitud
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
           </div>
         )}
       </div>
