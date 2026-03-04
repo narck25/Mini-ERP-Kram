@@ -7,8 +7,9 @@ import api from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
-export default function TechnicalProfilePage() {
+function TechnicalProfilePageContent() {
   const { id } = useParams();
   const router = useRouter();
   const { user } = useAuth();
@@ -76,7 +77,12 @@ export default function TechnicalProfilePage() {
     
     setFormData(prev => ({
       ...prev,
-      actividades: [...prev.actividades, newActivity.trim()]
+      actividades: [...prev.actividades, {
+        activityType: 'Principal',
+        description: newActivity.trim(),
+        duration: null,
+        priority: prev.actividades.length + 1
+      }]
     }));
     setNewActivity('');
   };
@@ -96,14 +102,32 @@ export default function TechnicalProfilePage() {
       return;
     }
 
+    if (formData.actividades.length === 0) {
+      toast.error('Debes agregar al menos una actividad principal');
+      return;
+    }
+
     try {
       setSubmitting(true);
-      await api.put(`/recruitment/vacancies/${id}/technical-profile`, formData);
+      
+      // DEBUG: Log de lo que se está enviando
+      console.log('=== DEBUG Frontend ===');
+      console.log('URL:', `/recruitment/vacancies/${id}/technical-profile`);
+      console.log('Form data:', formData);
+      console.log('Actividades:', formData.actividades);
+      console.log('=== FIN DEBUG ===');
+      
+      const response = await api.put(`/recruitment/vacancies/${id}/technical-profile`, formData);
+      
+      console.log('Response:', response);
       
       toast.success('Perfil técnico definido exitosamente. La vacante ahora está en estado "Buscando".');
       router.push(`/reclutamiento/vacantes/${id}`);
     } catch (error) {
       console.error('Error updating technical profile:', error);
+      console.error('Error response:', error.response);
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
       toast.error(error.response?.data?.error || 'Error al definir el perfil técnico');
     } finally {
       setSubmitting(false);
@@ -113,18 +137,18 @@ export default function TechnicalProfilePage() {
   const canDefineTechnicalProfile = () => {
     if (!user || !vacancy) return false;
     
-    return user && ['SISTEMAS', 'COMPRAS'].includes(user.role) && 
+    return user.accessibleModules?.includes('RECLUTAMIENTO') && 
            vacancy.estatus === 'Aprobada' && 
            vacancy.solicitante?.user?.id === user.id;
   };
 
-  if (!user || !['SISTEMAS', 'COMPRAS'].includes(user.role)) {
+  if (!user || !user.accessibleModules?.includes('RECLUTAMIENTO')) {
     return (
       <DashboardLayout>
         <div className="p-6">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <h2 className="text-red-800 font-semibold">Acceso denegado</h2>
-            <p className="text-red-600 mt-1">Solo los jefes de área pueden acceder a esta sección.</p>
+            <p className="text-red-600 mt-1">No tienes acceso al módulo de Reclutamiento.</p>
           </div>
         </div>
       </DashboardLayout>
@@ -296,11 +320,11 @@ export default function TechnicalProfilePage() {
               )}
             </div>
 
-            {/* Actividades (opcional) */}
+            {/* Actividades Principales */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Actividades Principales (Opcional)</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Actividades Principales *</h3>
               <p className="text-sm text-gray-600 mb-4">
-                Describe las principales actividades y responsabilidades del puesto.
+                Describe las principales actividades y responsabilidades del puesto. Estas serán utilizadas para definir el alcance del puesto.
               </p>
               
               <div className="mb-4">
@@ -319,21 +343,26 @@ export default function TechnicalProfilePage() {
                   <button
                     type="button"
                     onClick={addActivity}
-                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md font-medium"
+                    className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md font-medium"
                   >
                     Agregar
                   </button>
                 </div>
               </div>
               
-              {formData.actividades.length > 0 && (
+                  {formData.actividades.length > 0 ? (
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium text-gray-700">Actividades definidas:</h4>
                   <ul className="space-y-2">
                     {formData.actividades.map((activity, index) => (
                       <li key={index} className="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg">
                         <div className="flex items-center">
-                          <span className="text-gray-700">{activity}</span>
+                          <span className="text-gray-700">{activity.description}</span>
+                          {activity.priority && (
+                            <span className="ml-2 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                              Prioridad: {activity.priority}
+                            </span>
+                          )}
                         </div>
                         <button
                           type="button"
@@ -347,6 +376,10 @@ export default function TechnicalProfilePage() {
                       </li>
                     ))}
                   </ul>
+                </div>
+              ) : (
+                <div className="text-center py-4 border-2 border-dashed border-gray-300 rounded-lg">
+                  <p className="text-gray-500">No hay actividades definidas aún.</p>
                 </div>
               )}
             </div>
@@ -372,7 +405,7 @@ export default function TechnicalProfilePage() {
               </Link>
               <button
                 type="submit"
-                disabled={submitting || formData.perfil_tecnico_detallado.length === 0}
+                disabled={submitting || formData.perfil_tecnico_detallado.length === 0 || formData.actividades.length === 0}
                 className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? 'Enviando...' : 'Definir Perfil y Comenzar Búsqueda'}
@@ -382,5 +415,13 @@ export default function TechnicalProfilePage() {
         </form>
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function TechnicalProfilePage() {
+  return (
+    <ProtectedRoute requiredModule="RECLUTAMIENTO">
+      <TechnicalProfilePageContent />
+    </ProtectedRoute>
   );
 }

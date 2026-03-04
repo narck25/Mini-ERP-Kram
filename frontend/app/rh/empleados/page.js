@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import api from '@/lib/api';
+import api, { employeeApi } from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
-export default function EmpleadosPage() {
+function EmpleadosPageContent() {
   const { user } = useAuth();
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -35,14 +36,19 @@ export default function EmpleadosPage() {
     nss: '',
     fecha_ingreso: '',
     estatus: 'Activo',
-    puesto: '',
+    puestoId: '',
     departamento_id: '',
     salary: '',
+    jefeDirecto: '',
+    sd: '',
+    sdi: '',
+    nivelJerarquico: 'OPERATIVO',
+    reportaAId: '',
     userId: ''
   });
 
   useEffect(() => {
-    if (user && ['RH', 'ADMIN'].includes(user.role)) {
+    if (user && (user.role === 'RH' || user.role === 'ADMIN' || user.accessibleModules?.includes('EMPLEADOS'))) {
       fetchEmployees();
       fetchDepartments();
     }
@@ -134,32 +140,77 @@ export default function EmpleadosPage() {
     }
   };
 
+  const handleDeletePermanently = async (id, employeeName) => {
+    if (!confirm(`¿Estás SEGURO de que deseas ELIMINAR PERMANENTEMENTE al empleado "${employeeName}"?\n\n⚠️ ADVERTENCIA: Esta acción es IRREVERSIBLE y eliminará todos los datos del empleado de la base de datos.\n\nSolo se puede eliminar si el empleado no tiene documentos ni vacantes de trabajo asociadas.`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/employees/${id}/permanent`);
+      toast.success('Empleado eliminado permanentemente exitosamente');
+      fetchEmployees();
+    } catch (error) {
+      console.error('Error deleting employee permanently:', error);
+      if (error.response?.data?.error) {
+        // Mostrar el mensaje de error específico del backend
+        let errorMessage = error.response.data.error;
+        
+        // Si hay detalles adicionales, mostrarlos también
+        if (error.response.data.details) {
+          const details = error.response.data.details;
+          if (details.documentsCount > 0 || details.jobVacanciesCount > 0) {
+            errorMessage += `\n\n📄 Documentos asociados: ${details.documentsCount || 0}\n📋 Vacantes asociadas: ${details.jobVacanciesCount || 0}`;
+          }
+        }
+        
+        toast.error(errorMessage, {
+          duration: 5000, // Mostrar por más tiempo
+          style: {
+            maxWidth: '500px',
+            whiteSpace: 'pre-line' // Permitir saltos de línea
+          }
+        });
+      } else {
+        toast.error('Error al eliminar el empleado permanentemente');
+      }
+    }
+  };
+
   const handleEditClick = (employee) => {
     setSelectedEmployee(employee);
     setFormData({
-      nombre: employee.nombre,
-      rfc: employee.rfc,
-      curp: employee.curp,
-      nss: employee.nss,
-      fecha_ingreso: employee.fecha_ingreso.split('T')[0],
-      estatus: employee.estatus,
-      puesto: employee.puesto,
-      departamento_id: employee.departamento_id,
+      nombre: employee.nombre || '',
+      rfc: employee.rfc || '',
+      curp: employee.curp || '',
+      nss: employee.nss || '',
+      fecha_ingreso: employee.fecha_ingreso || employee.fechaAlta ? (employee.fecha_ingreso || employee.fechaAlta).split('T')[0] : '',
+      estatus: employee.estatus || 'Activo',
+      puestoId: employee.puestoId || '',
+      departamento_id: employee.departamento_id || '',
       salary: employee.salary || '',
+      jefeDirecto: employee.jefeDirecto || '',
+      sd: employee.sd || '',
+      sdi: employee.sdi || '',
+      nivelJerarquico: employee.nivelJerarquico || 'OPERATIVO',
+      reportaAId: employee.reportaAId || '',
       userId: employee.userId || ''
     });
     setShowEditModal(true);
   };
 
   const handleExport = async () => {
-    try {
-      const params = new URLSearchParams();
-      if (filters.estatus) params.append('estatus', filters.estatus);
-      if (filters.departamento_id) params.append('departamento_id', filters.departamento_id);
+    // Verificar que el usuario esté autenticado y tenga acceso al módulo de Empleados
+    if (!user || !user.accessibleModules?.includes('EMPLEADOS')) {
+      toast.error('No tienes permisos para exportar empleados');
+      return;
+    }
 
-      const response = await api.get(`/employees/export?${params.toString()}`, {
-        responseType: 'blob'
-      });
+    try {
+      const params = {};
+      if (filters.estatus) params.estatus = filters.estatus;
+      if (filters.departamento_id) params.departamento_id = filters.departamento_id;
+
+      const response = await employeeApi.export(params);
 
       // Crear un enlace para descargar el archivo
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -173,7 +224,41 @@ export default function EmpleadosPage() {
       toast.success('Empleados exportados exitosamente');
     } catch (error) {
       console.error('Error exporting employees:', error);
-      toast.error('Error al exportar empleados');
+      if (error.response?.status === 401) {
+        toast.error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+      } else {
+        toast.error('Error al exportar empleados');
+      }
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    // Verificar que el usuario esté autenticado y tenga acceso al módulo de Empleados
+    if (!user || !user.accessibleModules?.includes('EMPLEADOS')) {
+      toast.error('No tienes permisos para descargar la plantilla');
+      return;
+    }
+
+    try {
+      const response = await employeeApi.downloadTemplate();
+
+      // Crear un enlace para descargar el archivo
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'plantilla_importacion_empleados.csv');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      toast.success('Plantilla descargada exitosamente');
+    } catch (error) {
+      console.error('Error downloading template:', error);
+      if (error.response?.status === 401) {
+        toast.error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+      } else {
+        toast.error('Error al descargar la plantilla');
+      }
     }
   };
 
@@ -189,20 +274,35 @@ export default function EmpleadosPage() {
 
     try {
       setImporting(true);
-      const response = await api.post('/employees/import', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      const response = await employeeApi.import(formData);
 
       setImportResults(response.data);
-      toast.success(`Importación completada: ${response.data.imported} empleados importados`);
-      setShowImportModal(false);
-      setCsvFile(null);
-      fetchEmployees();
+      
+      if (response.data.errors && response.data.errors > 0) {
+        toast.error(`Importación completada con ${response.data.errors} errores`);
+      } else {
+        toast.success(`Importación completada exitosamente: ${response.data.imported} empleados importados`);
+        setShowImportModal(false);
+        setCsvFile(null);
+        fetchEmployees();
+      }
     } catch (error) {
       console.error('Error importing employees:', error);
-      toast.error(error.response?.data?.error || 'Error al importar empleados');
+      
+      if (error.response?.data?.errors) {
+        // Mostrar errores de validación
+        setImportResults({
+          imported: 0,
+          errors: error.response.data.errors.length,
+          errorDetails: error.response.data.errors,
+          summary: error.response.data.summary
+        });
+        toast.error(`Errores de validación: ${error.response.data.errors.length} errores encontrados`);
+      } else if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error(error.response?.data?.error || 'Error al importar empleados');
+      }
     } finally {
       setImporting(false);
     }
@@ -216,9 +316,14 @@ export default function EmpleadosPage() {
       nss: '',
       fecha_ingreso: '',
       estatus: 'Activo',
-      puesto: '',
+      puestoId: '',
       departamento_id: '',
       salary: '',
+      jefeDirecto: '',
+      sd: '',
+      sdi: '',
+      nivelJerarquico: 'OPERATIVO',
+      reportaAId: '',
       userId: ''
     });
   };
@@ -231,13 +336,13 @@ export default function EmpleadosPage() {
     }
   };
 
-  if (!user || !['RH', 'ADMIN'].includes(user.role)) {
+  if (!user || (user.role !== 'RH' && user.role !== 'ADMIN' && !user.accessibleModules?.includes('EMPLEADOS'))) {
     return (
       <DashboardLayout>
         <div className="p-6">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <h2 className="text-red-800 font-semibold">Acceso denegado</h2>
-            <p className="text-red-600 mt-1">Solo el personal de RH puede acceder a esta sección.</p>
+            <p className="text-red-600 mt-1">No tienes permisos para acceder a la sección de Empleados.</p>
           </div>
         </div>
       </DashboardLayout>
@@ -255,6 +360,12 @@ export default function EmpleadosPage() {
               <p className="text-gray-600">Administra el expediente digital de los empleados de la empresa</p>
             </div>
             <div className="flex gap-3">
+              <button
+                onClick={handleDownloadTemplate}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
+              >
+                Descargar Plantilla
+              </button>
               <button
                 onClick={() => setShowImportModal(true)}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
@@ -381,12 +492,14 @@ export default function EmpleadosPage() {
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
                             <span className="text-blue-600 font-semibold">
-                              {employee.nombre.charAt(0)}
+                              {employee.nombre ? employee.nombre.charAt(0) : '?'}
                             </span>
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{employee.nombre}</div>
-                            <div className="text-sm text-gray-500">{employee.puesto}</div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {employee.nombres || ''} {employee.apellidoPaterno || ''} {employee.apellidoMaterno || ''}
+                            </div>
+                            <div className="text-sm text-gray-500">{employee.puesto?.nombre || 'Sin puesto asignado'}</div>
                           </div>
                         </div>
                       </td>
@@ -408,10 +521,10 @@ export default function EmpleadosPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {new Date(employee.fecha_ingreso).toLocaleDateString()}
+                          {employee.fecha_ingreso || employee.fechaAlta ? new Date(employee.fecha_ingreso || employee.fechaAlta).toLocaleDateString('es-MX') : 'No especificada'}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {employee.salary ? `$${employee.salary.toLocaleString()}` : 'Sin salario'}
+                          {employee.salarioMensual || employee.salary ? `$${(employee.salarioMensual || employee.salary).toLocaleString('es-MX')}` : 'Sin salario'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -427,6 +540,13 @@ export default function EmpleadosPage() {
                             className="text-red-600 hover:text-red-900"
                           >
                             Baja
+                          </button>
+                          <button
+                            onClick={() => handleDeletePermanently(employee.id, employee.nombres || employee.nombre || 'Empleado')}
+                            className="text-red-800 hover:text-red-900 font-bold"
+                            title="Eliminar permanentemente"
+                          >
+                            Eliminar
                           </button>
                           <Link
                             href={`/rh/empleados/${employee.id}`}
@@ -528,13 +648,14 @@ export default function EmpleadosPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Puesto *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Puesto ID *</label>
                       <input
                         type="text"
                         required
-                        value={formData.puesto}
-                        onChange={(e) => setFormData({ ...formData, puesto: e.target.value })}
+                        value={formData.puestoId}
+                        onChange={(e) => setFormData({ ...formData, puestoId: e.target.value })}
                         className="form-input"
+                        placeholder="ID del puesto (ej: clm...)"
                       />
                     </div>
                     <div>
@@ -559,6 +680,63 @@ export default function EmpleadosPage() {
                         value={formData.salary}
                         onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
                         className="form-input"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Jefe Directo</label>
+                      <input
+                        type="text"
+                        value={formData.jefeDirecto}
+                        onChange={(e) => setFormData({ ...formData, jefeDirecto: e.target.value })}
+                        className="form-input"
+                        placeholder="Nombre del jefe directo"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">SD (Sueldo Diario)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.sd}
+                        onChange={(e) => setFormData({ ...formData, sd: e.target.value })}
+                        className="form-input"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">SDI (Sueldo Diario Integrado)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.sdi}
+                        onChange={(e) => setFormData({ ...formData, sdi: e.target.value })}
+                        className="form-input"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nivel Jerárquico</label>
+                      <select
+                        value={formData.nivelJerarquico}
+                        onChange={(e) => setFormData({ ...formData, nivelJerarquico: e.target.value })}
+                        className="form-select"
+                      >
+                        <option value="OPERATIVO">Operativo</option>
+                        <option value="SUPERVISOR">Supervisor</option>
+                        <option value="GERENTE">Gerente</option>
+                        <option value="DIRECTOR">Director</option>
+                        <option value="VICEPRESIDENTE">Vicepresidente</option>
+                        <option value="PRESIDENTE">Presidente</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Reporta a (ID de empleado)</label>
+                      <input
+                        type="text"
+                        value={formData.reportaAId}
+                        onChange={(e) => setFormData({ ...formData, reportaAId: e.target.value })}
+                        className="form-input"
+                        placeholder="ID del jefe directo"
                       />
                     </div>
                     <div>
@@ -680,13 +858,14 @@ export default function EmpleadosPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Puesto *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Puesto ID *</label>
                       <input
                         type="text"
                         required
-                        value={formData.puesto}
-                        onChange={(e) => setFormData({ ...formData, puesto: e.target.value })}
+                        value={formData.puestoId}
+                        onChange={(e) => setFormData({ ...formData, puestoId: e.target.value })}
                         className="form-input"
+                        placeholder="ID del puesto (ej: clm...)"
                       />
                     </div>
                     <div>
@@ -711,6 +890,63 @@ export default function EmpleadosPage() {
                         value={formData.salary}
                         onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
                         className="form-input"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Jefe Directo</label>
+                      <input
+                        type="text"
+                        value={formData.jefeDirecto}
+                        onChange={(e) => setFormData({ ...formData, jefeDirecto: e.target.value })}
+                        className="form-input"
+                        placeholder="Nombre del jefe directo"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">SD (Sueldo Diario)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.sd}
+                        onChange={(e) => setFormData({ ...formData, sd: e.target.value })}
+                        className="form-input"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">SDI (Sueldo Diario Integrado)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.sdi}
+                        onChange={(e) => setFormData({ ...formData, sdi: e.target.value })}
+                        className="form-input"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nivel Jerárquico</label>
+                      <select
+                        value={formData.nivelJerarquico}
+                        onChange={(e) => setFormData({ ...formData, nivelJerarquico: e.target.value })}
+                        className="form-select"
+                      >
+                        <option value="OPERATIVO">Operativo</option>
+                        <option value="SUPERVISOR">Supervisor</option>
+                        <option value="GERENTE">Gerente</option>
+                        <option value="DIRECTOR">Director</option>
+                        <option value="VICEPRESIDENTE">Vicepresidente</option>
+                        <option value="PRESIDENTE">Presidente</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Reporta a (ID de empleado)</label>
+                      <input
+                        type="text"
+                        value={formData.reportaAId}
+                        onChange={(e) => setFormData({ ...formData, reportaAId: e.target.value })}
+                        className="form-input"
+                        placeholder="ID del jefe directo"
                       />
                     </div>
                     <div>
@@ -850,5 +1086,13 @@ export default function EmpleadosPage() {
         )}
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function EmpleadosPage() {
+  return (
+    <ProtectedRoute requiredModule="EMPLEADOS">
+      <EmpleadosPageContent />
+    </ProtectedRoute>
   );
 }

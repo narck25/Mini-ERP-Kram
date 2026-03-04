@@ -1,49 +1,153 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-// Crear nueva vacante (para jefes de área)
+// Crear nueva vacante (formulario digitalizado)
 exports.createVacancy = async (req, res) => {
   try {
-    const { title, description, department, position, salaryRange, requirements, responsibilities } = req.body;
+    const {
+      // Información de la Vacante
+      titulo,
+      nombrePuesto,
+      departamento_id, // Cambiado de 'departamento' a 'departamento_id'
+      reportaA,
+      numeroVacantes,
+      motivoSolicitud,
+      personaAReemplazar,
+      
+      // Requerimientos de Sistemas (Infraestructura)
+      requiereLaptop,
+      requierePC,
+      requiereMovil,
+      requiereExtension,
+      ubicacionFisica,
+      otrosRequerimientos,
+      
+      // Modalidad y Promoción Interna
+      tipoContratacion,
+      candidatoPromocion,
+      cargoPromocion,
+      observaciones,
+      
+      // Proceso de Entrevista
+      entrevistadorTecnico,
+      entrevistadorRespaldo,
+      conocimientosExtra,
+      
+      // ID del solicitante
+      solicitanteId
+    } = req.body;
+
     const userId = req.user.id;
 
-    // Verificar que el usuario sea un jefe de área (SISTEMAS o COMPRAS)
-    if (!['SISTEMAS', 'COMPRAS'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Solo los jefes de área pueden crear vacantes' });
+    // Verificar que el usuario esté autenticado
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
-    // Buscar o crear el empleado asociado al usuario
-    let employee = await prisma.employee.findUnique({
-      where: { userId }
-    });
-
-    if (!employee) {
-      // Crear empleado si no existe
-      employee = await prisma.employee.create({
-        data: {
-          userId,
-          department: req.user.role === 'SISTEMAS' ? 'Sistemas' : 'Compras',
-          position: 'Jefe de Área',
-          hireDate: new Date()
-        }
+    // Si el usuario es RH o ADMIN, puede crear vacantes en nombre de cualquier empleado
+    // Si no es RH/ADMIN, solo puede crear vacantes para sí mismo
+    if (!['RH', 'ADMIN'].includes(req.user.role)) {
+      // Verificar que el solicitanteId coincida con el empleado del usuario
+      const employee = await prisma.employee.findUnique({
+        where: { userId }
       });
+
+      if (!employee) {
+        return res.status(404).json({ error: 'Empleado no encontrado' });
+      }
+
+      if (employee.id !== solicitanteId) {
+        return res.status(403).json({ error: 'No autorizado para crear vacantes en nombre de otro empleado' });
+      }
+    } else {
+      // Para RH/ADMIN, verificar que el solicitanteId exista
+      const solicitante = await prisma.employee.findUnique({
+        where: { id: solicitanteId }
+      });
+
+      if (!solicitante) {
+        return res.status(404).json({ error: 'Empleado solicitante no encontrado' });
+      }
     }
 
-    // Crear la vacante
+    // Validar campos requeridos según el nuevo schema
+    // titulo ya no es requerido (es opcional en el schema)
+    // departamento_id puede ser un ID o un nombre de departamento
+    // Verificar que no sean strings vacíos
+    if (!departamento_id || !departamento_id.trim() || !motivoSolicitud || !motivoSolicitud.trim() || !tipoContratacion || !tipoContratacion.trim()) {
+      return res.status(400).json({ error: 'Faltan campos requeridos: departamento_id, motivo de solicitud, tipo de contratación' });
+    }
+
+    // Manejar departamento_id: puede ser un ID de departamento o un nombre
+    let departamento_id_final = null;
+    
+    // Primero intentar buscar por ID (si parece un UUID/CUID)
+    if (departamento_id.match(/^[a-z0-9]{25}$/)) { // CUID típico
+      const departmentById = await prisma.department.findUnique({
+        where: { id: departamento_id }
+      });
+      
+      if (departmentById) {
+        departamento_id_final = departmentById.id;
+      }
+    }
+    
+    // Si no se encontró por ID, buscar por nombre
+    if (!departamento_id_final) {
+      const departmentByName = await prisma.department.findFirst({
+        where: { nombre: { equals: departamento_id, mode: 'insensitive' } }
+      });
+      
+      if (departmentByName) {
+        departamento_id_final = departmentByName.id;
+      } else {
+        // Crear nuevo departamento si no existe
+        const newDepartment = await prisma.department.create({
+          data: {
+            nombre: departamento_id,
+            descripcion: `Departamento creado automáticamente para vacante`
+          }
+        });
+        departamento_id_final = newDepartment.id;
+      }
+    }
+
+    // Crear la vacante con los nuevos campos
     const vacancy = await prisma.jobVacancy.create({
       data: {
-        title,
-        description,
-        department,
-        position,
-        salaryRange,
-        requirements: requirements || [],
-        responsibilities: responsibilities || [],
-        createdById: employee.id,
-        status: 'PENDIENTE'
+        // Información de la Vacante (campos requeridos por Prisma)
+        titulo: titulo || nombrePuesto || 'Vacante sin título', // Usar titulo o nombrePuesto como fallback
+        departamento_id: departamento_id_final, // Usar el ID final (puede ser el original o uno nuevo)
+        reportaA,
+        numeroVacantes: parseInt(numeroVacantes) || 1,
+        motivoSolicitud,
+        personaAReemplazar: personaAReemplazar || null,
+        
+        // Requerimientos de Sistemas (Infraestructura)
+        requiereLaptop: Boolean(requiereLaptop),
+        requierePC: Boolean(requierePC),
+        requiereMovil: Boolean(requiereMovil),
+        requiereExtension: Boolean(requiereExtension),
+        ubicacionFisica: ubicacionFisica || null,
+        otrosRequerimientos: otrosRequerimientos || null,
+        
+        // Modalidad y Promoción Interna
+        tipoContratacion,
+        candidatoPromocion: candidatoPromocion || null,
+        cargoPromocion: cargoPromocion || null,
+        observaciones: observaciones || null,
+        
+        // Proceso de Entrevista
+        entrevistadorTecnico,
+        entrevistadorRespaldo: entrevistadorRespaldo || null,
+        conocimientosExtra: conocimientosExtra || null,
+        
+        // Relaciones
+        solicitanteId,
+        // Estado por defecto - no necesario porque tiene @default(Solicitada) en schema.prisma
       },
       include: {
-        createdBy: {
+        solicitante: {
           include: {
             user: {
               select: {
@@ -53,17 +157,24 @@ exports.createVacancy = async (req, res) => {
               }
             }
           }
-        }
+        },
+        departamento: true
       }
     });
 
     res.status(201).json({
-      message: 'Vacante creada exitosamente',
+      message: 'Solicitud de vacante creada exitosamente',
       vacancy
     });
   } catch (error) {
     console.error('Error creating vacancy:', error);
-    res.status(500).json({ error: 'Error al crear la vacante' });
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+      stack: error.stack
+    });
+    res.status(500).json({ error: 'Error al crear la solicitud de vacante', details: error.message });
   }
 };
 
@@ -82,9 +193,9 @@ exports.getMyVacancies = async (req, res) => {
     }
 
     const vacancies = await prisma.jobVacancy.findMany({
-      where: { createdById: employee.id },
+      where: { solicitanteId: employee.id },
       include: {
-        createdBy: {
+        solicitante: {
           include: {
             user: {
               select: {
@@ -95,17 +206,26 @@ exports.getMyVacancies = async (req, res) => {
             }
           }
         },
-        approvedBy: {
+        departamento: true,
+        autorizadoPor: {
           select: {
             id: true,
-            name: true,
-            email: true
+            nombre: true
           }
+        },
+        voBoPor: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        },
+        JobActivity: {
+          orderBy: { priority: 'desc' }
         },
         _count: {
           select: {
-            candidates: true,
-            activities: true
+            Candidate: true,
+            JobActivity: true
           }
         }
       },
@@ -122,21 +242,24 @@ exports.getMyVacancies = async (req, res) => {
 // Obtener todas las vacantes (para RH)
 exports.getAllVacancies = async (req, res) => {
   try {
-    // Verificar que el usuario sea RH o ADMIN
-    if (!['RH', 'ADMIN'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Acceso denegado' });
-    }
-
     const { status, department } = req.query;
     
     const where = {};
-    if (status) where.status = status;
-    if (department) where.department = department;
+    if (status) where.estatus = status;
+    if (department) {
+      // Buscar departamento por nombre para obtener su ID
+      const dept = await prisma.department.findFirst({
+        where: { nombre: { equals: department, mode: 'insensitive' } }
+      });
+      if (dept) {
+        where.departamento_id = dept.id;
+      }
+    }
 
     const vacancies = await prisma.jobVacancy.findMany({
       where,
       include: {
-        createdBy: {
+        solicitante: {
           include: {
             user: {
               select: {
@@ -147,17 +270,26 @@ exports.getAllVacancies = async (req, res) => {
             }
           }
         },
-        approvedBy: {
+        departamento: true,
+        autorizadoPor: {
           select: {
             id: true,
-            name: true,
-            email: true
+            nombre: true
           }
+        },
+        voBoPor: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        },
+        JobActivity: {
+          orderBy: { priority: 'desc' }
         },
         _count: {
           select: {
-            candidates: true,
-            activities: true
+            Candidate: true,
+            JobActivity: true
           }
         }
       },
@@ -174,23 +306,32 @@ exports.getAllVacancies = async (req, res) => {
 // Aprobar vacante (para RH)
 exports.approveVacancy = async (req, res) => {
   try {
-    // Verificar que el usuario sea RH o ADMIN
-    if (!['RH', 'ADMIN'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Solo RH puede aprobar vacantes' });
-    }
-
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, autorizadoPorId, voBoPorId } = req.body;
 
-    if (!['APROBADA', 'BUSCANDO', 'CERRADA'].includes(status)) {
+    // Convertir los estados del frontend a los valores del enum
+    let estatus;
+    if (status === 'APROBADA') estatus = 'Aprobada';
+    else if (status === 'BUSCANDO') estatus = 'Buscando';
+    else if (status === 'CERRADA') estatus = 'Cerrada';
+    else {
       return res.status(400).json({ error: 'Estado inválido' });
     }
 
     const updateData = {
-      status,
-      approvedById: req.user.id,
-      approvedAt: new Date()
+      estatus,
+      fechaAutorizacion: new Date()
     };
+
+    // Si es aprobación por Director de Área
+    if (autorizadoPorId) {
+      updateData.autorizadoPorId = autorizadoPorId;
+    }
+
+    // Si es Visto Bueno por Director RH
+    if (voBoPorId) {
+      updateData.voBoPorId = voBoPorId;
+    }
 
     if (status === 'CERRADA') {
       updateData.closedAt = new Date();
@@ -200,7 +341,7 @@ exports.approveVacancy = async (req, res) => {
       where: { id },
       data: updateData,
       include: {
-        createdBy: {
+        solicitante: {
           include: {
             user: {
               select: {
@@ -211,11 +352,17 @@ exports.approveVacancy = async (req, res) => {
             }
           }
         },
-        approvedBy: {
+        departamento: true,
+        autorizadoPor: {
           select: {
             id: true,
-            name: true,
-            email: true
+            nombre: true
+          }
+        },
+        voBoPor: {
+          select: {
+            id: true,
+            nombre: true
           }
         }
       }
@@ -239,7 +386,7 @@ exports.getVacancyById = async (req, res) => {
     const vacancy = await prisma.jobVacancy.findUnique({
       where: { id },
       include: {
-        createdBy: {
+        solicitante: {
           include: {
             user: {
               select: {
@@ -250,14 +397,20 @@ exports.getVacancyById = async (req, res) => {
             }
           }
         },
-        approvedBy: {
+        departamento: true,
+        autorizadoPor: {
           select: {
             id: true,
-            name: true,
-            email: true
+            nombre: true
           }
         },
-        activities: {
+        voBoPor: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        },
+        JobActivity: {
           orderBy: { priority: 'desc' }
         },
         candidates: {
@@ -280,11 +433,6 @@ exports.getVacancyById = async (req, res) => {
 // Agregar actividades a una vacante (para RH)
 exports.addActivity = async (req, res) => {
   try {
-    // Verificar que el usuario sea RH o ADMIN
-    if (!['RH', 'ADMIN'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Solo RH puede agregar actividades' });
-    }
-
     const { id } = req.params;
     const { activityType, description, duration, priority } = req.body;
 
@@ -297,7 +445,7 @@ exports.addActivity = async (req, res) => {
       return res.status(404).json({ error: 'Vacante no encontrada' });
     }
 
-    if (vacancy.status !== 'APROBADA' && vacancy.status !== 'BUSCANDO') {
+    if (vacancy.estatus !== 'Aprobada' && vacancy.estatus !== 'Buscando') {
       return res.status(400).json({ error: 'Solo se pueden agregar actividades a vacantes aprobadas' });
     }
 
@@ -312,10 +460,10 @@ exports.addActivity = async (req, res) => {
     });
 
     // Actualizar estado a BUSCANDO si es la primera actividad
-    if (vacancy.status === 'APROBADA') {
+    if (vacancy.estatus === 'Aprobada') {
       await prisma.jobVacancy.update({
         where: { id },
-        data: { status: 'BUSCANDO' }
+        data: { estatus: 'Buscando' }
       });
     }
 
@@ -357,17 +505,17 @@ exports.updateActivity = async (req, res) => {
 exports.getVacancyStats = async (req, res) => {
   try {
     const stats = await prisma.jobVacancy.groupBy({
-      by: ['status'],
+      by: ['estatus'],
       _count: {
         id: true
       }
     });
 
     const total = await prisma.jobVacancy.count();
-    const pending = await prisma.jobVacancy.count({ where: { status: 'PENDIENTE' } });
-    const approved = await prisma.jobVacancy.count({ where: { status: 'APROBADA' } });
-    const searching = await prisma.jobVacancy.count({ where: { status: 'BUSCANDO' } });
-    const closed = await prisma.jobVacancy.count({ where: { status: 'CERRADA' } });
+    const pending = await prisma.jobVacancy.count({ where: { estatus: 'Solicitada' } });
+    const approved = await prisma.jobVacancy.count({ where: { estatus: 'Aprobada' } });
+    const searching = await prisma.jobVacancy.count({ where: { estatus: 'Buscando' } });
+    const closed = await prisma.jobVacancy.count({ where: { estatus: 'Cerrada' } });
 
     res.json({
       total,

@@ -8,8 +8,9 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import CandidatesTab from './CandidatesTab';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
-export default function VacancyDetailPage() {
+function VacancyDetailPageContent() {
   const { id } = useParams();
   const router = useRouter();
   const { user } = useAuth();
@@ -109,14 +110,47 @@ export default function VacancyDetailPage() {
     }
   };
 
+  // Función para formatear valores de enum
+  const formatEnumValue = (value) => {
+    if (!value) return 'No especificado';
+    return value
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
+  // Función para formatear booleanos
+  const formatBoolean = (value) => {
+    return value ? '✅ Sí' : '❌ No';
+  };
+
+  // Función para formatear fecha
+  const formatDate = (date) => {
+    if (!date) return 'No especificada';
+    return new Date(date).toLocaleDateString('es-MX', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Función para verificar si es reemplazo
+  const isReemplazo = (motivo) => {
+    return motivo && motivo.includes('REEMPLAZO');
+  };
+
   const canComment = () => {
     if (!user || !vacancy) return false;
     
-    // RH y ADMIN pueden comentar siempre
-    if (['RH', 'ADMIN'].includes(user.role)) return true;
-    
-    // Jefes de área solo pueden comentar en sus propias solicitudes
-    if (['SISTEMAS', 'COMPRAS'].includes(user.role)) {
+    // Usuarios con acceso al módulo de Reclutamiento pueden comentar
+    if (user.accessibleModules?.includes('RECLUTAMIENTO')) {
+      // RH y ADMIN pueden comentar siempre
+      if (user.role === 'RH' || user.role === 'ADMIN') return true;
+      
+      // Jefes de área solo pueden comentar en sus propias solicitudes
       return vacancy.solicitante?.user?.id === user.id;
     }
     
@@ -124,26 +158,28 @@ export default function VacancyDetailPage() {
   };
 
   const canApprove = () => {
-    return user && ['RH', 'ADMIN'].includes(user.role) && vacancy?.estatus === 'Solicitada';
+    return user && (user.role === 'RH' || user.role === 'ADMIN') && 
+           vacancy?.estatus === 'Solicitada';
   };
 
   const canClose = () => {
-    return user && ['RH', 'ADMIN'].includes(user.role) && vacancy?.estatus !== 'Cerrada';
+    return user && (user.role === 'RH' || user.role === 'ADMIN') && 
+           vacancy?.estatus !== 'Cerrada';
   };
 
   const canDefineTechnicalProfile = () => {
-    return user && ['SISTEMAS', 'COMPRAS'].includes(user.role) && 
+    return user && user.accessibleModules?.includes('RECLUTAMIENTO') && 
            vacancy?.estatus === 'Aprobada' && 
            vacancy?.solicitante?.user?.id === user.id;
   };
 
-  if (!user || !['RH', 'ADMIN', 'SISTEMAS', 'COMPRAS'].includes(user.role)) {
+  if (!user || !user.accessibleModules?.includes('RECLUTAMIENTO')) {
     return (
       <DashboardLayout>
         <div className="p-6">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <h2 className="text-red-800 font-semibold">Acceso denegado</h2>
-            <p className="text-red-600 mt-1">Solo el personal autorizado puede acceder a esta sección.</p>
+            <p className="text-red-600 mt-1">No tienes acceso al módulo de Reclutamiento.</p>
           </div>
         </div>
       </DashboardLayout>
@@ -192,7 +228,7 @@ export default function VacancyDetailPage() {
               <h1 className="text-2xl font-bold text-gray-900">{vacancy.titulo}</h1>
               <div className="flex items-center space-x-4 mt-2">
                 <Link
-                  href={['RH', 'ADMIN'].includes(user.role) ? '/rh/reclutamiento' : '/reclutamiento/mis-solicitudes'}
+                  href={(user.role === 'RH' || user.role === 'ADMIN') ? '/rh/reclutamiento' : '/reclutamiento/mis-solicitudes'}
                   className="text-blue-600 hover:text-blue-800 font-medium"
                 >
                   ← Volver
@@ -275,71 +311,219 @@ export default function VacancyDetailPage() {
         {/* Contenido de las pestañas */}
         {activeTab === 'info' && (
           <div className="space-y-6">
-            {/* Información básica */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Información de la Solicitud</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Detalles generales</h4>
-                  <div className="space-y-2">
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">Departamento:</span>
-                      <p className="text-sm text-gray-600">{vacancy.departamento?.nombre}</p>
-                    </div>
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">Solicitante:</span>
-                      <p className="text-sm text-gray-600">{vacancy.solicitante?.user?.name} ({vacancy.solicitante?.user?.email})</p>
-                    </div>
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">Fecha de solicitud:</span>
-                      <p className="text-sm text-gray-600">
-                        {new Date(vacancy.createdAt).toLocaleDateString('es-MX', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </p>
-                    </div>
+            {/* Grid de tarjetas */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Tarjeta 1: Información de la Vacante */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Información de la Vacante</h3>
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Nombre del Puesto:</span>
+                    <p className="text-sm text-gray-600 mt-1">{vacancy.nombrePuesto || vacancy.titulo}</p>
                   </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Departamento:</span>
+                    <p className="text-sm text-gray-600 mt-1">{vacancy.departamento?.nombre || 'No especificado'}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Reporta a:</span>
+                    <p className="text-sm text-gray-600 mt-1">{vacancy.reportaA || 'No especificado'}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Número de Vacantes:</span>
+                    <p className="text-sm text-gray-600 mt-1">{vacancy.numeroVacantes || 1}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Motivo de Solicitud:</span>
+                    <p className="text-sm text-gray-600 mt-1">{formatEnumValue(vacancy.motivoSolicitud)}</p>
+                  </div>
+                  {isReemplazo(vacancy.motivoSolicitud) && vacancy.personaAReemplazar && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Persona a Reemplazar:</span>
+                      <p className="text-sm text-gray-600 mt-1">{vacancy.personaAReemplazar}</p>
+                    </div>
+                  )}
                 </div>
-                
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Estado del proceso</h4>
-                  <div className="space-y-2">
+              </div>
+
+              {/* Tarjeta 2: Requerimientos de Infraestructura (Sistemas) */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Requerimientos de Infraestructura</h3>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <span className="text-sm font-medium text-gray-700">Estado actual:</span>
-                      <p className="text-sm text-gray-600">{getStatusText(vacancy.estatus)}</p>
+                      <span className="text-sm font-medium text-gray-700">Requiere Laptop:</span>
+                      <p className="text-sm text-gray-600 mt-1">{formatBoolean(vacancy.requiereLaptop)}</p>
                     </div>
                     <div>
-                      <span className="text-sm font-medium text-gray-700">Última actualización:</span>
-                      <p className="text-sm text-gray-600">
-                        {new Date(vacancy.updatedAt).toLocaleDateString('es-MX', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </p>
+                      <span className="text-sm font-medium text-gray-700">Requiere PC:</span>
+                      <p className="text-sm text-gray-600 mt-1">{formatBoolean(vacancy.requierePC)}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Requiere Móvil:</span>
+                      <p className="text-sm text-gray-600 mt-1">{formatBoolean(vacancy.requiereMovil)}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Requiere Extensión:</span>
+                      <p className="text-sm text-gray-600 mt-1">{formatBoolean(vacancy.requiereExtension)}</p>
                     </div>
                   </div>
+                  {vacancy.ubicacionFisica && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Ubicación Física:</span>
+                      <p className="text-sm text-gray-600 mt-1">{vacancy.ubicacionFisica}</p>
+                    </div>
+                  )}
+                  {vacancy.otrosRequerimientos && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Otros Requerimientos:</span>
+                      <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">{vacancy.otrosRequerimientos}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Tarjeta 3: Modalidad y Promoción Interna */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Modalidad y Promoción Interna</h3>
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Tipo de Contratación:</span>
+                    <p className="text-sm text-gray-600 mt-1">{formatEnumValue(vacancy.tipoContratacion)}</p>
+                  </div>
+                  {(vacancy.candidatoPromocion || vacancy.cargoPromocion) && (
+                    <>
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Candidato Promoción Interna:</span>
+                        <p className="text-sm text-gray-600 mt-1">{vacancy.candidatoPromocion || 'No especificado'}</p>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Cargo Actual:</span>
+                        <p className="text-sm text-gray-600 mt-1">{vacancy.cargoPromocion || 'No especificado'}</p>
+                      </div>
+                    </>
+                  )}
+                  {vacancy.observaciones && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Observaciones:</span>
+                      <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">{vacancy.observaciones}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Tarjeta 4: Proceso de Entrevista */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Proceso de Entrevista</h3>
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Entrevistador Técnico:</span>
+                    <p className="text-sm text-gray-600 mt-1">{vacancy.entrevistadorTecnico || 'No especificado'}</p>
+                  </div>
+                  {vacancy.entrevistadorRespaldo && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Entrevistador de Respaldo:</span>
+                      <p className="text-sm text-gray-600 mt-1">{vacancy.entrevistadorRespaldo}</p>
+                    </div>
+                  )}
+                  {vacancy.conocimientosExtra && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Conocimientos Extra:</span>
+                      <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">{vacancy.conocimientosExtra}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Requerimientos técnicos */}
-            {vacancy.requerimientos_tecnicos && vacancy.requerimientos_tecnicos.length > 0 && (
+            {/* Información adicional en una sola fila */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Información del Solicitante */}
               <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Requerimientos Técnicos</h3>
-                <ul className="list-disc list-inside text-sm text-gray-600 space-y-2">
-                  {vacancy.requerimientos_tecnicos.map((req, index) => (
-                    <li key={index}>{req}</li>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Información del Solicitante</h3>
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Solicitante:</span>
+                    <p className="text-sm text-gray-600 mt-1">{vacancy.solicitante?.user?.name || 'No especificado'}</p>
+                    <p className="text-xs text-gray-500 mt-1">{vacancy.solicitante?.user?.email || ''}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Fecha de Solicitud:</span>
+                    <p className="text-sm text-gray-600 mt-1">{formatDate(vacancy.createdAt)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Aprobaciones y Firmas */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Aprobaciones y Firmas</h3>
+                <div className="space-y-3">
+                  {vacancy.autorizadoPor && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Autorizado por:</span>
+                      <p className="text-sm text-gray-600 mt-1">{vacancy.autorizadoPor?.user?.name || vacancy.autorizadoPor?.nombre}</p>
+                      {vacancy.fechaAutorizacion && (
+                        <p className="text-xs text-gray-500 mt-1">Fecha: {formatDate(vacancy.fechaAutorizacion)}</p>
+                      )}
+                    </div>
+                  )}
+                  {vacancy.voBoPor && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">VoBo por:</span>
+                      <p className="text-sm text-gray-600 mt-1">{vacancy.voBoPor?.user?.name || vacancy.voBoPor?.nombre}</p>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Estado Actual:</span>
+                    <p className="text-sm text-gray-600 mt-1">{getStatusText(vacancy.estatus)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Perfil Técnico Detallado */}
+              {vacancy.requerimientos_tecnicos && vacancy.requerimientos_tecnicos.length > 0 && (
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Perfil Técnico Detallado</h3>
+                  <ul className="list-disc list-inside text-sm text-gray-600 space-y-2">
+                    {vacancy.requerimientos_tecnicos.map((req, index) => (
+                      <li key={index}>{req}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* Actividades Principales */}
+            {vacancy.JobActivity && vacancy.JobActivity.length > 0 && (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Actividades Principales</h3>
+                <div className="space-y-4">
+                  {vacancy.JobActivity.map((activity, index) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <span className="text-sm font-medium text-gray-700">Tipo de Actividad:</span>
+                          <p className="text-sm text-gray-600 mt-1">{activity.activityType}</p>
+                        </div>
+                        {activity.priority && (
+                          <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                            Prioridad: {activity.priority}
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Descripción:</span>
+                        <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">{activity.description}</p>
+                      </div>
+                      {activity.duration && (
+                        <div className="mt-2">
+                          <span className="text-sm font-medium text-gray-700">Duración:</span>
+                          <p className="text-sm text-gray-600 mt-1">{activity.duration}</p>
+                        </div>
+                      )}
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
           </div>
@@ -429,5 +613,13 @@ export default function VacancyDetailPage() {
         )}
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function VacancyDetailPage() {
+  return (
+    <ProtectedRoute requiredModule="RECLUTAMIENTO">
+      <VacancyDetailPageContent />
+    </ProtectedRoute>
   );
 }

@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,26 +7,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum RoleType {
-  ADMIN
-  RH
-  SISTEMAS
-  COMPRAS
-}
-
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      RoleType
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  sessions  Session[]
-  employee  Employee? // Relación con Employee
-  approvedVacancies JobVacancy[] @relation("approvedBy") // Vacantes aprobadas por este usuario
-  vacancyComments VacancyComment[] // Comentarios en vacantes RH
+  id                String           @id @default(cuid())
+  email             String           @unique
+  password          String
+  name              String
+  role              RoleType
+  accessibleModules ModuleType[]     @default([DASHBOARD])
+  isActive          Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  employee          Employee?
+  sessions          Session[]
+  VacancyComment    VacancyComment[]
 
   @@map("users")
 }
@@ -38,32 +28,296 @@ model Role {
   id          String   @id @default(cuid())
   name        RoleType @unique
   description String?
-  permissions Json     // JSON array of permission strings
+  permissions Json
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@map("roles")
 }
 
-// Tabla de sesiones para autenticación
 model Session {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
 }
 
-// Módulo de Reclutamiento
+model Employee {
+  id                    String             @id @default(cuid())
+  userId                String?            @unique
+  salarioMensual        Float?             @map("salary")
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  curp                  String             @unique
+  departamento_id       String
+  estatus               EmployeeStatus     @default(Activo)
+  fechaAlta             DateTime           @map("fecha_ingreso")
+  nss                   String             @unique
+  puestoId              String?
+  rfc                   String             @unique
+  apellidoMaterno       String?
+  apellidoPaterno       String?
+  area                  String?
+  banco                 String?
+  beneficiario1         String?
+  beneficiario2         String?
+  clabe                 String?
+  clave                 String?            @unique
+  contrato              String?
+  correoElectronico     String?
+  correoEmpresa         String?
+  cpFiscal              String?
+  direccionCompleta     String?
+  estado                String?
+  estadoCivil           String?
+  fechaBaja             DateTime?
+  fechaNacBeneficiario1 DateTime?
+  fechaNacBeneficiario2 DateTime?
+  fechaNacimiento       DateTime?
+  horario               String?
+  lugarNacimiento       String?
+  nacionalidad          String?
+  nivelAcademico        String?
+  nombreConyuge         String?
+  nombres               String?
+  numeroCuenta          String?
+  porcentaje1           Float?
+  porcentaje2           Float?
+  region                String?
+  sexo                  String?
+  sucursal              String?
+  tallaCamisa           String?
+  tallaPantalon         String?
+  tallaPlayera          String?
+  tallaZapatos          String?
+  telefonoCasa          String?
+  telefonoMovil         String?
+  nombre                String?
+  jefeDirecto           String?
+  sd                    Float?
+  sdi                   Float?
+  nivelJerarquico       NivelJerarquico?   @default(OPERATIVO)
+  reportaAId            String?
+  documents             EmployeeDocument[]
+  departamento          Department         @relation(fields: [departamento_id], references: [id])
+  user                  User?              @relation(fields: [userId], references: [id])
+  reportaA              Employee?          @relation("Jerarquia", fields: [reportaAId], references: [id])
+  subordinados          Employee[]         @relation("Jerarquia")
+  autorizadoVacancies   JobVacancy[]       @relation("AutorizadoPor")
+  jobVacancies          JobVacancy[]       @relation("Solicitante")
+  voBoVacancies         JobVacancy[]       @relation("VoBoPor")
+  puesto                JobPosition?       @relation(fields: [puestoId], references: [id])
 
-enum JobVacancyStatus {
-  PENDIENTE
-  APROBADA
-  BUSCANDO
-  CERRADA
+  @@map("employees")
+}
+
+model JobVacancy {
+  id                      String           @id @default(cuid())
+  closedAt                DateTime?
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+  autorizadoPorId         String?
+  candidatoPromocion      String?
+  cargoPromocion          String?
+  conocimientosExtra      String?
+  entrevistadorRespaldo   String?
+  entrevistadorTecnico    String?
+  fechaAutorizacion       DateTime?
+  fechaSolicitud          DateTime         @default(now())
+  motivoSolicitud         MotivoVacante
+  jobPositionId           String?
+  numeroVacantes          Int              @default(1)
+  observaciones           String?
+  otrosRequerimientos     String?
+  personaAReemplazar      String?
+  reportaA                String?
+  requiereExtension       Boolean          @default(false)
+  requiereLaptop          Boolean          @default(false)
+  requiereMovil           Boolean          @default(false)
+  requierePC              Boolean          @default(false)
+  solicitanteId           String
+  tipoContratacion        TipoContratacion
+  ubicacionFisica         String?
+  voBoPorId               String?
+  departamento_id         String?
+  estatus                 VacancyStatus    @default(Solicitada)
+  requerimientos_tecnicos Json?
+  titulo                  String?
+  
+  // Nuevos campos para digitalización del formato físico
+  personaAReemplazarNombre  String?
+  personaAReemplazarCargo   String?
+  noAceptanReingresos       Boolean        @default(false)
+  reqComputadoraEscritorio  Boolean        @default(false)
+  reqLaptop                 Boolean        @default(false)
+  reqTelefonoMovil          Boolean        @default(false)
+  reqExtensionTelefonica    Boolean        @default(false)
+  otrosRequerimientosFisicos String?       @map("otros_requerimientos_fisicos")
+  consideraPromocionInterna Boolean        @default(false)
+  candidatosInternosPropuestos Json?       @map("candidatos_internos_propuestos")
+  observacionesPromocion    String?        @map("observaciones_promocion")
+  conocimientosAdicionales  String?        @map("conocimientos_adicionales")
+  
+  Candidate               Candidate[]
+  candidatesRH            CandidateRH[]
+  JobActivity             JobActivity[]
+  autorizadoPor           Employee?        @relation("AutorizadoPor", fields: [autorizadoPorId], references: [id])
+  departamento            Department?      @relation(fields: [departamento_id], references: [id])
+  solicitante             Employee         @relation("Solicitante", fields: [solicitanteId], references: [id], onDelete: Cascade)
+  voBoPor                 Employee?        @relation("VoBoPor", fields: [voBoPorId], references: [id])
+  jobPosition             JobPosition?     @relation(fields: [jobPositionId], references: [id])
+  comments                VacancyComment[]
+
+  @@map("job_vacancies")
+}
+
+model JobActivity {
+  id           String     @id @default(cuid())
+  vacancyId    String
+  activityType String
+  description  String
+  duration     String?
+  priority     Int        @default(1)
+  isCompleted  Boolean    @default(false)
+  completedAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  vacancy      JobVacancy @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+
+  @@map("job_activities")
+}
+
+model Candidate {
+  id            String     @id @default(cuid())
+  vacancyId     String
+  firstName     String
+  lastName      String
+  email         String
+  phone         String?
+  status        String     @default("PENDIENTE")
+  notes         String?
+  interviewDate DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  cvUrl         String?
+  psychTestUrl  String?
+  vacancy       JobVacancy @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+
+  @@unique([vacancyId, email])
+  @@map("candidates")
+}
+
+model Department {
+  id           String       @id @default(cuid())
+  nombre       String       @unique
+  descripcion  String?
+  estado       String       @default("Activo")
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  employees    Employee[]
+  jobVacancies JobVacancy[]
+  jobPositions JobPosition[]
+
+  @@map("departments")
+}
+
+model JobPosition {
+  id              String           @id @default(cuid())
+  nombre          String
+  descripcion     String?
+  nivelJerarquico NivelJerarquico  @default(OPERATIVO)
+  estado          String           @default("Activo")
+  departamentoId  String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  departamento    Department       @relation(fields: [departamentoId], references: [id])
+  employees       Employee[]
+  jobVacancies    JobVacancy[]
+
+  @@unique([nombre, departamentoId])
+  @@map("job_positions")
+}
+
+model EmployeeDocument {
+  id             String   @id @default(cuid())
+  tipo_documento String
+  url_archivo    String
+  employee_id    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  mime_type      String   @default("application/octet-stream")
+  nombre_archivo String
+  size_bytes     Int?
+  uploaded_at    DateTime @default(now())
+  uploaded_by    String?
+  employee       Employee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+
+  @@map("employee_documents")
+}
+
+model VacancyComment {
+  id         String     @id @default(cuid())
+  vacancy_id String
+  user_id    String
+  mensaje    String
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  user       User       @relation(fields: [user_id], references: [id])
+  vacancy    JobVacancy @relation(fields: [vacancy_id], references: [id], onDelete: Cascade)
+
+  @@map("vacancy_comments")
+}
+
+model CandidateRH {
+  id             String          @id @default(cuid())
+  vacancy_id     String
+  nombre         String
+  cv_url         String?
+  estatus        CandidateStatus @default(En_Revision)
+  comentarios_rh String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  psych_test_url String?
+  vacancy        JobVacancy      @relation(fields: [vacancy_id], references: [id], onDelete: Cascade)
+
+  @@map("candidates_rh")
+}
+
+enum RoleType {
+  EMPLEADO_BASICO
+  ADMIN
+  RH
+  SISTEMAS
+  COMPRAS
+  PRODUCCION
+}
+
+enum MotivoVacante {
+  NUEVA_CREACION
+  REEMPLAZO_RENUNCIA
+  REEMPLAZO_TERMINACION_CONTRATO
+  LICENCIA_TEMPORAL
+  INCREMENTO_PRODUCCION
+  INCREMENTO_PLANTILLA
+  JUBILACION_RETIRO
+  PROMOCION
+  REESTRUCTURACION
+  LICENCIA_MATERNIDAD
+  VACACIONES
+}
+
+enum TipoContratacion {
+  ADMINISTRATIVO
+  TEMPORAL
+  SINDICALIZADO
+  TIEMPO_COMPLETO
+  PERMANENTE
+  BECARIO
+  ROL_TURNOS
 }
 
 enum EmployeeStatus {
@@ -78,166 +332,26 @@ enum VacancyStatus {
   Cerrada
 }
 
+enum NivelJerarquico {
+  GERENTE
+  SUPERVISOR
+  OPERATIVO
+  COORDINADOR
+  DIRECTOR
+}
+
 enum CandidateStatus {
   En_Revision
   Descartado
   Seleccionado
 }
 
-model Employee {
-  id           String   @id @default(cuid())
-  nombre       String
-  rfc          String   @unique
-  curp         String   @unique
-  nss          String   @unique
-  fecha_ingreso DateTime
-  estatus      EmployeeStatus @default(Activo)
-  puesto       String
-  departamento_id String
-  departamento   Department? @relation(fields: [departamento_id], references: [id])
-  userId       String?  @unique
-  user         User?    @relation(fields: [userId], references: [id])
-  salary       Float?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  documents    EmployeeDocument[]
-  jobVacancies JobVacancy[] // Vacantes creadas por este empleado
-  jobVacanciesRH JobVacancyRH[] // Vacantes RH solicitadas por este empleado
-
-  @@map("employees")
-}
-
-model JobVacancy {
-  id          String          @id @default(cuid())
-  title       String
-  description String
-  department  String
-  position    String
-  salaryRange String?         // Ej: "$30,000 - $40,000"
-  requirements Json           // JSON array de requisitos
-  responsibilities Json       // JSON array de responsabilidades
-  status      JobVacancyStatus @default(PENDIENTE)
-  createdById String
-  createdBy   Employee        @relation(fields: [createdById], references: [id])
-  approvedById String?        // ID del usuario de RH que aprobó
-  approvedBy   User?          @relation(fields: [approvedById], references: [id], name: "approvedBy")
-  approvedAt   DateTime?
-  closedAt     DateTime?
-  activities   JobActivity[]  // Actividades del puesto
-  candidates   Candidate[]    // Candidatos para esta vacante
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-
-  @@map("job_vacancies")
-}
-
-model JobActivity {
-  id           String   @id @default(cuid())
-  vacancyId    String
-  vacancy      JobVacancy @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
-  activityType String   // Ej: "Entrevista técnica", "Prueba práctica", etc.
-  description  String
-  duration     String?  // Ej: "2 horas"
-  priority     Int      @default(1) // 1: baja, 2: media, 3: alta
-  isCompleted  Boolean  @default(false)
-  completedAt  DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@map("job_activities")
-}
-
-model Candidate {
-  id           String   @id @default(cuid())
-  vacancyId    String
-  vacancy      JobVacancy @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
-  firstName    String
-  lastName     String
-  email        String
-  phone        String?
-  resumeUrl    String?  // URL del CV
-  status       String   @default("PENDIENTE") // PENDIENTE, EN_PROCESO, RECHAZADO, CONTRATADO
-  notes        String?
-  interviewDate DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@unique([vacancyId, email])
-  @@map("candidates")
-}
-
-// Módulo de RH - Gestión de Talento
-
-model Department {
-  id          String   @id @default(cuid())
-  nombre      String   @unique
-  descripcion String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  employees   Employee[]
-  jobVacanciesRH JobVacancyRH[]
-
-  @@map("departments")
-}
-
-model EmployeeDocument {
-  id             String   @id @default(cuid())
-  tipo_documento String
-  nombre_archivo String
-  url_archivo    String
-  mime_type      String   @default("application/octet-stream")
-  size_bytes     Int?
-  employee_id    String
-  employee       Employee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
-  uploaded_by    String?  // ID del usuario que subió el documento
-  uploaded_at    DateTime @default(now())
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  @@map("employee_documents")
-}
-
-// JobVacancy para reclutamiento (actualizado según requerimientos)
-model JobVacancyRH {
-  id                   String       @id @default(cuid())
-  titulo               String
-  departamento_id      String
-  departamento         Department   @relation(fields: [departamento_id], references: [id])
-  solicitante_id       String
-  solicitante          Employee     @relation(fields: [solicitante_id], references: [id])
-  estatus              VacancyStatus @default(Solicitada)
-  requerimientos_tecnicos Json
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
-  comments             VacancyComment[]
-  candidatesRH         CandidateRH[]
-
-  @@map("job_vacancies_rh")
-}
-
-model VacancyComment {
-  id         String   @id @default(cuid())
-  vacancy_id String
-  vacancy    JobVacancyRH @relation(fields: [vacancy_id], references: [id], onDelete: Cascade)
-  user_id    String
-  user       User     @relation(fields: [user_id], references: [id])
-  mensaje    String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@map("vacancy_comments")
-}
-
-model CandidateRH {
-  id           String         @id @default(cuid())
-  vacancy_id   String
-  vacancy      JobVacancyRH   @relation(fields: [vacancy_id], references: [id], onDelete: Cascade)
-  nombre       String
-  cv_url       String?
-  estatus      CandidateStatus @default(En_Revision)
-  comentarios_rh String?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-
-  @@map("candidates_rh")
+enum ModuleType {
+  EMPLEADOS
+  RECLUTAMIENTO
+  VACACIONES
+  INCIDENCIAS
+  CONFIGURACION
+  DASHBOARD
+  REPORTES
 }

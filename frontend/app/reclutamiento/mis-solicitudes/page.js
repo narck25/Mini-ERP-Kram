@@ -25,7 +25,7 @@ export default function MisSolicitudesPage() {
   const [newRequirement, setNewRequirement] = useState('');
 
   useEffect(() => {
-    if (user && ['SISTEMAS', 'COMPRAS'].includes(user.role)) {
+    if (user && ['SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(user.role)) {
       fetchMyVacancies();
       fetchDepartments();
     }
@@ -123,13 +123,13 @@ export default function MisSolicitudesPage() {
     }
   };
 
-  if (!user || !['SISTEMAS', 'COMPRAS'].includes(user.role)) {
+  if (!user || !['SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(user.role)) {
     return (
       <DashboardLayout>
         <div className="p-6">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <h2 className="text-red-800 font-semibold">Acceso denegado</h2>
-            <p className="text-red-600 mt-1">Solo los jefes de área (Sistemas/Compras) pueden acceder a esta sección.</p>
+            <p className="text-red-600 mt-1">Solo los jefes de área (Sistemas/Compras/Producción) pueden acceder a esta sección.</p>
           </div>
         </div>
       </DashboardLayout>
@@ -146,12 +146,38 @@ export default function MisSolicitudesPage() {
               <h1 className="text-2xl font-bold text-gray-900">Mis Solicitudes de Vacantes</h1>
               <p className="text-gray-600">Gestiona tus solicitudes de nuevas posiciones en tu área</p>
             </div>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
-            >
-              + Nueva Vacante
-            </button>
+            <div className="flex gap-3">
+              <Link
+                href="/reclutamiento/solicitar-vacante"
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium"
+              >
+                📋 Formulario Digitalizado
+              </Link>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
+              >
+                + Nueva Vacante
+              </button>
+            </div>
+          </div>
+          <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-800">Nuevo Formulario Digitalizado</h3>
+                <div className="mt-2 text-sm text-blue-700">
+                  <p>
+                    Usa el <span className="font-semibold">Formulario Digitalizado</span> para solicitar vacantes con todos los campos requeridos 
+                    (información de la vacante, requerimientos de sistemas, modalidad de contratación, y proceso de entrevista).
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

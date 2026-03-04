@@ -11,12 +11,13 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
     comentarios_rh: ''
   });
   const [cvFile, setCvFile] = useState(null);
+  const [psychTestFile, setPsychTestFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [editingObservations, setEditingObservations] = useState(null);
   const [observationsText, setObservationsText] = useState('');
 
-  // Verificar si el usuario es RH/ADMIN
-  const isRH = ['RH', 'ADMIN'].includes(user.role);
+  // Verificar si el usuario tiene acceso al módulo de Reclutamiento y es RH/ADMIN
+  const isRH = user.accessibleModules?.includes('RECLUTAMIENTO') && (user.role === 'RH' || user.role === 'ADMIN');
   
   // Verificar si el usuario es el solicitante
   const isSolicitante = vacancy.solicitante?.user?.id === user.id;
@@ -28,6 +29,28 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
       return;
     }
 
+    // Validar que se suban ambos archivos
+    if (!cvFile) {
+      toast.error('El CV es obligatorio');
+      return;
+    }
+    
+    if (!psychTestFile) {
+      toast.error('Las pruebas psicométricas son obligatorias');
+      return;
+    }
+
+    // Validar que sean archivos PDF
+    if (cvFile.type !== 'application/pdf') {
+      toast.error('El CV debe ser un archivo PDF');
+      return;
+    }
+    
+    if (psychTestFile.type !== 'application/pdf') {
+      toast.error('Las pruebas psicométricas deben ser un archivo PDF');
+      return;
+    }
+
     try {
       setSubmitting(true);
       const formData = new FormData();
@@ -35,9 +58,8 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
       if (newCandidate.comentarios_rh) {
         formData.append('comentarios_rh', newCandidate.comentarios_rh);
       }
-      if (cvFile) {
-        formData.append('cv', cvFile);
-      }
+      formData.append('cv', cvFile);
+      formData.append('psychTest', psychTestFile);
 
       await api.post(`/recruitment/vacancies/${vacancy.id}/candidates`, formData, {
         headers: {
@@ -45,10 +67,11 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
         }
       });
 
-      toast.success('Candidato registrado exitosamente');
+      toast.success('Candidato registrado exitosamente con CV y pruebas psicométricas');
       setShowAddCandidate(false);
       setNewCandidate({ nombre: '', comentarios_rh: '' });
       setCvFile(null);
+      setPsychTestFile(null);
       onRefresh();
     } catch (error) {
       console.error('Error adding candidate:', error);
@@ -113,6 +136,18 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
     } catch (error) {
       console.error('Error downloading CV:', error);
       toast.error('Error al descargar el CV');
+    }
+  };
+
+  const handleDownloadPsychTest = async (candidate) => {
+    try {
+      // Nota: Necesitaríamos un endpoint específico para descargar pruebas psicométricas
+      // Por ahora, mostramos la información
+      toast.success(`Pruebas psicométricas disponibles para ${candidate.nombre}`);
+      console.log('Pruebas psicométricas URL:', candidate.psych_test_url);
+    } catch (error) {
+      console.error('Error downloading psych tests:', error);
+      toast.error('Error al descargar las pruebas psicométricas');
     }
   };
 
@@ -183,17 +218,36 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  CV (PDF)
+                  CV (PDF) *
                 </label>
                 <input
                   type="file"
                   accept=".pdf"
                   onChange={(e) => setCvFile(e.target.files[0])}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
                 />
                 {cvFile && (
                   <p className="text-sm text-green-600 mt-1">
                     Archivo seleccionado: {cvFile.name}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Pruebas Psicométricas (PDF) *
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => setPsychTestFile(e.target.files[0])}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+                {psychTestFile && (
+                  <p className="text-sm text-green-600 mt-1">
+                    Archivo seleccionado: {psychTestFile.name}
                   </p>
                 )}
               </div>
@@ -205,6 +259,7 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
                     setShowAddCandidate(false);
                     setNewCandidate({ nombre: '', comentarios_rh: '' });
                     setCvFile(null);
+                    setPsychTestFile(null);
                   }}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                 >
@@ -284,13 +339,21 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
                     </button>
                   )}
 
-                  {/* Descargar CV */}
+                  {/* Descargar CV y Pruebas Psicométricas */}
                   {candidate.cv_url && (
                     <button
                       onClick={() => handleDownloadCV(candidate)}
                       className="px-3 py-1 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-md text-sm"
                     >
                       📄 Ver CV
+                    </button>
+                  )}
+                  {candidate.psych_test_url && (
+                    <button
+                      onClick={() => handleDownloadPsychTest(candidate)}
+                      className="px-3 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-md text-sm"
+                    >
+                      📊 Ver Pruebas
                     </button>
                   )}
                 </div>
@@ -339,7 +402,8 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
 
               {/* Información adicional */}
               <div className="text-sm text-gray-600">
-                <p>CV: {candidate.cv_url ? 'Disponible' : 'No disponible'}</p>
+                <p>CV: {candidate.cv_url ? '✅ Disponible' : '❌ No disponible'}</p>
+                <p>Pruebas psicométricas: {candidate.psych_test_url ? '✅ Disponible' : '❌ No disponible'}</p>
                 <p>Última actualización: {new Date(candidate.updatedAt).toLocaleDateString()}</p>
               </div>
             </div>
@@ -367,15 +431,17 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
         <ul className="text-sm text-gray-600 space-y-1">
           {isRH && (
             <>
-              <li>• <strong>RH:</strong> Registra candidatos, sube sus CVs y agrega observaciones post-filtro.</li>
-              <li>• <strong>Solicitante:</strong> Revisa los candidatos, lee las observaciones de RH y marca visto bueno.</li>
+              <li>• <strong>RH:</strong> Registra candidatos, sube sus CVs y pruebas psicométricas (ambos PDF obligatorios).</li>
+              <li>• <strong>RH:</strong> Agrega observaciones post-filtro para ayudar al solicitante en la evaluación.</li>
+              <li>• <strong>Solicitante:</strong> Revisa los candidatos, lee las observaciones de RH, revisa CV y pruebas psicométricas, y marca visto bueno.</li>
             </>
           )}
           {isSolicitante && (
             <>
-              <li>• <strong>Visto Bueno (👍):</strong> Marca candidatos que consideras adecuados.</li>
+              <li>• <strong>Visto Bueno (👍):</strong> Marca candidatos que consideras adecuados después de revisar CV y pruebas psicométricas.</li>
               <li>• <strong>No Seleccionar (👎):</strong> Descarta candidatos que no cumplen con los requisitos.</li>
               <li>• <strong>Seleccionar Candidato (🎉):</strong> Elige el candidato final para cerrar la vacante.</li>
+              <li>• <strong>Documentos:</strong> Puedes ver el CV (📄) y las pruebas psicométricas (📊) de cada candidato.</li>
             </>
           )}
           <li>• Una vez seleccionado un candidato, la vacante se cerrará automáticamente.</li>

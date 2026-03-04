@@ -1,0 +1,94 @@
+# REGLAS MAESTRAS DEL ERP KRAM (AI SYSTEM PROMPT)
+
+## 1. Sistema de Permisos (ACL)
+
+**NUNCA** uses validaciones rígidas de roles (`user.role === 'RH'`) para ocultar/mostrar módulos en el Frontend o bloquear rutas en el Backend.
+
+**SIEMPRE** utiliza el array `user.accessibleModules`.
+
+- **En React**, usa el componente `<ProtectedRoute requiredModule='NOMBRE_MODULO'>`.
+- **En Express**, usa el middleware `requireModule('NOMBRE_MODULO')`.
+
+**Excepción**: Solo operaciones críticas del sistema (como modificar permisos de otros) deben validarse por rol (ADMIN).
+
+## 2. Base de Datos (Prisma)
+
+**PROHIBIDO** renombrar tablas principales (ej. `JobVacancy`, `Employee`) o columnas clave sin autorización explícita del usuario, ya que esto rompe el Frontend.
+
+No agregues campos calculados a la base de datos (como edad, antigüedad, o fechas en letras). Estos deben calcularse dinámicamente en el Frontend.
+
+## 3. Manejo de Fechas y Zonas Horarias
+
+- El Backend guarda fechas en formato ISO/UTC.
+- El Frontend **DEBE** formatear las fechas a `DD/MM/YYYY` para la UI.
+- Para evitar el 'bug del día anterior', al procesar fechas del backend en el frontend, extrae estrictamente la fecha sin zona horaria (`.substring(0,10)` o `split('T')[0]`) antes de convertirla a objeto `Date`.
+
+## 4. Calidad del Código
+
+- No dejes código huérfano (Dead Code). Si reemplazas una función o endpoint, elimina el viejo.
+- Revisa siempre los imports de React y asegúrate de no generar condiciones de carrera en los Contextos de Autenticación.
+
+## 5. Módulos del Sistema
+
+Los módulos disponibles son:
+
+| ID | Nombre | Descripción |
+|----|--------|-------------|
+| `EMPLEADOS` | Empleados | Gestión de empleados y expedientes |
+| `RECLUTAMIENTO` | Reclutamiento | Gestión de vacantes y candidatos |
+| `VACACIONES` | Vacaciones | Solicitud y aprobación de vacaciones |
+| `INCIDENCIAS` | Incidencias | Reporte y seguimiento de incidencias |
+| `CONFIGURACION` | Configuración | Configuración del sistema |
+| `REPORTES` | Reportes | Generación de reportes y estadísticas |
+| `DASHBOARD` | Dashboard | Panel principal (siempre activo) |
+
+## 6. Roles del Sistema
+
+Los roles disponibles son:
+
+| Rol | Descripción |
+|-----|-------------|
+| `ADMIN` | Administrador del sistema |
+| `RH` | Recursos Humanos |
+| `SISTEMAS` | Jefe de Sistemas |
+| `COMPRAS` | Jefe de Compras |
+| `PRODUCCION` | Jefe de Producción |
+
+## 7. Reglas de Validación
+
+### Frontend:
+- Usar `user.accessibleModules?.includes('MODULO')` para validar acceso
+- Usar `<ProtectedRoute requiredModule="MODULO">` para proteger rutas
+- Para operaciones administrativas, usar `user.role === 'ADMIN' || user.role === 'RH'`
+
+### Backend:
+- Usar `requireModule('MODULO')` para rutas de lectura
+- Usar `requireRHOrAdmin()` para operaciones administrativas
+- Usar `requireRole(['ADMIN'])` solo para operaciones críticas del sistema
+
+## 8. Convenciones de Código
+
+- **Frontend**: Usar `useClient` para componentes interactivos
+- **Backend**: Usar controladores con métodos estáticos
+- **API**: Respuestas consistentes con `{ data: ..., message: ... }`
+- **Errores**: Mensajes de error claros y localizados (español)
+
+## 9. Seguridad
+
+- **Tokens JWT**: Incluir `accessibleModules` en el payload
+- **Middleware**: Validar permisos en cada ruta protegida
+- **Contraseñas**: Hash con bcrypt (salt rounds: 10)
+- **Sesiones**: Invalidar tokens al cambiar contraseña
+
+## 10. Mantenimiento
+
+- **Auditoría**: Registrar cambios en permisos de usuarios
+- **Backup**: Mantener backups de la base de datos
+- **Logs**: Registrar intentos de acceso fallidos
+- **Documentación**: Mantener actualizados los archivos README
+
+---
+
+**Última actualización**: 28/02/2026  
+**Versión**: 1.0  
+**Propósito**: Guía para desarrollo consistente y mantenible del ERP KRAM
