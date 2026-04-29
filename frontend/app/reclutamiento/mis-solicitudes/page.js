@@ -13,7 +13,7 @@ export default function MisSolicitudesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user && ['SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(user.role)) {
+    if (user && ['ADMIN', 'RH', 'SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(user.role)) {
       fetchMyVacancies();
     }
   }, [user]);
@@ -51,13 +51,13 @@ export default function MisSolicitudesPage() {
     }
   };
 
-  if (!user || !['SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(user.role)) {
+  if (!user || !['ADMIN', 'RH', 'SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(user.role)) {
     return (
       <DashboardLayout>
         <div className="p-6">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <h2 className="text-red-800 font-semibold">Acceso denegado</h2>
-            <p className="text-red-600 mt-1">Solo los jefes de área (Sistemas/Compras/Producción) pueden acceder a esta sección.</p>
+            <p className="text-red-600 mt-1">Solo usuarios autorizados (Administradores, RH, o jefes de área) pueden acceder a esta sección.</p>
           </div>
         </div>
       </DashboardLayout>

@@ -337,10 +337,20 @@ function VacancyDetailPageContent() {
                     <span className="text-sm font-medium text-gray-700">Motivo de Solicitud:</span>
                     <p className="text-sm text-gray-600 mt-1">{formatEnumValue(vacancy.motivoSolicitud)}</p>
                   </div>
-                  {isReemplazo(vacancy.motivoSolicitud) && vacancy.personaAReemplazar && (
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">Persona a Reemplazar:</span>
-                      <p className="text-sm text-gray-600 mt-1">{vacancy.personaAReemplazar}</p>
+                  {isReemplazo(vacancy.motivoSolicitud) && (
+                    <div className="space-y-2">
+                      {vacancy.personaAReemplazarNombre && (
+                        <div>
+                          <span className="text-sm font-medium text-gray-700">Persona a Reemplazar:</span>
+                          <p className="text-sm text-gray-600 mt-1">{vacancy.personaAReemplazarNombre}</p>
+                        </div>
+                      )}
+                      {vacancy.personaAReemplazarCargo && (
+                        <div>
+                          <span className="text-sm font-medium text-gray-700">Cargo de la Persona a Reemplazar:</span>
+                          <p className="text-sm text-gray-600 mt-1">{vacancy.personaAReemplazarCargo}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -351,22 +361,22 @@ function VacancyDetailPageContent() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Requerimientos de Infraestructura</h3>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">Requiere Laptop:</span>
-                      <p className="text-sm text-gray-600 mt-1">{formatBoolean(vacancy.requiereLaptop)}</p>
-                    </div>
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">Requiere PC:</span>
-                      <p className="text-sm text-gray-600 mt-1">{formatBoolean(vacancy.requierePC)}</p>
-                    </div>
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">Requiere Móvil:</span>
-                      <p className="text-sm text-gray-600 mt-1">{formatBoolean(vacancy.requiereMovil)}</p>
-                    </div>
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">Requiere Extensión:</span>
-                      <p className="text-sm text-gray-600 mt-1">{formatBoolean(vacancy.requiereExtension)}</p>
-                    </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Requiere Laptop:</span>
+                    <p className="text-sm text-gray-600 mt-1">{formatBoolean(vacancy.reqLaptop)}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Requiere PC de Escritorio:</span>
+                    <p className="text-sm text-gray-600 mt-1">{formatBoolean(vacancy.reqComputadoraEscritorio)}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Requiere Móvil:</span>
+                    <p className="text-sm text-gray-600 mt-1">{formatBoolean(vacancy.reqTelefonoMovil)}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Requiere Extensión Telefónica:</span>
+                    <p className="text-sm text-gray-600 mt-1">{formatBoolean(vacancy.reqExtensionTelefonica)}</p>
+                  </div>
                   </div>
                   {vacancy.ubicacionFisica && (
                     <div>

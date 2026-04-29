@@ -7,23 +7,36 @@ const authMiddleware = require('../middlewares/auth.middleware');
 // Aplicar autenticación a todas las rutas
 router.use(authMiddleware.verifyToken);
 
-// Obtener documentos de un empleado
-router.get('/employee/:employeeId/documents', employeeDocumentController.getEmployeeDocuments);
+// Obtener documentos de un empleado (lectura - requiere módulo EMPLEADOS)
+router.get('/employee/:employeeId/documents', 
+  authMiddleware.requireModule('EMPLEADOS'),
+  employeeDocumentController.getEmployeeDocuments
+);
 
-// Obtener tipos de documentos permitidos
-router.get('/employee-documents/allowed-types', employeeDocumentController.getAllowedDocumentTypes);
+// Obtener tipos de documentos permitidos (lectura - requiere módulo EMPLEADOS)
+router.get('/employee-documents/allowed-types', 
+  authMiddleware.requireModule('EMPLEADOS'),
+  employeeDocumentController.getAllowedDocumentTypes
+);
 
-// Subir documento para un empleado
+// Subir documento para un empleado (escritura - requiere RH o Admin)
 router.post('/employee/:employeeId/documents',
+  authMiddleware.requireRHOrAdmin(),
   ensureTempDir,
   upload.single('document'),
   employeeDocumentController.uploadEmployeeDocument
 );
 
-// Descargar documento
-router.get('/employee-documents/:documentId/download', employeeDocumentController.downloadEmployeeDocument);
+// Descargar documento (lectura - requiere módulo EMPLEADOS)
+router.get('/employee-documents/:documentId/download', 
+  authMiddleware.requireModule('EMPLEADOS'),
+  employeeDocumentController.downloadEmployeeDocument
+);
 
-// Eliminar documento
-router.delete('/employee-documents/:documentId', employeeDocumentController.deleteEmployeeDocument);
+// Eliminar documento (escritura - requiere RH o Admin)
+router.delete('/employee-documents/:documentId',
+  authMiddleware.requireRHOrAdmin(),
+  employeeDocumentController.deleteEmployeeDocument
+);
 
 module.exports = router;

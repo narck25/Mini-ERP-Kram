@@ -616,7 +616,7 @@ function EmployeeProfilePage() {
               <div className="space-y-3">
                 <div>
                   <span className="text-sm font-medium text-gray-700">Jefe Directo:</span>
-                  <p className="text-sm text-gray-600">{employee.jefeDirecto || 'No especificado'}</p>
+                  <p className="text-sm text-gray-600">{employee.reportaA?.nombre || employee.jefeDirecto || 'No especificado'}</p>
                 </div>
                 <div>
                   <span className="text-sm font-medium text-gray-700">SD (Sueldo Diario):</span>
@@ -1151,7 +1151,7 @@ function EmployeeProfilePage() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
-                    <div>
+                    <div className="hidden">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Jefe Directo</label>
                       <input
                         type="text"
@@ -1159,7 +1159,9 @@ function EmployeeProfilePage() {
                         value={editForm.jefeDirecto}
                         onChange={handleEditFormChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled
                       />
+                      <p className="text-sm text-gray-500 mt-1">Campo deshabilitado para la demo</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">SD (Sueldo Diario)</label>

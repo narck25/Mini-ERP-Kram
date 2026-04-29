@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: kram-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-kramadmin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-krampassword123}
+      POSTGRES_DB: ${DB_NAME:-kram_erp}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - kram-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-kramadmin} -d ${DB_NAME:-kram_erp}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kram-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: "7d"
+      PORT: 3001
+      NODE_ENV: production
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      TRUST_PROXY: "1"
+      BASE_URL: ${BASE_URL}
+    volumes:
+      - backend_uploads:/app/uploads
+    networks:
+      - kram-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://backend:3001}
+    container_name: kram-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://backend:3001}
+    ports:
+      - "3000:3000"
+    networks:
+      - kram-network
+
+volumes:
+  postgres_data:
+  backend_uploads:
+
+networks:
+  kram-network:
+    driver: bridge

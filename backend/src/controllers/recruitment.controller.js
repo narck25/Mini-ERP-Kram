@@ -1,6 +1,19 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+// Función auxiliar para construir URLs correctamente
+const buildFileUrl = (req, filePath) => {
+  if (!filePath) return null;
+  
+  // Si tenemos BASE_URL configurado, usarlo
+  if (process.env.BASE_URL) {
+    return `${process.env.BASE_URL}${filePath}`;
+  }
+  
+  // Si no, usar el método tradicional
+  return `${req.protocol}://${req.get('host')}${filePath}`;
+};
+
 // Tipos de estatus del flujo colaborativo (deben coincidir con el enum VacancyStatus en schema.prisma)
 const VACANCY_STATUS = {
   SOLICITADA: 'Solicitada',
@@ -721,7 +734,17 @@ exports.getVacancyRequestById = async (req, res) => {
       return res.status(404).json({ error: 'Solicitud de vacante no encontrada' });
     }
 
-    res.json({ vacancy });
+    // Transformar las URLs de los candidatos a URLs completas
+    const transformedVacancy = {
+      ...vacancy,
+      candidatesRH: vacancy.candidatesRH.map(candidate => ({
+        ...candidate,
+        cv_url: buildFileUrl(req, candidate.cv_url),
+        psych_test_url: buildFileUrl(req, candidate.psych_test_url)
+      }))
+    };
+
+    res.json({ vacancy: transformedVacancy });
   } catch (error) {
     console.error('Error getting vacancy request:', error);
     res.status(500).json({ error: 'Error al obtener la solicitud de vacante' });
@@ -1013,7 +1036,7 @@ exports.updateCandidateVote = async (req, res) => {
       where: { userId }
     });
 
-    if (!employee || candidate.vacancy.solicitante_id !== employee.id) {
+    if (!employee || candidate.vacancy.solicitanteId !== employee.id) {
       return res.status(403).json({ 
         error: 'Solo el solicitante de la vacante puede votar por candidatos' 
       });
@@ -1081,7 +1104,7 @@ exports.selectCandidate = async (req, res) => {
       where: { userId }
     });
 
-    if (!employee || candidate.vacancy.solicitante_id !== employee.id) {
+    if (!employee || candidate.vacancy.solicitanteId !== employee.id) {
       return res.status(403).json({ 
         error: 'Solo el solicitante de la vacante puede seleccionar candidatos' 
       });
@@ -1143,11 +1166,14 @@ exports.downloadCandidateCV = async (req, res) => {
       return res.status(404).json({ error: 'CV no encontrado' });
     }
 
-    // En un entorno real, aquí servirías el archivo desde S3/Cloud Storage
-    // Por ahora, simulamos una descarga
+    // Construir URL completa usando la función auxiliar
+    const fullCvUrl = buildFileUrl(req, candidate.cv_url);
+    const fullPsychTestUrl = buildFileUrl(req, candidate.psych_test_url);
+
     res.json({
       message: 'CV disponible para descarga',
-      cv_url: candidate.cv_url,
+      cv_url: fullCvUrl,
+      psych_test_url: fullPsychTestUrl,
       filename: `CV_${candidate.nombre.replace(/\s+/g, '_')}.pdf`
     });
   } catch (error) {

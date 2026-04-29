@@ -33,13 +33,7 @@ logs
 *.log
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
-report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-
-# Prisma
-backend/prisma/migrations/
-!backend/prisma/migrations/.gitkeep
-backend/prisma/*.db
-backend/prisma/*.db-journal
+report.[0-9]*.[0-9]*.[0-9]*.json
 
 # Docker
 docker-data/
@@ -108,3 +102,17 @@ pnpm-lock.yaml
 
 # Prisma Studio
 .prisma/
+
+# Uploaded files (keep directory structure, ignore actual files)
+backend/uploads/cvs/*
+backend/uploads/employee-documents/*
+backend/uploads/psych-tests/*
+backend/uploads/purchase-quotes/*
+backend/uploads/temp/*
+!backend/uploads/cvs/.gitkeep
+!backend/uploads/employee-documents/.gitkeep
+!backend/uploads/psych-tests/.gitkeep
+!backend/uploads/purchase-quotes/.gitkeep
+!backend/uploads/temp/.gitkeep
+uploads/*
+!uploads/.gitkeep

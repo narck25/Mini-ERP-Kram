@@ -40,6 +40,9 @@ export default function SolicitarVacantePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [availablePositions, setAvailablePositions] = useState([]);
+  const [managers, setManagers] = useState([]);
   
   // Formulario - Página 1
   const [formData, setFormData] = useState({
@@ -82,6 +85,8 @@ export default function SolicitarVacantePage() {
   useEffect(() => {
     if (user) {
       fetchEmployees();
+      fetchDepartments();
+      fetchManagers();
     }
   }, [user]);
 
@@ -95,12 +100,52 @@ export default function SolicitarVacantePage() {
     }
   };
 
+  const fetchDepartments = async () => {
+    try {
+      const response = await api.get('/vacancies/form-data');
+      console.log('Departments data from API:', response.data);
+      setDepartments(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+      toast.error('Error al cargar la lista de departamentos y puestos');
+    }
+  };
+
+  const fetchManagers = async () => {
+    try {
+      const response = await api.get('/managers');
+      console.log('Managers data from API:', response.data);
+      setManagers(response.data.managers || []);
+    } catch (error) {
+      console.error('Error fetching managers:', error);
+      toast.error('Error al cargar la lista de jefes directos');
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+    
+    // Si se cambia el departamento, actualizar los puestos disponibles y resetear el puesto seleccionado
+    if (name === 'departamento_id') {
+      console.log('Departamento seleccionado:', value);
+      const selectedDepartment = departments.find(dept => dept.id === value);
+      console.log('Departamento encontrado:', selectedDepartment);
+      // El backend ya filtra por estado 'Activo', así que tomamos todos los puestos que vienen
+      const positions = selectedDepartment?.jobPositions || [];
+      console.log('Puestos encontrados:', positions);
+      setAvailablePositions(positions);
+      
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        jobPositionId: '' // Resetear el puesto cuando se cambia de departamento
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    }
   };
 
   const handleSelectChange = (name, value) => {
@@ -123,10 +168,11 @@ export default function SolicitarVacantePage() {
       toast.error('El puesto es requerido');
       return false;
     }
-    if (!formData.reportaA.trim()) {
-      toast.error('El campo "Reporta a" es requerido');
-      return false;
-    }
+    // Campo reportaA deshabilitado para la demo - no es requerido
+    // if (!formData.reportaA.trim()) {
+    //   toast.error('El campo "Reporta a" es requerido');
+    //   return false;
+    // }
     if (formData.numeroVacantes < 1) {
       toast.error('El número de vacantes debe ser al menos 1');
       return false;
@@ -171,8 +217,21 @@ export default function SolicitarVacantePage() {
         return;
       }
 
+      // Extraer solo el nombre del manager del displayName (solo para reportaA si tiene valor)
+      const extractManagerName = (displayName) => {
+        if (!displayName) return '';
+        // El displayName tiene formato: "Nombre - Puesto (NivelJerarquico)"
+        // Extraemos solo el nombre (antes del primer " - ")
+        const parts = displayName.split(' - ');
+        return parts[0] || displayName;
+      };
+
       const payload = {
         ...formData,
+        // Para reportaA (campo deshabilitado) extraer nombre si tiene valor
+        reportaA: extractManagerName(formData.reportaA),
+        // Para entrevistadorTecnico (ahora campo de texto) usar valor directamente
+        entrevistadorTecnico: formData.entrevistadorTecnico || '',
         solicitanteId,
         numeroVacantes: parseInt(formData.numeroVacantes),
         jobPositionId: formData.jobPositionId || null,
@@ -191,12 +250,15 @@ export default function SolicitarVacantePage() {
         requerimientos_tecnicos: formData.requerimientos_tecnicos || ['']
       };
 
+      console.log('📤 Enviando payload de vacante:', payload);
+
       await api.post('/vacancies', payload);
       
       toast.success('Solicitud de vacante enviada exitosamente');
       router.push('/reclutamiento/mis-solicitudes');
     } catch (error) {
       console.error('Error creating vacancy:', error);
+      console.error('Error response:', error.response?.data);
       toast.error(error.response?.data?.error || 'Error al enviar la solicitud');
     } finally {
       setLoading(false);
@@ -286,15 +348,20 @@ export default function SolicitarVacantePage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Departamento *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="departamento_id"
                     value={formData.departamento_id}
                     onChange={handleInputChange}
-                    placeholder="Ej: Sistemas"
-                    className="form-input w-full"
+                    className="form-select w-full"
                     required
-                  />
+                  >
+                    <option value="">Selecciona un departamento</option>
+                    {departments.map(department => (
+                      <option key={department.id} value={department.id}>
+                        {department.nombre}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Puesto (JobPosition) */}
@@ -302,34 +369,60 @@ export default function SolicitarVacantePage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Puesto *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="jobPositionId"
                     value={formData.jobPositionId}
                     onChange={handleInputChange}
-                    placeholder="ID del puesto (ej: 1)"
-                    className="form-input w-full"
+                    className="form-select w-full"
                     required
-                  />
+                    disabled={!formData.departamento_id || availablePositions.length === 0}
+                  >
+                    <option value="">
+                      {!formData.departamento_id 
+                        ? 'Selecciona primero un departamento' 
+                        : availablePositions.length === 0 
+                          ? 'No hay puestos disponibles en este departamento' 
+                          : 'Selecciona un puesto'}
+                    </option>
+                    {availablePositions.map(position => (
+                      <option key={position.id} value={position.id}>
+                        {position.nombre} {position.nivelJerarquico ? `(${position.nivelJerarquico})` : ''}
+                      </option>
+                    ))}
+                  </select>
                   <p className="mt-1 text-sm text-gray-500">
-                    ID del puesto de trabajo del catálogo
+                    {formData.departamento_id && availablePositions.length > 0 
+                      ? `${availablePositions.length} puesto(s) disponible(s)` 
+                      : 'Selecciona un departamento para ver los puestos disponibles'}
                   </p>
                 </div>
 
                 {/* Reporta a */}
-                <div>
+                <div className="hidden">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Reporta a *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="reportaA"
                     value={formData.reportaA}
                     onChange={handleInputChange}
-                    placeholder="Ej: Director de Sistemas"
-                    className="form-input w-full"
+                    className="form-select w-full"
                     required
-                  />
+                    disabled
+                  >
+                    <option value="">Selecciona un jefe directo</option>
+                    {managers.map(manager => (
+                      <option key={manager.id} value={manager.displayName}>
+                        {manager.displayName}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Selecciona el jefe directo al que reportará el nuevo empleado
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500 italic">
+                    Campo deshabilitado para la demo
+                  </p>
                 </div>
 
                 {/* Número de Vacantes */}
@@ -608,12 +701,12 @@ export default function SolicitarVacantePage() {
                     name="entrevistadorTecnico"
                     value={formData.entrevistadorTecnico}
                     onChange={handleInputChange}
-                    placeholder="Nombre del entrevistador técnico"
+                    placeholder="Escribe el nombre del entrevistador técnico"
                     className="form-input w-full"
                     required
                   />
                   <p className="mt-1 text-sm text-gray-500">
-                    Persona que realizará la entrevista técnica
+                    Persona que realizará la entrevista técnica (campo de texto para la demo)
                   </p>
                 </div>
 

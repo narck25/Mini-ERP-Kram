@@ -136,9 +136,9 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
       return;
     }
     
-    // Construir la URL completa del PDF
-    const fullUrl = `http://localhost:3001${candidate.cv_url}`;
-    setPdfUrl(fullUrl);
+    // El backend ya devuelve la URL completa, solo necesitamos asegurar encoding
+    const encodedUrl = encodeURI(candidate.cv_url);
+    setPdfUrl(encodedUrl);
     setPdfTitle(`CV - ${candidate.nombre}`);
     setShowPdfModal(true);
   };
@@ -149,9 +149,9 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
       return;
     }
     
-    // Construir la URL completa del PDF
-    const fullUrl = `http://localhost:3001${candidate.psych_test_url}`;
-    setPdfUrl(fullUrl);
+    // El backend ya devuelve la URL completa, solo necesitamos asegurar encoding
+    const encodedUrl = encodeURI(candidate.psych_test_url);
+    setPdfUrl(encodedUrl);
     setPdfTitle(`Pruebas Psicométricas - ${candidate.nombre}`);
     setShowPdfModal(true);
   };

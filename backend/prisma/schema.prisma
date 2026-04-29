@@ -110,6 +110,8 @@ model Employee {
   autorizadoVacancies   JobVacancy[]       @relation("AutorizadoPor")
   jobVacancies          JobVacancy[]       @relation("Solicitante")
   voBoVacancies         JobVacancy[]       @relation("VoBoPor")
+  comprasSolicitadas    PurchaseRequest[]  @relation("ComprasSolicitante")
+  comprasAutorizadas    PurchaseRequest[]  @relation("ComprasAutorizador")
   puesto                JobPosition?       @relation(fields: [puestoId], references: [id])
 
   @@map("employees")
@@ -221,6 +223,7 @@ model Department {
   employees    Employee[]
   jobVacancies JobVacancy[]
   jobPositions JobPosition[]
+  purchaseRequests PurchaseRequest[] @relation("ComprasDepartamento")
 
   @@map("departments")
 }
@@ -354,4 +357,75 @@ enum ModuleType {
   CONFIGURACION
   DASHBOARD
   REPORTES
+  COMPRAS
+}
+
+enum PurchaseStatus {
+  NUEVO
+  PENDIENTE
+  EN_AUTORIZACION
+  APROBADO
+  ENTREGADO
+  CANCELADO
+}
+
+model PurchaseRequest {
+  id              String         @id @default(cuid())
+  folio           Int            @default(autoincrement())
+  solicitanteId   String
+  departamentoId  String
+  estatus         PurchaseStatus @default(NUEVO)
+  fechaSolicitud  DateTime       @default(now())
+  justificacion   String?
+  solicitante     Employee       @relation("ComprasSolicitante", fields: [solicitanteId], references: [id])
+  departamento    Department     @relation("ComprasDepartamento", fields: [departamentoId], references: [id])
+  items           PurchaseItem[]
+  quotes          PurchaseQuote[]
+  requiereAutorizacion Boolean   @default(false)
+  autorizadoPorId      String?
+  autorizadoPor        Employee? @relation("ComprasAutorizador", fields: [autorizadoPorId], references: [id])
+  fechaAutorizacion    DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@map("purchase_requests")
+}
+
+model PurchaseItem {
+  id                String          @id @default(cuid())
+  requestId         String
+  productoServicio  String
+  cantidad          Float
+  descripcion       String?
+  request           PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("purchase_items")
+}
+
+model PurchaseQuote {
+  id                String          @id @default(cuid())
+  requestId         String
+  proveedor         String
+  monto             Float
+  fechaCotizacion   DateTime        @default(now())
+  archivoUrl        String?
+  isSelected        Boolean         @default(false)
+  request           PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("purchase_quotes")
+}
+
+model AttendanceRecord {
+  id              String   @id @default(cuid())
+  numeroEmpleado  String   // El número del checador (ej. "592")
+  nombreEmpleado  String   // Nombre tal cual viene en el reloj
+  fechaHora       DateTime // Fecha y hora exacta de la checada
+  tipo            String   // "Entrada" o "Salida" (o estado del reloj)
+  dispositivo     String?  // Ej. "Bio Matriz"
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([numeroEmpleado])
+  @@index([fechaHora])
+  @@map("attendance_records")
 }

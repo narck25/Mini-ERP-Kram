@@ -10,7 +10,7 @@ const registerValidation = [
   body('email').isEmail().normalizeEmail(),
   body('password').isLength({ min: 6 }),
   body('name').notEmpty().trim(),
-  body('role').optional().isIn(['ADMIN', 'RH', 'SISTEMAS', 'COMPRAS'])
+  body('role').optional().isIn(['ADMIN', 'RH', 'SISTEMAS', 'COMPRAS', 'PRODUCCION'])
 ];
 
 const loginValidation = [
@@ -77,6 +77,14 @@ router.get('/test/compras',
   AuthMiddleware.requireComprasOrAdmin,
   (req, res) => {
     res.json({ message: 'Compras or Admin access granted', user: req.user });
+  }
+);
+
+router.get('/test/produccion', 
+  AuthMiddleware.verifyToken, 
+  AuthMiddleware.requireProduccionOrAdmin,
+  (req, res) => {
+    res.json({ message: 'Produccion or Admin access granted', user: req.user });
   }
 );
 

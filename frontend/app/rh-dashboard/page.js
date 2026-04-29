@@ -10,9 +10,9 @@ export default function RHDashboardPage() {
   const { user } = useAuth();
 
   useEffect(() => {
-    // Redirigir a la nueva página de reclutamiento
+    // Redirigir al dashboard completo de RH
     if (user && ['RH', 'ADMIN'].includes(user.role)) {
-      router.push('/rh/reclutamiento');
+      router.push('/rh/dashboard-completo');
     }
   }, [user, router]);
 
@@ -34,7 +34,7 @@ export default function RHDashboardPage() {
       <div className="p-6">
         <div className="text-center py-8">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-2 text-gray-600">Redirigiendo al dashboard de reclutamiento...</p>
+          <p className="mt-2 text-gray-600">Redirigiendo al dashboard completo de RH...</p>
         </div>
       </div>
     </DashboardLayout>

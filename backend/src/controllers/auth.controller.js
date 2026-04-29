@@ -27,23 +27,53 @@ class AuthController {
         return res.status(400).json({ error: 'User already exists' });
       }
 
+      // Buscar empleado con el mismo correo (correoElectronico o correoEmpresa)
+      const employee = await prisma.employee.findFirst({
+        where: {
+          OR: [
+            { correoElectronico: email },
+            { correoEmpresa: email }
+          ]
+        }
+      });
+
       // Hash password
       const hashedPassword = await AuthUtils.hashPassword(password);
 
+      // Preparar datos del usuario
+      const userData = {
+        email,
+        password: hashedPassword,
+        name,
+        role: 'EMPLEADO_BASICO', // Rol por defecto para nuevos usuarios
+        accessibleModules: [] // Array vacío, RH/Admin asignará módulos después
+      };
+
+      // Si se encontró un empleado, vincularlo
+      if (employee) {
+        userData.employee = {
+          connect: { id: employee.id }
+        };
+        console.log(`✅ Usuario vinculado automáticamente al empleado: ${employee.nombres || employee.nombre || 'Sin nombre'} (ID: ${employee.id})`);
+      }
+
       // Create user
       const user = await prisma.user.create({
-        data: {
-          email,
-          password: hashedPassword,
-          name,
-          role: role || 'RH' // Default role
-        },
+        data: userData,
         select: {
           id: true,
           email: true,
           name: true,
           role: true,
-          createdAt: true
+          createdAt: true,
+          employee: {
+            select: {
+              id: true,
+              nombres: true,
+              clave: true,
+              puesto: true
+            }
+          }
         }
       });
 
@@ -74,9 +104,19 @@ class AuthController {
 
       const { email, password } = req.body;
 
-      // Find user
+      // Find user with accessibleModules
       const user = await prisma.user.findUnique({
-        where: { email }
+        where: { email },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true,
+          accessibleModules: true,
+          password: true,
+          createdAt: true
+        }
       });
 
       if (!user) {
@@ -93,10 +133,11 @@ class AuthController {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
-      // Generate JWT token
+      // Generate JWT token with accessibleModules
       const token = AuthUtils.generateToken({ 
         userId: user.id, 
-        role: user.role 
+        role: user.role,
+        accessibleModules: user.accessibleModules || ['DASHBOARD']
       });
 
       // Create session
@@ -119,6 +160,7 @@ class AuthController {
         name: user.name,
         role: user.role,
         isActive: user.isActive,
+        accessibleModules: user.accessibleModules || ['DASHBOARD'],
         createdAt: user.createdAt
       };
 
@@ -147,6 +189,7 @@ class AuthController {
           name: true,
           role: true,
           isActive: true,
+          accessibleModules: true,
           createdAt: true,
           updatedAt: true
         }

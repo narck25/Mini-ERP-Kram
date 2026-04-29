@@ -68,7 +68,9 @@ class AuthUtils {
    * @returns {boolean} True if user has required role
    */
   static hasRole(userRole, allowedRoles) {
-    return allowedRoles.includes(userRole);
+    // Convert both to uppercase for case-insensitive comparison
+    const userRoleUpper = userRole.toUpperCase();
+    return allowedRoles.some(role => role.toUpperCase() === userRoleUpper);
   }
 }
 

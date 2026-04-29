@@ -297,6 +297,8 @@ exports.getEmployeeById = async (req, res) => {
 // Crear un nuevo empleado
 exports.createEmployee = async (req, res) => {
   try {
+    console.log("📥 Payload recibido en createEmployee:", JSON.stringify(req.body, null, 2));
+    
     const {
       // Datos Personales
       clave,
@@ -412,86 +414,105 @@ exports.createEmployee = async (req, res) => {
       }
     }
 
+    // Preparar datos para creación
+    const employeeData = {
+      // Datos Personales
+      clave: clave || null,
+      nombre: nombres || null, // Cambiado de nombres a nombre
+      nombres: nombres || null,
+      apellidoPaterno: apellidoPaterno || null,
+      apellidoMaterno: apellidoMaterno || null,
+      fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null,
+      lugarNacimiento: lugarNacimiento || null,
+      estadoCivil: estadoCivil || null,
+      nacionalidad: nacionalidad || null,
+      sexo: sexo || null,
+      nivelAcademico: nivelAcademico || null,
+      
+      // Contacto y Dirección
+      telefonoCasa: telefonoCasa || null,
+      telefonoMovil: telefonoMovil || null,
+      correoElectronico: correoElectronico || null,
+      correoEmpresa: correoEmpresa || null,
+      direccionCompleta: direccionCompleta || null,
+      estado: estado || null,
+      cpFiscal: cpFiscal || null,
+      
+      // Datos Legales
+      rfc,
+      curp,
+      nss,
+      
+      // Datos Laborales
+      fechaAlta: new Date(fecha_ingreso),
+      fechaBaja: fechaBaja ? new Date(fechaBaja) : null,
+      estatus: estatus || 'Activo',
+      sucursal: sucursal || null,
+      area: area || null,
+      region: region || null,
+      contrato: contrato || null,
+      horario: horario || null,
+      
+      // Datos Financieros
+      salarioMensual: salary && salary !== '' ? parseFloat(salary) : null,
+      clabe: clabe || null,
+      numeroCuenta: numeroCuenta || null,
+      banco: banco || null,
+      
+      // Nuevos campos: Jefe Directo, SD, SDI
+      jefeDirecto: jefeDirecto || null,
+      sd: sd && sd !== '' ? parseFloat(sd) : null,
+      sdi: sdi && sdi !== '' ? parseFloat(sdi) : null,
+      
+      // Campos de jerarquía (NUEVOS)
+      nivelJerarquico: nivelJerarquico || 'OPERATIVO',
+      
+      // Uniformes y Extras
+      tallaCamisa: tallaCamisa || null,
+      tallaPlayera: tallaPlayera || null,
+      tallaPantalon: tallaPantalon || null,
+      tallaZapatos: tallaZapatos || null,
+      nombreConyuge: nombreConyuge || null,
+      
+      // Beneficiarios
+      beneficiario1: beneficiario1 || null,
+      fechaNacBeneficiario1: fechaNacBeneficiario1 ? new Date(fechaNacBeneficiario1) : null,
+      porcentaje1: porcentaje1 && porcentaje1 !== '' ? parseFloat(porcentaje1) : null,
+      beneficiario2: beneficiario2 || null,
+      fechaNacBeneficiario2: fechaNacBeneficiario2 ? new Date(fechaNacBeneficiario2) : null,
+      porcentaje2: porcentaje2 && porcentaje2 !== '' ? parseFloat(porcentaje2) : null,
+    };
+
+    // Agregar relaciones solo si existen
+    if (puestoId) {
+      employeeData.puesto = {
+        connect: { id: puestoId }
+      };
+    }
+
+    if (departamento_id) {
+      employeeData.departamento = {
+        connect: { id: departamento_id }
+      };
+    }
+
+    if (userId && userId.trim() !== '') {
+      employeeData.user = {
+        connect: { id: userId }
+      };
+    }
+
+    // Agregar relación reportaA si se proporciona reportaAId
+    if (reportaAId && reportaAId.trim() !== '') {
+      employeeData.reportaA = {
+        connect: { id: reportaAId }
+      };
+    }
+
+    console.log("📝 Datos preparados para crear empleado:", JSON.stringify(employeeData, null, 2));
+
     const employee = await prisma.employee.create({
-      data: {
-        // Datos Personales
-        clave: clave || null,
-        nombre: nombres || null, // Cambiado de nombres a nombre
-        nombres: nombres || null,
-        apellidoPaterno: apellidoPaterno || null,
-        apellidoMaterno: apellidoMaterno || null,
-        fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null,
-        lugarNacimiento: lugarNacimiento || null,
-        estadoCivil: estadoCivil || null,
-        nacionalidad: nacionalidad || null,
-        sexo: sexo || null,
-        nivelAcademico: nivelAcademico || null,
-        
-        // Contacto y Dirección
-        telefonoCasa: telefonoCasa || null,
-        telefonoMovil: telefonoMovil || null,
-        correoElectronico: correoElectronico || null,
-        correoEmpresa: correoEmpresa || null,
-        direccionCompleta: direccionCompleta || null,
-        estado: estado || null,
-        cpFiscal: cpFiscal || null,
-        
-        // Datos Legales
-        rfc,
-        curp,
-        nss,
-        
-        // Datos Laborales
-        fechaAlta: new Date(fecha_ingreso),
-        fechaBaja: fechaBaja ? new Date(fechaBaja) : null,
-        estatus: estatus || 'Activo',
-        sucursal: sucursal || null,
-        area: area || null,
-        region: region || null,
-        contrato: contrato || null,
-        horario: horario || null,
-        puesto: puestoId ? {
-          connect: { id: puestoId }
-        } : undefined,
-        departamento: {
-          connect: { id: departamento_id }
-        },
-        
-        // Datos Financieros
-        salarioMensual: salary && salary !== '' ? parseFloat(salary) : null,
-        clabe: clabe || null,
-        numeroCuenta: numeroCuenta || null,
-        banco: banco || null,
-        
-        // Nuevos campos: Jefe Directo, SD, SDI
-        jefeDirecto: jefeDirecto || null,
-        sd: sd && sd !== '' ? parseFloat(sd) : null,
-        sdi: sdi && sdi !== '' ? parseFloat(sdi) : null,
-        
-        // Campos de jerarquía (NUEVOS)
-        nivelJerarquico: nivelJerarquico || 'OPERATIVO',
-        reportaAId: reportaAId || null,
-        
-        // Uniformes y Extras
-        tallaCamisa: tallaCamisa || null,
-        tallaPlayera: tallaPlayera || null,
-        tallaPantalon: tallaPantalon || null,
-        tallaZapatos: tallaZapatos || null,
-        nombreConyuge: nombreConyuge || null,
-        
-        // Beneficiarios
-        beneficiario1: beneficiario1 || null,
-        fechaNacBeneficiario1: fechaNacBeneficiario1 ? new Date(fechaNacBeneficiario1) : null,
-        porcentaje1: porcentaje1 && porcentaje1 !== '' ? parseFloat(porcentaje1) : null,
-        beneficiario2: beneficiario2 || null,
-        fechaNacBeneficiario2: fechaNacBeneficiario2 ? new Date(fechaNacBeneficiario2) : null,
-        porcentaje2: porcentaje2 && porcentaje2 !== '' ? parseFloat(porcentaje2) : null,
-        
-        // Relación con usuario
-        user: userId && userId.trim() !== '' ? {
-          connect: { id: userId }
-        } : undefined
-      },
+      data: employeeData,
       include: {
         departamento: {
           select: {
@@ -1433,5 +1454,58 @@ exports.getDepartments = async (req, res) => {
   } catch (error) {
     console.error('Error getting departments:', error);
     res.status(500).json({ error: 'Error al obtener los departamentos' });
+  }
+};
+
+// Obtener jefes directos (empleados con nivel jerárquico GERENTE, DIRECTOR, SUPERVISOR, COORDINADOR)
+exports.getManagers = async (req, res) => {
+  try {
+    // Verificar que el usuario esté autenticado
+    if (!req.user) {
+      return res.status(401).json({ error: 'No autenticado' });
+    }
+
+    const managers = await prisma.employee.findMany({
+      where: {
+        nivelJerarquico: {
+          in: ['GERENTE', 'DIRECTOR', 'SUPERVISOR', 'COORDINADOR']
+        },
+        estatus: 'Activo'
+      },
+      select: {
+        id: true,
+        nombre: true,
+        nivelJerarquico: true,
+        puesto: {
+          select: {
+            nombre: true
+          }
+        },
+        departamento: {
+          select: {
+            nombre: true
+          }
+        }
+      },
+      orderBy: [
+        { nivelJerarquico: 'desc' },
+        { nombre: 'asc' }
+      ]
+    });
+
+    // Formatear los resultados para el frontend
+    const formattedManagers = managers.map(manager => ({
+      id: manager.id,
+      nombre: manager.nombre || 'Sin nombre',
+      nivelJerarquico: manager.nivelJerarquico,
+      puesto: manager.puesto?.nombre || 'Sin puesto',
+      departamento: manager.departamento?.nombre || 'Sin departamento',
+      displayName: `${manager.nombre || 'Sin nombre'} - ${manager.puesto?.nombre || 'Sin puesto'} (${manager.nivelJerarquico})`
+    }));
+
+    res.json({ managers: formattedManagers });
+  } catch (error) {
+    console.error('Error getting managers:', error);
+    res.status(500).json({ error: 'Error al obtener la lista de jefes directos' });
   }
 };

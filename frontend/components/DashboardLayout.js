@@ -1,22 +1,30 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
-  { name: 'Usuarios', href: '/dashboard/users', icon: '👥', roles: ['ADMIN'] },
-  { name: 'Inventario', href: '/dashboard/inventory', icon: '📦', roles: ['ADMIN', 'COMPRAS', 'SISTEMAS'] },
-  { name: 'Compras', href: '/dashboard/purchases', icon: '🛒', roles: ['ADMIN', 'COMPRAS'] },
-  { name: 'Ventas', href: '/dashboard/sales', icon: '💰', roles: ['ADMIN'] },
+// Sección 1: "Mi Portal" (Autoservicio y Equipo)
+const myPortalNavigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: '🏠', module: 'DASHBOARD' },
+  { name: 'Mi Equipo', href: '/rh/empleados', icon: '👥', module: 'EMPLEADOS' },
+  { name: 'Mis Vacantes', href: '/reclutamiento/mis-solicitudes', icon: '📝', module: 'RECLUTAMIENTO' },
+  { name: 'Mis Compras', href: '/compras/mis-solicitudes', icon: '🛒', module: 'COMPRAS' },
+]
+
+// Sección 2: "Administración Global" (Gestión Total)
+const adminNavigation = [
   { name: 'RH - Dashboard', href: '/rh-dashboard', icon: '📋', roles: ['ADMIN', 'RH'] },
-  { name: 'RH - Empleados', href: '/rh/empleados', icon: '👨‍💼', roles: ['ADMIN', 'RH'] },
-  { name: 'RH - Reclutamiento', href: '/rh/reclutamiento', icon: '📝', roles: ['ADMIN', 'RH'] },
-  { name: 'Mis Solicitudes', href: '/reclutamiento/mis-solicitudes', icon: '📋', roles: ['SISTEMAS', 'COMPRAS'] },
-  { name: 'Reportes', href: '/dashboard/reports', icon: '📊', roles: ['ADMIN', 'RH', 'SISTEMAS', 'COMPRAS'] },
-  { name: 'Configuración', href: '/dashboard/settings', icon: '⚙️', roles: ['ADMIN', 'SISTEMAS'] },
+  { name: 'RH - Reclutamiento', href: '/rh/reclutamiento', icon: '📋', roles: ['ADMIN', 'RH'] },
+  { name: 'Crear Vacante HR', href: '/rh/reclutamiento/crear-vacante', icon: '➕', roles: ['ADMIN', 'RH'] },
+  { name: 'Dashboard Completo', href: '/rh/dashboard-completo', icon: '📊', roles: ['ADMIN', 'RH'] },
+  { name: 'Incidencias', href: '/rh/incidencias', icon: '⏰', roles: ['ADMIN', 'RH'] },
+  { name: 'Gestión Global de Compras', href: '/dashboard/compras', icon: '📊', roles: ['ADMIN', 'COMPRAS'] },
+  { name: 'Organización', href: '/dashboard/organizacion', icon: '🏢', roles: ['ADMIN'] },
+  { name: 'Accesos/Usuarios', href: '/dashboard/accesos', icon: '🔐', roles: ['ADMIN'] },
+  { name: 'Reportes', href: '/dashboard/reports', icon: '📊', module: 'REPORTES' },
+  { name: 'Configuración', href: '/dashboard/settings', icon: '⚙️', module: 'CONFIGURACION' },
 ]
 
 const userNavigation = [
@@ -24,14 +32,43 @@ const userNavigation = [
   { name: 'Configuración', href: '/dashboard/settings' },
 ]
 
-export default function DashboardLayout({ children, user }) {
+export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
   const pathname = usePathname()
-  const { logout, hasRole } = useAuth()
+  const { user, logout, hasRole } = useAuth()
+  const userMenuRef = useRef(null)
 
-  const filteredNavigation = navigation.filter(item => {
-    if (!item.roles) return true
-    return hasRole(item.roles)
+  // Cerrar menú al hacer clic fuera de él
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuOpen && userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setUserMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [userMenuOpen])
+
+  // Filtrar navegación de "Mi Portal" basada en módulos accesibles
+  const filteredMyPortal = myPortalNavigation.filter(item => {
+    if (item.module === 'DASHBOARD') return true
+    return user?.accessibleModules?.includes(item.module)
+  })
+
+  // Filtrar navegación de "Administración Global" basada en roles
+  const filteredAdmin = adminNavigation.filter(item => {
+    if (item.module) {
+      // Si tiene módulo, verificar acceso
+      return user?.accessibleModules?.includes(item.module)
+    } else if (item.roles) {
+      // Si tiene roles, verificar si el usuario tiene alguno de esos roles
+      return item.roles.includes(user?.role)
+    }
+    return false
   })
 
   const getRoleName = (role) => {
@@ -39,13 +76,14 @@ export default function DashboardLayout({ children, user }) {
       ADMIN: 'Administrador',
       RH: 'Recursos Humanos',
       SISTEMAS: 'Sistemas',
-      COMPRAS: 'Compras'
+      COMPRAS: 'Compras',
+      PRODUCCION: 'Producción'
     }
     return roles[role] || role
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {/* Sidebar para móviles */}
       <div className={`fixed inset-0 flex z-40 md:hidden ${sidebarOpen ? '' : 'hidden'}`}>
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
@@ -65,30 +103,72 @@ export default function DashboardLayout({ children, user }) {
               <h1 className="text-xl font-bold text-gray-900">ERP KRAM</h1>
             </div>
             <nav className="mt-5 px-2 space-y-1">
-              {filteredNavigation.map((item) => {
-                const isActive = pathname === item.href
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={`${
-                      isActive
-                        ? 'bg-gray-100 text-gray-900'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    } group flex items-center px-2 py-2 text-base font-medium rounded-md`}
-                  >
-                    <span className="mr-3 text-lg">{item.icon}</span>
-                    {item.name}
-                  </Link>
-                )
-              })}
+              {/* Sección: Mi Portal */}
+              {filteredMyPortal.length > 0 && (
+                <>
+                  <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Mi Portal
+                  </div>
+                  {filteredMyPortal.map((item) => {
+                    const isActive = pathname === item.href
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className={`${
+                          isActive
+                            ? 'bg-gray-100 text-gray-900'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        } group flex items-center px-2 py-2 text-base font-medium rounded-md`}
+                      >
+                        <span className="mr-3 text-lg">{item.icon}</span>
+                        {item.name}
+                      </Link>
+                    )
+                  })}
+                </>
+              )}
+
+              {/* Sección: Administración Global */}
+              {filteredAdmin.length > 0 && (
+                <>
+                  <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">
+                    Administración Global
+                  </div>
+                  {filteredAdmin.map((item) => {
+                    const isActive = pathname === item.href
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className={`${
+                          isActive
+                            ? 'bg-gray-100 text-gray-900'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        } group flex items-center px-2 py-2 text-base font-medium rounded-md`}
+                      >
+                        <span className="mr-3 text-lg">{item.icon}</span>
+                        {item.name}
+                      </Link>
+                    )
+                  })}
+                </>
+              )}
             </nav>
           </div>
           <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
-            <div className="flex items-center">
-              <div>
+            <div className="flex items-center w-full">
+              <div className="ml-3 flex-1">
                 <div className="text-base font-medium text-gray-800">{user?.name || 'Usuario'}</div>
                 <div className="text-sm font-medium text-gray-500">{user?.email}</div>
+                <div className="mt-2">
+                  <button
+                    onClick={logout}
+                    className="text-sm text-red-600 hover:text-red-800 font-medium"
+                  >
+                    Cerrar sesión
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -103,36 +183,124 @@ export default function DashboardLayout({ children, user }) {
               <h1 className="text-xl font-bold text-gray-900">ERP KRAM</h1>
             </div>
             <nav className="mt-5 flex-1 px-2 space-y-1">
-              {filteredNavigation.map((item) => {
-                const isActive = pathname === item.href
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={`${
-                      isActive
-                        ? 'bg-gray-100 text-gray-900'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    } group flex items-center px-2 py-2 text-sm font-medium rounded-md`}
-                  >
-                    <span className="mr-3 text-lg">{item.icon}</span>
-                    {item.name}
-                  </Link>
-                )
-              })}
+              {/* Sección: Mi Portal */}
+              {filteredMyPortal.length > 0 && (
+                <>
+                  <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Mi Portal
+                  </div>
+                  {filteredMyPortal.map((item) => {
+                    const isActive = pathname === item.href
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className={`${
+                          isActive
+                            ? 'bg-gray-100 text-gray-900'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        } group flex items-center px-2 py-2 text-sm font-medium rounded-md`}
+                      >
+                        <span className="mr-3 text-lg">{item.icon}</span>
+                        {item.name}
+                      </Link>
+                    )
+                  })}
+                </>
+              )}
+
+              {/* Sección: Administración Global */}
+              {filteredAdmin.length > 0 && (
+                <>
+                  <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">
+                    Administración Global
+                  </div>
+                  {filteredAdmin.map((item) => {
+                    const isActive = pathname === item.href
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className={`${
+                          isActive
+                            ? 'bg-gray-100 text-gray-900'
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        } group flex items-center px-2 py-2 text-sm font-medium rounded-md`}
+                      >
+                        <span className="mr-3 text-lg">{item.icon}</span>
+                        {item.name}
+                      </Link>
+                    )
+                  })}
+                </>
+              )}
             </nav>
           </div>
           <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
             <div className="flex items-center w-full">
-              <div className="ml-3 flex-1">
+              <div className="ml-3 flex-1 relative">
                 <div className="text-sm font-medium text-gray-800">{user?.name || 'Usuario'}</div>
                 <div className="text-xs font-medium text-gray-500">{getRoleName(user?.role)}</div>
-                <button
-                  onClick={logout}
-                  className="mt-2 text-sm text-danger-600 hover:text-danger-800"
-                >
-                  Cerrar sesión
-                </button>
+                
+                {/* Menú desplegable del usuario - SOLO PARA DESKTOP */}
+                <div className="relative mt-2">
+                  <button
+                    onClick={() => {
+                      console.log('Botón Opciones de usuario clickeado, userMenuOpen:', !userMenuOpen);
+                      setUserMenuOpen(!userMenuOpen);
+                    }}
+                    className="flex items-center text-sm font-medium text-gray-800 hover:text-blue-600 focus:outline-none px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-150"
+                  >
+                    <span className="mr-2">👤 Opciones</span>
+                    <svg className={`h-4 w-4 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  
+                  {userMenuOpen && (
+                    <div ref={userMenuRef} className="absolute left-0 -mt-48 w-56 bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-300 origin-bottom-left" style={{outline: '2px solid green'}}>
+                      <div className="px-4 py-2 border-b border-gray-100">
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Opciones</div>
+                      </div>
+                      {userNavigation.map((item) => (
+                        <Link
+                          key={item.name}
+                          href={item.href}
+                          className="block px-4 py-3 text-sm text-gray-800 hover:bg-blue-50 hover:text-blue-700 transition-colors duration-150"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <div className="flex items-center">
+                            {item.name === 'Tu perfil' && (
+                              <svg className="w-4 h-4 mr-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                            )}
+                            {item.name === 'Configuración' && (
+                              <svg className="w-4 h-4 mr-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                            )}
+                            {item.name}
+                          </div>
+                        </Link>
+                      ))}
+                      <div className="border-t border-gray-200 my-2"></div>
+                      <button
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          logout();
+                        }}
+                        className="block w-full text-left px-4 py-3 text-sm font-medium text-red-700 hover:bg-red-50 hover:text-red-800 transition-colors duration-150 flex items-center"
+                      >
+                        <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Cerrar sesión
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

@@ -1,6 +1,19 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+// Función auxiliar para construir URLs correctamente
+const buildFileUrl = (req, filePath) => {
+  if (!filePath) return null;
+  
+  // Si tenemos BASE_URL configurado, usarlo
+  if (process.env.BASE_URL) {
+    return `${process.env.BASE_URL}${filePath}`;
+  }
+  
+  // Si no, usar el método tradicional
+  return `${req.protocol}://${req.get('host')}${filePath}`;
+};
+
 class PurchaseController {
   /**
    * Crear una nueva solicitud de compra
@@ -146,9 +159,7 @@ class PurchaseController {
         ...request,
         quotes: request.quotes.map(quote => ({
           ...quote,
-          archivoUrl: quote.archivoUrl 
-            ? `${req.protocol}://${req.get('host')}${quote.archivoUrl}`
-            : null
+          archivoUrl: buildFileUrl(req, quote.archivoUrl)
         }))
       }));
 
@@ -239,9 +250,7 @@ class PurchaseController {
         ...request,
         quotes: request.quotes.map(quote => ({
           ...quote,
-          archivoUrl: quote.archivoUrl 
-            ? `${req.protocol}://${req.get('host')}${quote.archivoUrl}`
-            : null
+          archivoUrl: buildFileUrl(req, quote.archivoUrl)
         }))
       };
 
@@ -313,9 +322,7 @@ class PurchaseController {
         ...request,
         quotes: request.quotes.map(quote => ({
           ...quote,
-          archivoUrl: quote.archivoUrl 
-            ? `${req.protocol}://${req.get('host')}${quote.archivoUrl}`
-            : null
+          archivoUrl: buildFileUrl(req, quote.archivoUrl)
         }))
       }));
 
@@ -418,9 +425,18 @@ class PurchaseController {
         return { request: updatedRequest, quotes: purchaseQuotes };
       });
 
+      // Transformar las URLs de las cotizaciones a URLs completas
+      const transformedQuotes = result.quotes.map(quote => ({
+        ...quote,
+        archivoUrl: buildFileUrl(req, quote.archivoUrl)
+      }));
+
       res.json({
         message: 'Cotizaciones subidas exitosamente',
-        data: result
+        data: {
+          request: result.request,
+          quotes: transformedQuotes
+        }
       });
     } catch (error) {
       console.error("🔥 ERROR PRISMA:", error);
@@ -702,24 +718,8 @@ class PurchaseController {
         });
       }
 
-      // Construir la URL del archivo
+      // Construir la URL del archivo (ruta relativa correcta)
       const fileUrl = `/uploads/purchase-quotes/${req.file.filename}`;
-      
-      // Mover el archivo de la carpeta temporal a la carpeta final
-      const fs = require('fs');
-      const path = require('path');
-      
-      const tempPath = req.file.path;
-      const finalDir = 'uploads/purchase-quotes/';
-      const finalPath = path.join(finalDir, req.file.filename);
-      
-      // Crear directorio si no existe
-      if (!fs.existsSync(finalDir)) {
-        fs.mkdirSync(finalDir, { recursive: true });
-      }
-      
-      // Mover el archivo
-      fs.renameSync(tempPath, finalPath);
 
       // Actualizar la cotización con la URL del archivo
       const updatedQuote = await prisma.purchaseQuote.update({
@@ -787,24 +787,8 @@ class PurchaseController {
         });
       }
 
-      // Construir la URL del archivo
-      const fileUrl = `/uploads/purchase-quotes/temp/${Date.now()}-${index}-${req.file.filename}`;
-      
-      // Mover el archivo de la carpeta temporal a la carpeta temporal de cotizaciones
-      const fs = require('fs');
-      const path = require('path');
-      
-      const tempPath = req.file.path;
-      const finalDir = 'uploads/purchase-quotes/temp/';
-      const finalPath = path.join(finalDir, `${Date.now()}-${index}-${req.file.filename}`);
-      
-      // Crear directorio si no existe
-      if (!fs.existsSync(finalDir)) {
-        fs.mkdirSync(finalDir, { recursive: true });
-      }
-      
-      // Mover el archivo
-      fs.renameSync(tempPath, finalPath);
+      // Construir la URL del archivo (ruta relativa correcta)
+      const fileUrl = `/uploads/purchase-quotes/${req.file.filename}`;
 
       res.json({
         message: 'Archivo subido exitosamente',

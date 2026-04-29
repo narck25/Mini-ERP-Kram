@@ -4,6 +4,9 @@ const prisma = new PrismaClient();
 // Crear nueva vacante (formulario digitalizado)
 exports.createVacancy = async (req, res) => {
   try {
+    console.log('📥 CREATE VACANCY REQUEST BODY:', JSON.stringify(req.body, null, 2));
+    console.log('📥 USER:', req.user);
+    
     const {
       // Información de la Vacante
       titulo,
@@ -12,29 +15,32 @@ exports.createVacancy = async (req, res) => {
       reportaA,
       numeroVacantes,
       motivoSolicitud,
-      personaAReemplazar,
+      personaAReemplazarNombre,
+      personaAReemplazarCargo,
+      noAceptanReingresos,
       
       // Requerimientos de Sistemas (Infraestructura)
-      requiereLaptop,
-      requierePC,
-      requiereMovil,
-      requiereExtension,
+      reqLaptop,
+      reqComputadoraEscritorio,
+      reqTelefonoMovil,
+      reqExtensionTelefonica,
       ubicacionFisica,
-      otrosRequerimientos,
+      otrosRequerimientosFisicos,
       
       // Modalidad y Promoción Interna
       tipoContratacion,
-      candidatoPromocion,
-      cargoPromocion,
-      observaciones,
+      consideraPromocionInterna,
+      candidatosInternosPropuestos,
+      observacionesPromocion,
       
       // Proceso de Entrevista
       entrevistadorTecnico,
       entrevistadorRespaldo,
-      conocimientosExtra,
+      conocimientosAdicionales,
       
       // ID del solicitante
-      solicitanteId
+      solicitanteId,
+      jobPositionId
     } = req.body;
 
     const userId = req.user.id;
@@ -112,6 +118,29 @@ exports.createVacancy = async (req, res) => {
       }
     }
 
+    // Mapear motivoSolicitud del frontend al enum del schema
+    const mapMotivoSolicitud = (motivo) => {
+      const motivoMap = {
+        'NUEVA_CREACION': 'NUEVA_CREACION',
+        'REEMPLAZO_DEFINITIVO': 'REEMPLAZO_RENUNCIA', // Mapear a valor existente
+        'REEMPLAZO_TEMPORAL': 'LICENCIA_TEMPORAL', // Mapear a valor existente
+        'RENUNCIA': 'REEMPLAZO_RENUNCIA',
+        'TERMINACION_CONTRATO': 'REEMPLAZO_TERMINACION_CONTRATO',
+        'LICENCIA': 'LICENCIA_TEMPORAL',
+        'INCAPACIDAD': 'LICENCIA_TEMPORAL',
+        'JUBILACION': 'JUBILACION_RETIRO',
+        'PROMOCION': 'PROMOCION',
+        'MATERNIDAD': 'LICENCIA_MATERNIDAD',
+        'VACACIONES': 'VACACIONES',
+        'INCREMENTO_PLANTILLA': 'INCREMENTO_PLANTILLA',
+        'INCREMENTO_PRODUCCION': 'INCREMENTO_PRODUCCION',
+        'REESTRUCTURACION': 'REESTRUCTURACION'
+      };
+      return motivoMap[motivo] || 'NUEVA_CREACION';
+    };
+
+    const motivoSolicitudMapped = mapMotivoSolicitud(motivoSolicitud);
+
     // Crear la vacante con los nuevos campos
     const vacancy = await prisma.jobVacancy.create({
       data: {
@@ -120,30 +149,33 @@ exports.createVacancy = async (req, res) => {
         departamento_id: departamento_id_final, // Usar el ID final (puede ser el original o uno nuevo)
         reportaA,
         numeroVacantes: parseInt(numeroVacantes) || 1,
-        motivoSolicitud,
-        personaAReemplazar: personaAReemplazar || null,
+        motivoSolicitud: motivoSolicitudMapped,
+        personaAReemplazarNombre: personaAReemplazarNombre || null,
+        personaAReemplazarCargo: personaAReemplazarCargo || null,
+        noAceptanReingresos: Boolean(noAceptanReingresos),
         
         // Requerimientos de Sistemas (Infraestructura)
-        requiereLaptop: Boolean(requiereLaptop),
-        requierePC: Boolean(requierePC),
-        requiereMovil: Boolean(requiereMovil),
-        requiereExtension: Boolean(requiereExtension),
+        reqLaptop: Boolean(reqLaptop),
+        reqComputadoraEscritorio: Boolean(reqComputadoraEscritorio),
+        reqTelefonoMovil: Boolean(reqTelefonoMovil),
+        reqExtensionTelefonica: Boolean(reqExtensionTelefonica),
         ubicacionFisica: ubicacionFisica || null,
-        otrosRequerimientos: otrosRequerimientos || null,
+        otrosRequerimientosFisicos: otrosRequerimientosFisicos || null,
         
         // Modalidad y Promoción Interna
         tipoContratacion,
-        candidatoPromocion: candidatoPromocion || null,
-        cargoPromocion: cargoPromocion || null,
-        observaciones: observaciones || null,
+        consideraPromocionInterna: Boolean(consideraPromocionInterna),
+        candidatosInternosPropuestos: candidatosInternosPropuestos || [],
+        observacionesPromocion: observacionesPromocion || null,
         
         // Proceso de Entrevista
         entrevistadorTecnico,
         entrevistadorRespaldo: entrevistadorRespaldo || null,
-        conocimientosExtra: conocimientosExtra || null,
+        conocimientosAdicionales: conocimientosAdicionales || null,
         
         // Relaciones
         solicitanteId,
+        jobPositionId: jobPositionId || null,
         // Estado por defecto - no necesario porque tiene @default(Solicitada) en schema.prisma
       },
       include: {
@@ -498,6 +530,36 @@ exports.updateActivity = async (req, res) => {
   } catch (error) {
     console.error('Error updating activity:', error);
     res.status(500).json({ error: 'Error al actualizar la actividad' });
+  }
+};
+
+// Obtener departamentos y puestos para formulario de vacante
+exports.getVacancyFormData = async (req, res) => {
+  try {
+    const departments = await prisma.department.findMany({
+      where: { estado: 'Activo' },
+      include: {
+        jobPositions: {
+          where: { estado: 'Activo' },
+          select: {
+            id: true,
+            nombre: true,
+            nivelJerarquico: true,
+            descripcion: true
+          },
+          orderBy: { nombre: 'asc' }
+        }
+      },
+      orderBy: { nombre: 'asc' }
+    });
+
+    res.json({
+      success: true,
+      data: departments
+    });
+  } catch (error) {
+    console.error('Error getting vacancy form data:', error);
+    res.status(500).json({ success: false, error: 'Error al obtener datos para el formulario de vacante' });
   }
 };
 

@@ -12,6 +12,8 @@ function EmpleadosPageContent() {
   const { user } = useAuth();
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [availablePositions, setAvailablePositions] = useState([]);
+  const [managers, setManagers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -30,7 +32,9 @@ function EmpleadosPageContent() {
 
   // Formulario
   const [formData, setFormData] = useState({
-    nombre: '',
+    nombres: '',
+    apellidoPaterno: '',
+    apellidoMaterno: '',
     rfc: '',
     curp: '',
     nss: '',
@@ -51,8 +55,18 @@ function EmpleadosPageContent() {
     if (user && (user.role === 'RH' || user.role === 'ADMIN' || user.accessibleModules?.includes('EMPLEADOS'))) {
       fetchEmployees();
       fetchDepartments();
+      fetchManagers();
     }
   }, [user, filters]);
+
+  // Efecto para cargar puestos cuando se selecciona un departamento
+  useEffect(() => {
+    if (formData.departamento_id) {
+      fetchPositionsByDepartment(formData.departamento_id);
+    } else {
+      setAvailablePositions([]);
+    }
+  }, [formData.departamento_id]);
 
   const fetchEmployees = async () => {
     try {
@@ -80,16 +94,36 @@ function EmpleadosPageContent() {
       console.error('Error fetching departments:', error);
       // Si falla, usar datos por defecto
       const defaultDepartments = [
-        { id: '1', nombre: 'Sistemas', descripcion: 'Departamento de Sistemas' },
-        { id: '2', nombre: 'Compras', descripcion: 'Departamento de Compras' },
+        { id: '1', nombre: 'SISTEMAS', descripcion: 'Departamento de Sistemas' },
+        { id: '2', nombre: 'COMPRAS', descripcion: 'Departamento de Compras' },
         { id: '3', nombre: 'RH', descripcion: 'Recursos Humanos' },
         { id: '4', nombre: 'Administración', descripcion: 'Administración' },
         { id: '5', nombre: 'Finanzas', descripcion: 'Finanzas y Contabilidad' },
         { id: '6', nombre: 'Ventas', descripcion: 'Departamento de Ventas' },
         { id: '7', nombre: 'Marketing', descripcion: 'Marketing' },
-        { id: '8', nombre: 'Producción', descripcion: 'Producción' }
+        { id: '8', nombre: 'PRODUCCION', descripcion: 'Producción' }
       ];
       setDepartments(defaultDepartments);
+    }
+  };
+
+  const fetchManagers = async () => {
+    try {
+      const response = await api.get('/managers');
+      setManagers(response.data.managers);
+    } catch (error) {
+      console.error('Error fetching managers:', error);
+      toast.error('Error al cargar la lista de jefes directos');
+    }
+  };
+
+  const fetchPositionsByDepartment = async (departmentId) => {
+    try {
+      const response = await api.get(`/departments/${departmentId}/job-positions`);
+      setAvailablePositions(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching positions by department:', error);
+      setAvailablePositions([]);
     }
   };
 
@@ -100,13 +134,29 @@ function EmpleadosPageContent() {
   const handleCreateEmployee = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/employees', formData);
+      // Limpiar datos: convertir strings vacíos a null para campos opcionales
+      const cleanedData = {
+        ...formData,
+        apellidoPaterno: formData.apellidoPaterno || null,
+        apellidoMaterno: formData.apellidoMaterno || null,
+        salary: formData.salary || null,
+        jefeDirecto: formData.jefeDirecto || null,
+        sd: formData.sd || null,
+        sdi: formData.sdi || null,
+        reportaAId: formData.reportaAId || null,
+        userId: formData.userId || null
+      };
+      
+      console.log('📤 Enviando datos para crear empleado:', cleanedData);
+      const response = await api.post('/employees', cleanedData);
+      console.log('✅ Respuesta del servidor:', response.data);
       toast.success('Empleado creado exitosamente');
       setShowCreateModal(false);
       resetForm();
       fetchEmployees();
     } catch (error) {
-      console.error('Error creating employee:', error);
+      console.error('❌ Error creating employee:', error);
+      console.error('❌ Error response:', error.response?.data);
       toast.error(error.response?.data?.error || 'Error al crear el empleado');
     }
   };
@@ -179,7 +229,9 @@ function EmpleadosPageContent() {
   const handleEditClick = (employee) => {
     setSelectedEmployee(employee);
     setFormData({
-      nombre: employee.nombre || '',
+      nombres: employee.nombres || employee.nombre || '',
+      apellidoPaterno: employee.apellidoPaterno || '',
+      apellidoMaterno: employee.apellidoMaterno || '',
       rfc: employee.rfc || '',
       curp: employee.curp || '',
       nss: employee.nss || '',
@@ -310,7 +362,9 @@ function EmpleadosPageContent() {
 
   const resetForm = () => {
     setFormData({
-      nombre: '',
+      nombres: '',
+      apellidoPaterno: '',
+      apellidoMaterno: '',
       rfc: '',
       curp: '',
       nss: '',
@@ -612,12 +666,30 @@ function EmpleadosPageContent() {
                 <form onSubmit={handleCreateEmployee}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Nombre completo *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nombres *</label>
                       <input
                         type="text"
                         required
-                        value={formData.nombre}
-                        onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                        value={formData.nombres}
+                        onChange={(e) => setFormData({ ...formData, nombres: e.target.value })}
+                        className="form-input"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Apellido Paterno</label>
+                      <input
+                        type="text"
+                        value={formData.apellidoPaterno}
+                        onChange={(e) => setFormData({ ...formData, apellidoPaterno: e.target.value })}
+                        className="form-input"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Apellido Materno</label>
+                      <input
+                        type="text"
+                        value={formData.apellidoMaterno}
+                        onChange={(e) => setFormData({ ...formData, apellidoMaterno: e.target.value })}
                         className="form-input"
                       />
                     </div>
@@ -673,27 +745,37 @@ function EmpleadosPageContent() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Puesto ID *</label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.puestoId}
-                        onChange={(e) => setFormData({ ...formData, puestoId: e.target.value })}
-                        className="form-input"
-                        placeholder="ID del puesto (ej: clm...)"
-                      />
-                    </div>
-                    <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Departamento *</label>
                       <select
                         required
                         value={formData.departamento_id}
-                        onChange={(e) => setFormData({ ...formData, departamento_id: e.target.value })}
+                        onChange={(e) => {
+                          setFormData({ 
+                            ...formData, 
+                            departamento_id: e.target.value,
+                            puestoId: '' // Reset puesto cuando cambia departamento
+                          });
+                        }}
                         className="form-select"
                       >
                         <option value="">Seleccionar departamento</option>
                         {departments.map(dept => (
                           <option key={dept.id} value={dept.id}>{dept.nombre}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Puesto *</label>
+                      <select
+                        required
+                        value={formData.puestoId}
+                        onChange={(e) => setFormData({ ...formData, puestoId: e.target.value })}
+                        className="form-select"
+                        disabled={!formData.departamento_id || availablePositions.length === 0}
+                      >
+                        <option value="">{formData.departamento_id ? 'Seleccionar puesto' : 'Seleccione un departamento primero'}</option>
+                        {availablePositions.map(position => (
+                          <option key={position.id} value={position.id}>{position.nombre}</option>
                         ))}
                       </select>
                     </div>
@@ -707,15 +789,20 @@ function EmpleadosPageContent() {
                         className="form-input"
                       />
                     </div>
-                    <div>
+                    <div className="hidden">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Jefe Directo</label>
-                      <input
-                        type="text"
-                        value={formData.jefeDirecto}
-                        onChange={(e) => setFormData({ ...formData, jefeDirecto: e.target.value })}
-                        className="form-input"
-                        placeholder="Nombre del jefe directo"
-                      />
+                      <select
+                        value={formData.reportaAId}
+                        onChange={(e) => setFormData({ ...formData, reportaAId: e.target.value })}
+                        className="form-select"
+                        disabled
+                      >
+                        <option value="">Sin jefe directo</option>
+                        {managers.map(manager => (
+                          <option key={manager.id} value={manager.id}>{manager.displayName}</option>
+                        ))}
+                      </select>
+                      <p className="text-sm text-gray-500 mt-1">Campo deshabilitado para la demo</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">SD (Sueldo Diario)</label>
@@ -754,24 +841,11 @@ function EmpleadosPageContent() {
                         <option value="PRESIDENTE">Presidente</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Reporta a (ID de empleado)</label>
+                    <div className="hidden">
                       <input
-                        type="text"
-                        value={formData.reportaAId}
-                        onChange={(e) => setFormData({ ...formData, reportaAId: e.target.value })}
-                        className="form-input"
-                        placeholder="ID del jefe directo"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">ID de Usuario (opcional)</label>
-                      <input
-                        type="text"
+                        type="hidden"
                         value={formData.userId}
                         onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-                        className="form-input"
-                        placeholder="Dejar vacío si no tiene usuario"
                       />
                     </div>
                   </div>
@@ -822,12 +896,30 @@ function EmpleadosPageContent() {
                 <form onSubmit={handleUpdateEmployee}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Nombre completo *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nombres *</label>
                       <input
                         type="text"
                         required
-                        value={formData.nombre}
-                        onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                        value={formData.nombres}
+                        onChange={(e) => setFormData({ ...formData, nombres: e.target.value })}
+                        className="form-input"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Apellido Paterno</label>
+                      <input
+                        type="text"
+                        value={formData.apellidoPaterno}
+                        onChange={(e) => setFormData({ ...formData, apellidoPaterno: e.target.value })}
+                        className="form-input"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Apellido Materno</label>
+                      <input
+                        type="text"
+                        value={formData.apellidoMaterno}
+                        onChange={(e) => setFormData({ ...formData, apellidoMaterno: e.target.value })}
                         className="form-input"
                       />
                     </div>
@@ -883,27 +975,37 @@ function EmpleadosPageContent() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Puesto ID *</label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.puestoId}
-                        onChange={(e) => setFormData({ ...formData, puestoId: e.target.value })}
-                        className="form-input"
-                        placeholder="ID del puesto (ej: clm...)"
-                      />
-                    </div>
-                    <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Departamento *</label>
                       <select
                         required
                         value={formData.departamento_id}
-                        onChange={(e) => setFormData({ ...formData, departamento_id: e.target.value })}
+                        onChange={(e) => {
+                          setFormData({ 
+                            ...formData, 
+                            departamento_id: e.target.value,
+                            puestoId: '' // Reset puesto cuando cambia departamento
+                          });
+                        }}
                         className="form-select"
                       >
                         <option value="">Seleccionar departamento</option>
                         {departments.map(dept => (
                           <option key={dept.id} value={dept.id}>{dept.nombre}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Puesto *</label>
+                      <select
+                        required
+                        value={formData.puestoId}
+                        onChange={(e) => setFormData({ ...formData, puestoId: e.target.value })}
+                        className="form-select"
+                        disabled={!formData.departamento_id || availablePositions.length === 0}
+                      >
+                        <option value="">{formData.departamento_id ? 'Seleccionar puesto' : 'Seleccione un departamento primero'}</option>
+                        {availablePositions.map(position => (
+                          <option key={position.id} value={position.id}>{position.nombre}</option>
                         ))}
                       </select>
                     </div>
@@ -917,15 +1019,20 @@ function EmpleadosPageContent() {
                         className="form-input"
                       />
                     </div>
-                    <div>
+                    <div className="hidden">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Jefe Directo</label>
-                      <input
-                        type="text"
-                        value={formData.jefeDirecto}
-                        onChange={(e) => setFormData({ ...formData, jefeDirecto: e.target.value })}
-                        className="form-input"
-                        placeholder="Nombre del jefe directo"
-                      />
+                      <select
+                        value={formData.reportaAId}
+                        onChange={(e) => setFormData({ ...formData, reportaAId: e.target.value })}
+                        className="form-select"
+                        disabled
+                      >
+                        <option value="">Sin jefe directo</option>
+                        {managers.map(manager => (
+                          <option key={manager.id} value={manager.id}>{manager.displayName}</option>
+                        ))}
+                      </select>
+                      <p className="text-sm text-gray-500 mt-1">Campo deshabilitado para la demo</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">SD (Sueldo Diario)</label>
@@ -964,24 +1071,11 @@ function EmpleadosPageContent() {
                         <option value="PRESIDENTE">Presidente</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Reporta a (ID de empleado)</label>
+                    <div className="hidden">
                       <input
-                        type="text"
-                        value={formData.reportaAId}
-                        onChange={(e) => setFormData({ ...formData, reportaAId: e.target.value })}
-                        className="form-input"
-                        placeholder="ID del jefe directo"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">ID de Usuario (opcional)</label>
-                      <input
-                        type="text"
+                        type="hidden"
                         value={formData.userId}
                         onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-                        className="form-input"
-                        placeholder="Dejar vacío si no tiene usuario"
                       />
                     </div>
                   </div>

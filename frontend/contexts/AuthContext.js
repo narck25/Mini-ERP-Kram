@@ -18,6 +18,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [authChecked, setAuthChecked] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -27,7 +28,9 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = async () => {
     try {
       const token = localStorage.getItem('token')
+      
       if (!token) {
+        setAuthChecked(true)
         setLoading(false)
         return
       }
@@ -37,7 +40,9 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Auth check failed:', error)
       localStorage.removeItem('token')
+      setUser(null)
     } finally {
+      setAuthChecked(true)
       setLoading(false)
     }
   }
@@ -143,17 +148,21 @@ export const AuthProvider = ({ children }) => {
 
   const hasRole = (requiredRoles) => {
     if (!user) return false
-    return requiredRoles.includes(user.role)
+    // Convert both to uppercase for case-insensitive comparison
+    const userRoleUpper = user.role.toUpperCase()
+    return requiredRoles.some(role => role.toUpperCase() === userRoleUpper)
   }
 
   const isAdmin = () => hasRole(['ADMIN'])
   const isRH = () => hasRole(['RH', 'ADMIN'])
   const isSistemas = () => hasRole(['SISTEMAS', 'ADMIN'])
   const isCompras = () => hasRole(['COMPRAS', 'ADMIN'])
+  const isProduccion = () => hasRole(['PRODUCCION', 'ADMIN'])
 
   const value = {
     user,
     loading,
+    authChecked,
     login,
     register,
     logout,
@@ -164,6 +173,7 @@ export const AuthProvider = ({ children }) => {
     isRH,
     isSistemas,
     isCompras,
+    isProduccion,
     checkAuth
   }
 

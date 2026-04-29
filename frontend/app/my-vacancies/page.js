@@ -2,20 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/lib/api';
+import api from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
+import ProtectedRoute, { SistemasProtectedRoute, ComprasProtectedRoute, ProduccionProtectedRoute } from '@/components/ProtectedRoute';
 
-export default function MyVacanciesPage() {
-  const { user } = useAuth();
+function MyVacanciesPageContent() {
+  const { user, loading: authLoading } = useAuth();
   const [vacancies, setVacancies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    department: user?.role === 'SISTEMAS' ? 'Sistemas' : 'Compras',
+    department: user?.role === 'SISTEMAS' ? 'SISTEMAS' : user?.role === 'COMPRAS' ? 'COMPRAS' : 'PRODUCCION',
     position: '',
     salaryRange: '',
     requirements: [''],
@@ -81,7 +82,7 @@ export default function MyVacanciesPage() {
       setFormData({
         title: '',
         description: '',
-        department: user?.role === 'SISTEMAS' ? 'Sistemas' : 'Compras',
+        department: user?.role === 'SISTEMAS' ? 'SISTEMAS' : user?.role === 'COMPRAS' ? 'COMPRAS' : 'PRODUCCION',
         position: '',
         salaryRange: '',
         requirements: [''],
@@ -114,13 +115,14 @@ export default function MyVacanciesPage() {
     }
   };
 
-  if (!user || !['SISTEMAS', 'COMPRAS'].includes(user.role)) {
+  // Mostrar loading mientras se verifica autenticación
+  if (authLoading) {
     return (
       <DashboardLayout>
         <div className="p-6">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <h2 className="text-red-800 font-semibold">Acceso denegado</h2>
-            <p className="text-red-600 mt-1">Solo los jefes de área pueden acceder a esta sección.</p>
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="mt-2 text-gray-600">Verificando autenticación...</p>
           </div>
         </div>
       </DashboardLayout>
@@ -386,4 +388,60 @@ export default function MyVacanciesPage() {
       </div>
     </DashboardLayout>
   );
+}
+
+// Componente que decide qué ProtectedRoute usar basado en el rol
+function MyVacanciesPageWrapper() {
+  const { user, loading: authLoading } = useAuth();
+
+  // Mostrar loading mientras se verifica autenticación
+  if (authLoading) {
+    return (
+      <DashboardLayout>
+        <div className="p-6">
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="mt-2 text-gray-600">Verificando autenticación...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Si no hay usuario, ProtectedRoute ya se encargará de redirigir
+  if (!user) {
+    return null;
+  }
+
+  // Decidir qué ProtectedRoute usar basado en el rol
+  if (user.role === 'SISTEMAS') {
+    return (
+      <SistemasProtectedRoute>
+        <MyVacanciesPageContent />
+      </SistemasProtectedRoute>
+    );
+  } else if (user.role === 'COMPRAS') {
+    return (
+      <ComprasProtectedRoute>
+        <MyVacanciesPageContent />
+      </ComprasProtectedRoute>
+    );
+  } else if (user.role === 'PRODUCCION') {
+    return (
+      <ProduccionProtectedRoute>
+        <MyVacanciesPageContent />
+      </ProduccionProtectedRoute>
+    );
+  } else {
+    // Para otros roles, usar ProtectedRoute genérico
+    return (
+      <ProtectedRoute allowedRoles={['SISTEMAS', 'COMPRAS', 'PRODUCCION']}>
+        <MyVacanciesPageContent />
+      </ProtectedRoute>
+    );
+  }
+}
+
+export default function MyVacanciesPage() {
+  return <MyVacanciesPageWrapper />;
 }

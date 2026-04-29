@@ -2,8 +2,12 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { Toaster } from 'react-hot-toast'
+import ThemeScript from './ThemeScript'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ 
+  subsets: ['latin'],
+  display: 'swap',
+})
 
 export const metadata = {
   title: 'ERP KRAM - Sistema de Gestión Empresarial',
@@ -12,8 +16,13 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="es">
-      <body className={inter.className}>
+    <html lang="es" className="light">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <ThemeScript />
+      </head>
+      <body className={`${inter.className} bg-stone-100 text-stone-800`}>
         <AuthProvider>
           <Toaster 
             position="top-right"

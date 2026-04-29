@@ -1,4 +1,4 @@
- 'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,13 +6,14 @@ import api from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
-export default function RHReclutamientoPage() {
-  const { user } = useAuth();
+function RHReclutamientoPageContent() {
+  const { user, loading: authLoading } = useAuth();
   const [vacancies, setVacancies] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   
   // Filtros
   const [filters, setFilters] = useState({
@@ -21,7 +22,7 @@ export default function RHReclutamientoPage() {
   });
 
   useEffect(() => {
-    if (user && ['RH', 'ADMIN'].includes(user.role)) {
+    if (user && user.accessibleModules?.includes('RECLUTAMIENTO')) {
       fetchVacancies();
       fetchStats();
       fetchDepartments();
@@ -30,18 +31,19 @@ export default function RHReclutamientoPage() {
 
   const fetchVacancies = async () => {
     try {
-      setLoading(true);
+      setDataLoading(true);
       const params = new URLSearchParams();
       if (filters.estatus) params.append('estatus', filters.estatus);
       if (filters.departamento_id) params.append('departamento_id', filters.departamento_id);
       
       const response = await api.get(`/recruitment/vacancies?${params.toString()}`);
-      setVacancies(response.data.vacancies);
+      setVacancies(response.data.vacancies || []);
     } catch (error) {
       console.error('Error fetching vacancies:', error);
       toast.error('Error al cargar las solicitudes');
+      setVacancies([]);
     } finally {
-      setLoading(false);
+      setDataLoading(false);
     }
   };
 
@@ -58,14 +60,14 @@ export default function RHReclutamientoPage() {
     try {
       // En un proyecto real, tendrías un endpoint para departamentos
       const mockDepartments = [
-        { id: '1', nombre: 'Sistemas', descripcion: 'Departamento de Sistemas' },
-        { id: '2', nombre: 'Compras', descripcion: 'Departamento de Compras' },
+        { id: '1', nombre: 'SISTEMAS', descripcion: 'Departamento de Sistemas' },
+        { id: '2', nombre: 'COMPRAS', descripcion: 'Departamento de Compras' },
         { id: '3', nombre: 'RH', descripcion: 'Recursos Humanos' },
         { id: '4', nombre: 'Administración', descripcion: 'Administración' },
         { id: '5', nombre: 'Finanzas', descripcion: 'Finanzas y Contabilidad' },
         { id: '6', nombre: 'Ventas', descripcion: 'Departamento de Ventas' },
         { id: '7', nombre: 'Marketing', descripcion: 'Marketing' },
-        { id: '8', nombre: 'Producción', descripcion: 'Producción' }
+        { id: '8', nombre: 'PRODUCCION', descripcion: 'Producción' }
       ];
       setDepartments(mockDepartments);
     } catch (error) {
@@ -129,13 +131,31 @@ export default function RHReclutamientoPage() {
     }
   };
 
-  if (!user || !['RH', 'ADMIN'].includes(user.role)) {
+  // Mostrar loading mientras se verifica autenticación
+  if (authLoading) {
+    return (
+      <DashboardLayout>
+        <div className="p-6">
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="mt-2 text-gray-600">Verificando autenticación...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Verificar acceso después de que authLoading sea false
+  if (!user || !user.accessibleModules?.includes('RECLUTAMIENTO')) {
     return (
       <DashboardLayout>
         <div className="p-6">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <h2 className="text-red-800 font-semibold">Acceso denegado</h2>
-            <p className="text-red-600 mt-1">Solo el personal de RH puede acceder a esta sección.</p>
+            <p className="text-red-600 mt-1">
+              No tienes acceso al módulo de Reclutamiento. 
+              {user ? ` Tu rol actual es: ${user.role}` : ' No estás autenticado.'}
+            </p>
           </div>
         </div>
       </DashboardLayout>
@@ -229,7 +249,7 @@ export default function RHReclutamientoPage() {
         </div>
 
         {/* Lista de Solicitudes */}
-        {loading ? (
+        {dataLoading ? (
           <div className="text-center py-8">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             <p className="mt-2 text-gray-600">Cargando solicitudes...</p>
@@ -354,5 +374,13 @@ export default function RHReclutamientoPage() {
         )}
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function RHReclutamientoPage() {
+  return (
+    <ProtectedRoute requiredModule="RECLUTAMIENTO">
+      <RHReclutamientoPageContent />
+    </ProtectedRoute>
   );
 }

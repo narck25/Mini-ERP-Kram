@@ -1,0 +1,5 @@
+-- CreateEnum
+CREATE TYPE "ModuleType" AS ENUM ('EMPLEADOS', 'RECLUTAMIENTO', 'VACACIONES', 'INCIDENCIAS', 'CONFIGURACION', 'DASHBOARD', 'REPORTES');
+
+-- AlterTable
+ALTER TABLE "users" ADD COLUMN     "accessibleModules" "ModuleType"[] DEFAULT ARRAY['DASHBOARD']::"ModuleType"[];
