@@ -1,27 +1,13 @@
 FROM node:18-alpine
 
-# Coolify build arguments (declared explicitly to avoid injection issues)
-ARG COOLIFY_FQDN
-ARG DATABASE_URL
-ARG DB_USER
-ARG DB_PASSWORD
-ARG DB_NAME
-ARG JWT_SECRET
-ARG CORS_ORIGIN
-ARG BASE_URL
-ARG NEXT_PUBLIC_API_URL
-
 WORKDIR /app
 
-# Copy package files
+# Copy package files and Prisma schema (prisma needed for postinstall hook)
 COPY package*.json ./
-
-# Install ALL dependencies (including devDependencies for prisma generate)
-RUN npm install
-
-# Copy Prisma schema and generate client
 COPY prisma ./prisma
-RUN npx prisma generate
+
+# Install ALL dependencies (postinstall will run prisma generate automatically)
+RUN npm install
 
 # Copy application code
 COPY src ./src
