@@ -178,38 +178,38 @@ async function main() {
       nombre: 'Jefe de Sistemas',
       descripcion: 'Responsable del departamento de TI',
       nivelJerarquico: 'GERENTE',
-      departamentoId: createdDepartments.find(d => d.nombre === 'Sistemas').id
+      departamentoId: createdDepartments.find(d => d.nombre === 'SISTEMAS').id
     },
     {
       nombre: 'Desarrollador Senior',
       descripcion: 'Desarrollador con experiencia avanzada',
       nivelJerarquico: 'OPERATIVO',
-      departamentoId: createdDepartments.find(d => d.nombre === 'Sistemas').id
+      departamentoId: createdDepartments.find(d => d.nombre === 'SISTEMAS').id
     },
     {
       nombre: 'Especialista en Soporte Técnico',
       descripcion: 'Soporte técnico a usuarios',
       nivelJerarquico: 'OPERATIVO',
-      departamentoId: createdDepartments.find(d => d.nombre === 'Sistemas').id
+      departamentoId: createdDepartments.find(d => d.nombre === 'SISTEMAS').id
     },
     // Puestos para Compras
     {
       nombre: 'Jefe de Compras',
       descripcion: 'Responsable del departamento de Compras',
       nivelJerarquico: 'GERENTE',
-      departamentoId: createdDepartments.find(d => d.nombre === 'Compras').id
+      departamentoId: createdDepartments.find(d => d.nombre === 'COMPRAS').id
     },
     {
       nombre: 'Analista de Compras',
       descripcion: 'Análisis y gestión de compras',
       nivelJerarquico: 'OPERATIVO',
-      departamentoId: createdDepartments.find(d => d.nombre === 'Compras').id
+      departamentoId: createdDepartments.find(d => d.nombre === 'COMPRAS').id
     },
     {
       nombre: 'Coordinador de Logística',
       descripcion: 'Coordinación logística de compras',
       nivelJerarquico: 'COORDINADOR',
-      departamentoId: createdDepartments.find(d => d.nombre === 'Compras').id
+      departamentoId: createdDepartments.find(d => d.nombre === 'COMPRAS').id
     },
     // Puestos para RH
     {
@@ -230,7 +230,7 @@ async function main() {
       nombre: 'Jefe de Producción',
       descripcion: 'Responsable del departamento de Producción',
       nivelJerarquico: 'GERENTE',
-      departamentoId: createdDepartments.find(d => d.nombre === 'Producción').id
+      departamentoId: createdDepartments.find(d => d.nombre === 'PRODUCCION').id
     }
   ];
 
@@ -254,7 +254,7 @@ async function main() {
       fechaAlta: new Date('2023-01-15'),
       estatus: 'Activo',
       puestoId: createdJobPositions.find(p => p.nombre === 'Jefe de Sistemas').id,
-      departamento_id: createdDepartments.find(d => d.nombre === 'Sistemas').id,
+      departamento_id: createdDepartments.find(d => d.nombre === 'SISTEMAS').id,
       userId: createdUsers.find(u => u.email === 'sistemas@kram.com').id,
       salarioMensual: 45000
     },
@@ -266,7 +266,7 @@ async function main() {
       fechaAlta: new Date('2023-02-20'),
       estatus: 'Activo',
       puestoId: createdJobPositions.find(p => p.nombre === 'Jefe de Compras').id,
-      departamento_id: createdDepartments.find(d => d.nombre === 'Compras').id,
+      departamento_id: createdDepartments.find(d => d.nombre === 'COMPRAS').id,
       userId: createdUsers.find(u => u.email === 'compras@kram.com').id,
       salarioMensual: 42000
     },
@@ -278,7 +278,7 @@ async function main() {
       fechaAlta: new Date('2023-03-10'),
       estatus: 'Activo',
       puestoId: createdJobPositions.find(p => p.nombre === 'Desarrollador Senior').id,
-      departamento_id: createdDepartments.find(d => d.nombre === 'Sistemas').id,
+      departamento_id: createdDepartments.find(d => d.nombre === 'SISTEMAS').id,
       userId: createdUsers.find(u => u.email === 'sistemas2@kram.com').id,
       salarioMensual: 38000
     },
@@ -290,7 +290,7 @@ async function main() {
       fechaAlta: new Date('2023-04-05'),
       estatus: 'Activo',
       puestoId: createdJobPositions.find(p => p.nombre === 'Analista de Compras').id,
-      departamento_id: createdDepartments.find(d => d.nombre === 'Compras').id,
+      departamento_id: createdDepartments.find(d => d.nombre === 'COMPRAS').id,
       userId: createdUsers.find(u => u.email === 'compras2@kram.com').id,
       salarioMensual: 35000
     },
@@ -326,7 +326,7 @@ async function main() {
       fechaAlta: new Date('2023-05-15'),
       estatus: 'Activo',
       puestoId: createdJobPositions.find(p => p.nombre === 'Jefe de Producción').id,
-      departamento_id: createdDepartments.find(d => d.nombre === 'Producción').id,
+      departamento_id: createdDepartments.find(d => d.nombre === 'PRODUCCION').id,
       userId: createdUsers.find(u => u.email === 'produccion@kram.com').id,
       salarioMensual: 46000
     }
@@ -346,7 +346,7 @@ async function main() {
   const vacancies = [
     {
       titulo: 'Desarrollador Full Stack',
-      departamento_id: createdDepartments.find(d => d.nombre === 'Sistemas').id,
+      departamento_id: createdDepartments.find(d => d.nombre === 'SISTEMAS').id,
       jobPositionId: createdJobPositions.find(p => p.nombre === 'Desarrollador Senior').id,
       solicitanteId: createdEmployees[0].id, // Carlos López (Jefe de Sistemas)
       reportaA: 'Director de Sistemas',
@@ -362,7 +362,7 @@ async function main() {
     },
     {
       titulo: 'Analista de Compras',
-      departamento_id: createdDepartments.find(d => d.nombre === 'Compras').id,
+      departamento_id: createdDepartments.find(d => d.nombre === 'COMPRAS').id,
       jobPositionId: createdJobPositions.find(p => p.nombre === 'Analista de Compras').id,
       solicitanteId: createdEmployees[1].id, // Ana Martínez (Jefe de Compras)
       reportaA: 'Director de Compras',
@@ -378,7 +378,7 @@ async function main() {
     },
     {
       titulo: 'Especialista en Soporte Técnico',
-      departamento_id: createdDepartments.find(d => d.nombre === 'Sistemas').id,
+      departamento_id: createdDepartments.find(d => d.nombre === 'SISTEMAS').id,
       jobPositionId: createdJobPositions.find(p => p.nombre === 'Especialista en Soporte Técnico').id,
       solicitanteId: createdEmployees[0].id, // Carlos López (Jefe de Sistemas)
       reportaA: 'Director de Sistemas',
@@ -392,7 +392,7 @@ async function main() {
     },
     {
       titulo: 'Coordinador de Logística',
-      departamento_id: createdDepartments.find(d => d.nombre === 'Compras').id,
+      departamento_id: createdDepartments.find(d => d.nombre === 'COMPRAS').id,
       jobPositionId: createdJobPositions.find(p => p.nombre === 'Coordinador de Logística').id,
       solicitanteId: createdEmployees[1].id, // Ana Martínez (Jefe de Compras)
       reportaA: 'Director de Compras',
