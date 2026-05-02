@@ -1,5 +1,4 @@
-# ---- Build Stage ----
-FROM node:18-alpine AS builder
+FROM node:18-alpine
 
 WORKDIR /app
 
@@ -9,28 +8,12 @@ COPY package*.json ./
 # Install ALL dependencies (including devDependencies for prisma generate)
 RUN npm install
 
-# Copy Prisma schema
+# Copy Prisma schema and generate client
 COPY prisma ./prisma
-
-# Generate Prisma client
 RUN npx prisma generate
-
-# ---- Production Stage ----
-FROM node:18-alpine
-
-WORKDIR /app
-
-# Install only production dependencies
-COPY package*.json ./
-RUN npm install --only=production
-
-# Copy Prisma client from builder
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Copy application code
 COPY src ./src
-COPY prisma ./prisma
 
 # Create uploads directories
 RUN mkdir -p uploads/cvs uploads/employee-documents uploads/psych-tests uploads/purchase-quotes uploads/temp
