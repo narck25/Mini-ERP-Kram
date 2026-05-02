@@ -1,5 +1,16 @@
 FROM node:18-alpine
 
+# Coolify build arguments (declared explicitly to avoid injection issues)
+ARG COOLIFY_FQDN
+ARG DATABASE_URL
+ARG DB_USER
+ARG DB_PASSWORD
+ARG DB_NAME
+ARG JWT_SECRET
+ARG CORS_ORIGIN
+ARG BASE_URL
+ARG NEXT_PUBLIC_API_URL
+
 WORKDIR /app
 
 # Copy package files
@@ -12,7 +23,6 @@ RUN npm install
 COPY . .
 
 # Build the Next.js application
-ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 RUN npm run build
