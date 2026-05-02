@@ -1,16 +1,5 @@
 FROM node:18-alpine
 
-# Coolify build arguments (declared explicitly to avoid injection issues)
-ARG COOLIFY_FQDN
-ARG DATABASE_URL
-ARG DB_USER
-ARG DB_PASSWORD
-ARG DB_NAME
-ARG JWT_SECRET
-ARG CORS_ORIGIN
-ARG BASE_URL
-ARG NEXT_PUBLIC_API_URL
-
 WORKDIR /app
 
 # Copy package files
@@ -23,16 +12,13 @@ RUN npm install
 COPY . .
 
 # Build the Next.js application
+ARG NEXT_PUBLIC_API_URL=http://localhost:3001
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 RUN npm run build
 
 # Expose port
 EXPOSE 3000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD curl -f http://localhost:3000 || exit 1
 
 # Start Next.js in production mode
 CMD ["npm", "start"]
