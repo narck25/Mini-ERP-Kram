@@ -37,6 +37,8 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-https://erp.kramhub.site}
       TRUST_PROXY: "1"
       BASE_URL: ${BASE_URL:-https://apierp.kramhub.site}
+      SERVICE_FQDN_FRONTEND: ${SERVICE_FQDN_FRONTEND:-erp.kramhub.site}
+      SERVICE_FQDN_BACKEND: ${SERVICE_FQDN_BACKEND:-apierp.kramhub.site}
     volumes:
       - backend_uploads:/app/uploads
     networks:
