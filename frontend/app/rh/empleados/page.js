@@ -92,18 +92,7 @@ function EmpleadosPageContent() {
       setDepartments(response.data.departments);
     } catch (error) {
       console.error('Error fetching departments:', error);
-      // Si falla, usar datos por defecto
-      const defaultDepartments = [
-        { id: '1', nombre: 'SISTEMAS', descripcion: 'Departamento de Sistemas' },
-        { id: '2', nombre: 'COMPRAS', descripcion: 'Departamento de Compras' },
-        { id: '3', nombre: 'RH', descripcion: 'Recursos Humanos' },
-        { id: '4', nombre: 'Administración', descripcion: 'Administración' },
-        { id: '5', nombre: 'Finanzas', descripcion: 'Finanzas y Contabilidad' },
-        { id: '6', nombre: 'Ventas', descripcion: 'Departamento de Ventas' },
-        { id: '7', nombre: 'Marketing', descripcion: 'Marketing' },
-        { id: '8', nombre: 'PRODUCCION', descripcion: 'Producción' }
-      ];
-      setDepartments(defaultDepartments);
+      toast.error('Error al cargar los departamentos');
     }
   };
 

@@ -1509,3 +1509,37 @@ exports.getManagers = async (req, res) => {
     res.status(500).json({ error: 'Error al obtener la lista de jefes directos' });
   }
 };
+
+// Obtener puestos por departamento
+exports.getJobPositionsByDepartment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: 'ID de departamento requerido' });
+    }
+
+    const positions = await prisma.jobPosition.findMany({
+      where: {
+        departamento_id: id,
+        estatus: 'Activo'
+      },
+      select: {
+        id: true,
+        nombre: true,
+        nivelJerarquico: true,
+        descripcion: true,
+        salarioMin: true,
+        salarioMax: true
+      },
+      orderBy: {
+        nombre: 'asc'
+      }
+    });
+
+    res.json({ data: positions });
+  } catch (error) {
+    console.error('Error getting job positions by department:', error);
+    res.status(500).json({ error: 'Error al obtener los puestos del departamento' });
+  }
+};

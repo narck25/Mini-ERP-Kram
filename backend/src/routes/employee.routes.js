@@ -58,4 +58,7 @@ router.get('/departments', employeeController.getDepartments);
 // Ruta para obtener jefes directos (accesible para todos los usuarios autenticados que pueden crear vacantes)
 router.get('/managers', employeeController.getManagers);
 
+// Ruta para obtener puestos por departamento
+router.get('/departments/:id/job-positions', employeeController.getJobPositionsByDepartment);
+
 module.exports = router;
