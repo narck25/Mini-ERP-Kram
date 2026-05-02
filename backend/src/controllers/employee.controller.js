@@ -1292,7 +1292,7 @@ exports.downloadImportTemplate = async (req, res) => {
       'NOTAS IMPORTANTES:',
       '1. Las fechas deben estar en formato YYYY-MM-DD o DD/MM/YYYY',
       '2. ESTATUS puede ser "Activo" o "Inactivo"',
-      '3. DEPARTAMENTO debe ser el NOMBRE de un departamento existente (ej: Sistemas, RH, Administración)',
+      '3. DEPARTAMENTO debe ser el NOMBRE de un departamento existente en MAYÚSCULAS (ej: SISTEMAS, RH, COMPRAS, PRODUCCION)',
       '4. SALARIO MENSUAL debe ser un número decimal (ej. 25000.00)',
       '5. PORCENTAJE 1 y PORCENTAJE 2 deben ser números entre 0 y 100',
       '6. RFC debe tener exactamente 13 caracteres',
@@ -1314,16 +1314,16 @@ exports.downloadImportTemplate = async (req, res) => {
       '- FECHA BAJA solo para empleados inactivos',
       '- DEPARTAMENTO puede dejarse vacío si no hay departamento asignado',
       '',
-      'DEPARTAMENTOS DISPONIBLES (puede usar nombre o ID numérico):',
-      '- 1 = Sistemas',
-      '- 2 = Compras',
+      'DEPARTAMENTOS DISPONIBLES (use el nombre en MAYÚSCULAS o ID numérico):',
+      '- 1 = SISTEMAS',
+      '- 2 = COMPRAS',
       '- 3 = RH',
       '- 4 = Administración',
       '- 5 = Ventas',
       '- 6 = Marketing',
-      '- 7 = Producción',
+      '- 7 = PRODUCCION',
       '',
-      'NOTA: Puede usar el nombre del departamento (ej: "Sistemas") o el ID numérico (ej: "1")'
+      'NOTA: Puede usar el nombre del departamento en MAYÚSCULAS (ej: "SISTEMAS") o el ID numérico (ej: "1")'
     ].join('\n');
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -1363,24 +1363,71 @@ exports.exportEmployees = async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    // Encabezados del CSV
+    // Encabezados del CSV (MISMO orden que la plantilla para re-importación)
     const headers = [
-      'ID',
-      'Nombre',
+      // Datos Personales
+      'CLAVE',
+      'NOMBRES',
+      'APELLIDO PATERNO',
+      'APELLIDO MATERNO',
+      'FECHA NACIMIENTO',
+      'LUGAR NACIMIENTO',
+      'ESTADO CIVIL',
+      'NACIONALIDAD',
+      'SEXO',
+      'NIVEL ACADEMICO',
+      
+      // Contacto y Dirección
+      'TELEFONO CASA',
+      'TELEFONO MOVIL',
+      'CORREO ELECTRONICO',
+      'CORREO EMPRESA',
+      'DIRECCION COMPLETA',
+      'ESTADO',
+      'CP FISCAL',
+      
+      // Datos Legales
       'RFC',
       'CURP',
       'NSS',
-      'Fecha Ingreso',
-      'Estatus',
-      'Puesto',
-      'Departamento',
-      'Email',
-      'Usuario Asociado',
-      'Salario',
-      'Jefe Directo',
+      
+      // Datos Laborales
+      'FECHA ALTA',
+      'FECHA BAJA',
+      'ESTATUS',
+      'SUCURSAL',
+      'AREA',
+      'REGION',
+      'CONTRATO',
+      'HORARIO',
+      'PUESTO',
+      'DEPARTAMENTO',
+      
+      // Datos Financieros
+      'SALARIO MENSUAL',
+      'CLABE',
+      'NUMERO CUENTA',
+      'BANCO',
+      
+      // Jefe Directo, SD, SDI
+      'JEFE DIRECTO',
       'SD',
       'SDI',
-      'Fecha Creación'
+      
+      // Uniformes y Extras
+      'TALLA CAMISA',
+      'TALLA PLAYERA',
+      'TALLA PANTALON',
+      'TALLA ZAPATOS',
+      'NOMBRE CONYUGE',
+      
+      // Beneficiarios
+      'BENEFICIARIO 1',
+      'FECHA NAC BENEFICIARIO 1',
+      'PORCENTAJE 1',
+      'BENEFICIARIO 2',
+      'FECHA NAC BENEFICIARIO 2',
+      'PORCENTAJE 2'
     ];
 
     // Función para escapar valores CSV
@@ -1394,24 +1441,71 @@ exports.exportEmployees = async (req, res) => {
       return stringValue;
     };
 
-    // Crear filas de datos
+    // Crear filas de datos (MISMO orden que los headers)
     const rows = employees.map(employee => [
-      employee.id,
-      employee.nombre,
-      employee.rfc,
-      employee.curp,
-      employee.nss,
-      employee.fecha_ingreso ? new Date(employee.fecha_ingreso).toISOString().split('T')[0] : '',
-      employee.estatus,
-      employee.puesto,
+      // Datos Personales
+      employee.clave || '',
+      employee.nombres || '',
+      employee.apellidoPaterno || '',
+      employee.apellidoMaterno || '',
+      employee.fechaNacimiento ? new Date(employee.fechaNacimiento).toISOString().split('T')[0] : '',
+      employee.lugarNacimiento || '',
+      employee.estadoCivil || '',
+      employee.nacionalidad || '',
+      employee.sexo || '',
+      employee.nivelAcademico || '',
+      
+      // Contacto y Dirección
+      employee.telefonoCasa || '',
+      employee.telefonoMovil || '',
+      employee.correoElectronico || '',
+      employee.correoEmpresa || '',
+      employee.direccionCompleta || '',
+      employee.estado || '',
+      employee.cpFiscal || '',
+      
+      // Datos Legales
+      employee.rfc || '',
+      employee.curp || '',
+      employee.nss || '',
+      
+      // Datos Laborales
+      employee.fechaAlta ? new Date(employee.fechaAlta).toISOString().split('T')[0] : '',
+      employee.fechaBaja ? new Date(employee.fechaBaja).toISOString().split('T')[0] : '',
+      employee.estatus || '',
+      employee.sucursal || '',
+      employee.area || '',
+      employee.region || '',
+      employee.contrato || '',
+      employee.horario || '',
+      employee.puesto?.nombre || '',
       employee.departamento?.nombre || '',
-      employee.user?.email || '',
-      employee.user?.name || '',
-      employee.salary || '',
+      
+      // Datos Financieros
+      employee.salarioMensual || '',
+      employee.clabe || '',
+      employee.numeroCuenta || '',
+      employee.banco || '',
+      
+      // Jefe Directo, SD, SDI
       employee.jefeDirecto || '',
       employee.sd || '',
       employee.sdi || '',
-      employee.createdAt ? new Date(employee.createdAt).toISOString() : ''
+      
+      // Uniformes y Extras
+      employee.tallaCamisa || '',
+      employee.tallaPlayera || '',
+      employee.tallaPantalon || '',
+      employee.tallaZapatos || '',
+      employee.nombreConyuge || '',
+      
+      // Beneficiarios
+      employee.beneficiario1 || '',
+      employee.fechaNacBeneficiario1 ? new Date(employee.fechaNacBeneficiario1).toISOString().split('T')[0] : '',
+      employee.porcentaje1 || '',
+      employee.beneficiario2 || '',
+      employee.fechaNacBeneficiario2 ? new Date(employee.fechaNacBeneficiario2).toISOString().split('T')[0] : '',
+      employee.porcentaje2 || ''
     ]);
 
     // Crear contenido CSV con BOM para UTF-8
@@ -1521,16 +1615,14 @@ exports.getJobPositionsByDepartment = async (req, res) => {
 
     const positions = await prisma.jobPosition.findMany({
       where: {
-        departamento_id: id,
-        estatus: 'Activo'
+        departamentoId: id,
+        estado: 'Activo'
       },
       select: {
         id: true,
         nombre: true,
         nivelJerarquico: true,
-        descripcion: true,
-        salarioMin: true,
-        salarioMax: true
+        descripcion: true
       },
       orderBy: {
         nombre: 'asc'

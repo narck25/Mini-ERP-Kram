@@ -110,6 +110,14 @@ function mapEmployeeFromCsv(row, prisma) {
   if (employeeData.rfc) employeeData.rfc = employeeData.rfc.toUpperCase();
   if (employeeData.curp) employeeData.curp = employeeData.curp.toUpperCase();
   if (employeeData.estatus) employeeData.estatus = employeeData.estatus.charAt(0).toUpperCase() + employeeData.estatus.slice(1);
+  
+  // Normalizar departamento y puesto a MAYÚSCULAS (regla del sistema)
+  if (employeeData.departamento_nombre) {
+    employeeData.departamento_nombre = employeeData.departamento_nombre.toUpperCase().trim();
+  }
+  if (employeeData.puesto) {
+    employeeData.puesto = employeeData.puesto.toUpperCase().trim();
+  }
 
   return employeeData;
 }
@@ -229,13 +237,10 @@ async function prepareForPrisma(employeeData, prisma) {
           }
         }
       } else {
-        // No es numérico, buscar por nombre
+        // No es numérico, buscar por nombre (exacto, los datos ya vienen en mayúsculas)
         const departamentoByName = await prisma.department.findFirst({
           where: {
-            nombre: {
-              equals: departamentoValue.trim(),
-              mode: 'insensitive'
-            }
+            nombre: departamentoValue.trim()
           },
           select: { id: true }
         });
@@ -243,14 +248,29 @@ async function prepareForPrisma(employeeData, prisma) {
         if (departamentoByName) {
           departamento_id = departamentoByName.id;
         } else {
-          // Si no se encuentra por nombre, mostrar opciones disponibles
-          const allDepartments = await prisma.department.findMany({
-            select: { nombre: true },
-            orderBy: { nombre: 'asc' }
+          // Si no se encuentra por nombre exacto, intentar búsqueda insensible
+          const departamentoInsensitive = await prisma.department.findFirst({
+            where: {
+              nombre: {
+                equals: departamentoValue.trim(),
+                mode: 'insensitive'
+              }
+            },
+            select: { id: true }
           });
           
-          const departmentNames = allDepartments.map(d => d.nombre).join(', ');
-          throw new Error(`Departamento no encontrado: "${departamentoValue}". Departamentos disponibles: ${departmentNames}`);
+          if (departamentoInsensitive) {
+            departamento_id = departamentoInsensitive.id;
+          } else {
+            // Mostrar opciones disponibles
+            const allDepartments = await prisma.department.findMany({
+              select: { nombre: true },
+              orderBy: { nombre: 'asc' }
+            });
+            
+            const departmentNames = allDepartments.map(d => d.nombre).join(', ');
+            throw new Error(`Departamento no encontrado: "${departamentoValue}". Departamentos disponibles: ${departmentNames}`);
+          }
         }
       }
     } catch (error) {
