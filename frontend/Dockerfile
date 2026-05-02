@@ -1,12 +1,11 @@
-# ---- Build Stage ----
-FROM node:18-alpine AS builder
+FROM node:18-alpine
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install ALL dependencies (npm ci requires lockfile, use install instead)
+# Install ALL dependencies
 RUN npm install
 
 # Copy all source files
@@ -17,20 +16,6 @@ ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 RUN npm run build
-
-# ---- Production Stage ----
-FROM node:18-alpine AS runner
-
-WORKDIR /app
-
-ENV NODE_ENV=production
-
-# Copy built application from builder
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.js ./
 
 # Expose port
 EXPOSE 3000
