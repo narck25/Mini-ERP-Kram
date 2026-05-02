@@ -25,5 +25,5 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:3001/api/health || exit 1
 
-# Start command: run migrations then start server
-CMD npx prisma migrate deploy && node src/index.js
+# Start command: run migrations, seed data, then start server
+CMD npx prisma migrate deploy && node prisma/seed.js && node src/index.js
