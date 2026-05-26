@@ -10,26 +10,27 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "14.0.0",
-    "react": "^18",
-    "react-dom": "^18",
-    "axios": "^1.6.2",
-    "react-hook-form": "^7.47.0",
-    "zod": "^3.22.4",
-    "@hookform/resolvers": "^3.3.2",
+    "next": "14.2.21",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "axios": "^1.7.9",
+    "react-hook-form": "^7.54.2",
+    "zod": "^3.24.1",
+    "@hookform/resolvers": "^3.9.1",
     "jwt-decode": "^4.0.0",
     "react-hot-toast": "^2.4.1",
     "xlsx": "^0.18.5",
-    "tailwindcss": "^3.3.0",
-    "autoprefixer": "^10.4.0",
-    "postcss": "^8.4.0"
+    "sharp": "^0.33.5",
+    "tailwindcss": "^3.4.17",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^8",
-    "eslint-config-next": "14.0.0",
+    "eslint-config-next": "14.2.21",
     "typescript": "^5"
   },
   "keywords": ["erp", "kram", "nextjs", "react", "dashboard"],

@@ -1,38 +1,73 @@
+# ============================================================
+# STAGE 1: Builder - Instalar dependencias y construir
+# ============================================================
 FROM node:18-alpine AS builder
+
+# Instalar herramientas necesarias para sharp en Alpine
+RUN apk add --no-cache --virtual .gyp \
+  python3 \
+  make \
+  g++ \
+  vips-dev \
+  && rm -rf /var/cache/apk/*
 
 WORKDIR /app
 
-# Copy package files
+# Copiar solo package.json y package-lock.json primero (caching)
 COPY package*.json ./
 
-# Install ALL dependencies (including devDependencies needed for build)
-RUN npm install
+# Instalar TODAS las dependencias (incluyendo devDependencies para build)
+RUN npm ci --only=production=false --no-audit --no-fund
 
-# Copy all source files
+# Copiar el resto del código fuente
 COPY . .
 
-# Build the Next.js application
+# Variables de entorno para el build
 ARG NEXT_PUBLIC_API_URL=http://localhost:3001
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
+# Deshabilitar telemetría de Next.js
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Build de producción
 RUN npm run build
 
-# Production stage
+# ============================================================
+# STAGE 2: Runner - Solo lo necesario para producción
+# ============================================================
 FROM node:18-alpine AS runner
 
 WORKDIR /app
 
+# Variables de entorno
 ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Copy only necessary files from builder
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
+# Crear usuario no-root para seguridad
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copiar solo lo necesario desde builder
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/next.config.js ./
 
-# Expose port
+# Copiar .next y node_modules (con sharp ya compilado)
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+
+# Establecer permisos correctos
+RUN chown -R nextjs:nodejs /app
+
+# Usar usuario no-root
+USER nextjs
+
+# Puerto de la aplicación
 EXPOSE 3000
 
-# Start Next.js in production mode
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
+# Iniciar Next.js en modo producción
 CMD ["npm", "start"]

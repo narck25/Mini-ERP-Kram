@@ -2,22 +2,7 @@ const express = require('express');
 const router = express.Router();
 const employeeController = require('../controllers/employee.controller');
 const AuthMiddleware = require('../middlewares/auth.middleware');
-const multer = require('multer');
-
-// Configurar multer para manejar archivos CSV
-const upload = multer({
-  storage: multer.memoryStorage(),
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Solo se permiten archivos CSV'), false);
-    }
-  },
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB límite
-  }
-});
+const { upload, uploadPhoto, handleMulterError } = require('../middlewares/upload.middleware');
 
 // Todas las rutas requieren autenticación
 router.use(AuthMiddleware.verifyToken);
@@ -57,6 +42,24 @@ router.get('/departments', employeeController.getDepartments);
 
 // Ruta para obtener jefes directos (accesible para todos los usuarios autenticados que pueden crear vacantes)
 router.get('/managers', employeeController.getManagers);
+
+// Ruta para subir foto de perfil
+router.post('/employees/:id/photo',
+  AuthMiddleware.requireRHOrAdmin(),
+  (req, res, next) => {
+    uploadPhoto.single('photo')(req, res, (err) => {
+      if (err) {
+        console.error('Photo upload error:', err);
+        return res.status(400).json({
+          error: 'Error al subir la foto',
+          message: err.message
+        });
+      }
+      next();
+    });
+  },
+  employeeController.uploadProfilePhoto
+);
 
 // Ruta para obtener puestos por departamento
 router.get('/departments/:id/job-positions', employeeController.getJobPositionsByDepartment);
