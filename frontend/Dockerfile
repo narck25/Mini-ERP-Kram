@@ -1,7 +1,7 @@
 # ============================================================
 # STAGE 1: Builder - Instalar dependencias y construir
 # ============================================================
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 # Instalar herramientas necesarias para sharp en Alpine
 RUN apk add --no-cache --virtual .gyp \
@@ -17,7 +17,6 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instalar TODAS las dependencias (incluyendo devDependencies para build)
-# NOTA: --only=production=false es obsoleto en npm 9+, usar --include=dev
 RUN npm ci --include=dev --no-audit --no-fund
 
 # Copiar el resto del código fuente
@@ -36,7 +35,7 @@ RUN npm run build
 # ============================================================
 # STAGE 2: Runner - Solo lo necesario para producción
 # ============================================================
-FROM node:18-alpine AS runner
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 
