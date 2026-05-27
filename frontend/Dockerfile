@@ -1,6 +1,8 @@
 # ============================================================
 # STAGE 1: Builder - Instalar dependencias y construir
 # ============================================================
+# ARG BUILD_DATE para invalidar caché de Docker en Coolify
+ARG BUILD_DATE
 FROM node:20-alpine AS builder
 
 # Instalar herramientas necesarias para sharp en Alpine
@@ -16,8 +18,15 @@ WORKDIR /app
 # Copiar solo package.json y package-lock.json primero (caching)
 COPY package*.json ./
 
+# Verificar que package-lock.json existe
+RUN test -f package-lock.json || (echo "ERROR: package-lock.json no encontrado" && exit 1)
+
 # Instalar TODAS las dependencias (incluyendo devDependencies para build)
-RUN npm ci --include=dev --no-audit --no-fund
+# NOTA: Usamos npm install en vez de npm ci porque el lockfile
+# fue generado con npm 11 (lockfileVersion 3) y en Docker
+# puede haber incompatibilidades menores de versión.
+RUN npm cache clean --force && \
+    npm install --include=dev --no-audit --no-fund
 
 # Copiar el resto del código fuente
 COPY . .
