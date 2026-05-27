@@ -16,9 +16,6 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma
 
-# Verificar que package-lock.json existe
-RUN test -f package-lock.json || (echo "ERROR: package-lock.json no encontrado" && exit 1)
-
 # Instalar dependencias (postinstall ejecutará prisma generate)
 # NOTA: Usamos npm install en vez de npm ci porque el lockfile
 # fue generado con npm 11 (lockfileVersion 3) y en Docker
