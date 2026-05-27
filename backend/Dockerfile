@@ -26,8 +26,9 @@ RUN npm cache clean --force && \
 # Verificar que Prisma Client se generó correctamente
 RUN test -d node_modules/.prisma/client || (echo "ERROR: Prisma Client no generado" && exit 1)
 
-# Copiar código fuente
+# Copiar código fuente y scripts
 COPY src ./src
+COPY scripts ./scripts
 
 # ============================================================
 # STAGE 2: Runner - Solo lo necesario para producción
@@ -51,6 +52,7 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/src ./src
+COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/prisma ./prisma
 
 # Crear directorios de uploads con permisos 777 para que el volumen
