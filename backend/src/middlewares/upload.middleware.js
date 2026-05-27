@@ -7,14 +7,26 @@ const fs = require('fs');
 // ============================================================
 const ensureDir = (dirPath) => {
   if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
+    try {
+      fs.mkdirSync(dirPath, { recursive: true });
+    } catch (err) {
+      console.warn(`⚠️ No se pudo crear directorio ${dirPath}: ${err.message}`);
+      // Intentar con /tmp como fallback
+      const tmpPath = dirPath.replace(process.cwd(), '/tmp');
+      if (!fs.existsSync(tmpPath)) {
+        fs.mkdirSync(tmpPath, { recursive: true });
+      }
+      return tmpPath;
+    }
   }
+  return dirPath;
 };
 
 // ============================================================
 // Configuración de rutas
 // ============================================================
-const UPLOAD_BASE = path.join(process.cwd(), 'uploads');
+// En Docker/Coolify, usar UPLOAD_DIR del entorno o /tmp/uploads como fallback
+const UPLOAD_BASE = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
 const PATHS = {
   purchaseQuotes: path.join(UPLOAD_BASE, 'purchase-quotes'),
   temp: path.join(UPLOAD_BASE, 'temp'),
@@ -25,7 +37,12 @@ const PATHS = {
 };
 
 // Asegurar que todos los directorios existan
-Object.values(PATHS).forEach(ensureDir);
+Object.entries(PATHS).forEach(([key, dirPath]) => {
+  const result = ensureDir(dirPath);
+  if (result !== dirPath) {
+    PATHS[key] = result; // Actualizar con fallback si cambió
+  }
+});
 
 // ============================================================
 // Filtro de archivos permitidos
@@ -47,8 +64,8 @@ const fileFilter = (req, file, cb) => {
 // ============================================================
 const createStorage = (destinationPath) => multer.diskStorage({
   destination: (req, file, cb) => {
-    ensureDir(destinationPath);
-    cb(null, destinationPath);
+    const dir = ensureDir(destinationPath);
+    cb(null, dir);
   },
   filename: (req, file, cb) => {
     // Sanitizar nombre de archivo
@@ -112,7 +129,12 @@ const uploadPhoto = multer({
 // Middleware para asegurar directorios
 // ============================================================
 const ensureUploadDirs = (req, res, next) => {
-  Object.values(PATHS).forEach(ensureDir);
+  Object.entries(PATHS).forEach(([key, dirPath]) => {
+    const result = ensureDir(dirPath);
+    if (result !== dirPath) {
+      PATHS[key] = result;
+    }
+  });
   next();
 };
 

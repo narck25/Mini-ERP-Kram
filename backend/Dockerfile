@@ -13,7 +13,6 @@ COPY package*.json ./
 COPY prisma ./prisma
 
 # Instalar dependencias (postinstall ejecutará prisma generate)
-# NOTA: --only=production=false es obsoleto en npm 9+, usar --include=dev
 RUN npm ci --include=dev --no-audit --no-fund
 
 # Copiar código fuente
@@ -41,10 +40,17 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/prisma ./prisma
 
-# Crear directorios de uploads
-RUN mkdir -p uploads/cvs uploads/employee-documents uploads/psych-tests uploads/purchase-quotes uploads/temp uploads/photos
+# Crear directorios de uploads con permisos 777 para que el volumen
+# persistente funcione incluso si el mount cambia el owner
+RUN mkdir -p /app/uploads/cvs \
+             /app/uploads/employee-documents \
+             /app/uploads/psych-tests \
+             /app/uploads/purchase-quotes \
+             /app/uploads/temp \
+             /app/uploads/photos && \
+    chmod -R 777 /app/uploads
 
-# Establecer permisos
+# Establecer permisos generales
 RUN chown -R nodeuser:nodejs /app
 
 # Usar usuario no-root
