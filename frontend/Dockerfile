@@ -17,7 +17,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instalar TODAS las dependencias (incluyendo devDependencies para build)
-RUN npm ci --only=production=false --no-audit --no-fund
+# NOTA: --only=production=false es obsoleto en npm 9+, usar --include=dev
+RUN npm ci --include=dev --no-audit --no-fund
 
 # Copiar el resto del código fuente
 COPY . .

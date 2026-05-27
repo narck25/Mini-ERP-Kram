@@ -13,7 +13,8 @@ COPY package*.json ./
 COPY prisma ./prisma
 
 # Instalar dependencias (postinstall ejecutará prisma generate)
-RUN npm ci --only=production=false --no-audit --no-fund
+# NOTA: --only=production=false es obsoleto en npm 9+, usar --include=dev
+RUN npm ci --include=dev --no-audit --no-fund
 
 # Copiar código fuente
 COPY src ./src

@@ -2,17 +2,59 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const authRoutes = require('./routes/auth.routes');
-const vacancyRoutes = require('./routes/vacancy.routes');
-const employeeRoutes = require('./routes/employee.routes');
-const employeeDocumentRoutes = require('./routes/employeeDocument.routes');
-const recruitmentRoutes = require('./routes/recruitment.routes');
-const statsRoutes = require('./routes/stats.routes');
-const permissionRoutes = require('./routes/permission.routes');
-const userRoutes = require('./routes/user.routes');
-const organizationRoutes = require('./routes/organization.routes');
-const purchaseRoutes = require('./routes/purchase.routes');
-const attendanceRoutes = require('./routes/attendance.routes');
+const fs = require('fs');
+
+// ============================================================
+// Inicialización de directorios de uploads
+// ============================================================
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
+const UPLOAD_SUBDIRS = ['photos', 'cvs', 'employee-documents', 'psych-tests', 'purchase-quotes', 'temp'];
+
+try {
+  UPLOAD_SUBDIRS.forEach(subdir => {
+    const dirPath = path.join(UPLOAD_DIR, subdir);
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+  });
+  console.log('✅ Upload directories initialized');
+  console.log(`   Base: ${UPLOAD_DIR}`);
+} catch (err) {
+  console.warn('⚠️ No se pudieron crear directorios de uploads:', err.message);
+}
+
+// ============================================================
+// Carga segura de rutas con validación de callbacks
+// ============================================================
+const loadRoute = (name, routePath) => {
+  try {
+    const route = require(routePath);
+    console.log(`✅ Route loaded: ${name}`);
+    return route;
+  } catch (err) {
+    console.error(`❌ Error loading route ${name} (${routePath}):`, err.message);
+    console.error(err.stack?.substring(0, 300));
+    // Retornar un router vacío para evitar crash
+    const { Router } = require('express');
+    const emptyRouter = Router();
+    emptyRouter.all('*', (req, res) => {
+      res.status(503).json({ error: `Route module ${name} failed to load` });
+    });
+    return emptyRouter;
+  }
+};
+
+const authRoutes = loadRoute('auth', './routes/auth.routes');
+const vacancyRoutes = loadRoute('vacancy', './routes/vacancy.routes');
+const employeeRoutes = loadRoute('employee', './routes/employee.routes');
+const employeeDocumentRoutes = loadRoute('employeeDocument', './routes/employeeDocument.routes');
+const recruitmentRoutes = loadRoute('recruitment', './routes/recruitment.routes');
+const statsRoutes = loadRoute('stats', './routes/stats.routes');
+const permissionRoutes = loadRoute('permission', './routes/permission.routes');
+const userRoutes = loadRoute('user', './routes/user.routes');
+const organizationRoutes = loadRoute('organization', './routes/organization.routes');
+const purchaseRoutes = loadRoute('purchase', './routes/purchase.routes');
+const attendanceRoutes = loadRoute('attendance', './routes/attendance.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -39,7 +81,13 @@ if (process.env.TRUST_PROXY) {
 // ============================================================
 const getCorsOrigins = () => {
   if (!process.env.CORS_ORIGIN) {
-    return ['http://localhost:3000', 'http://localhost:3002'];
+    return [
+      'http://localhost:3000',
+      'http://localhost:3002',
+      'https://erp.kramhub.site',
+      'https://apierp.kramhub.site',
+      'http://apierp.kramhub.site'
+    ];
   }
   
   if (process.env.CORS_ORIGIN.includes(',')) {
@@ -66,7 +114,7 @@ app.use(express.json({ limit: '10mb' }));
 // ============================================================
 // Archivos estáticos
 // ============================================================
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use('/uploads', express.static(UPLOAD_DIR));
 
 // ============================================================
 // Health check
@@ -76,7 +124,8 @@ app.get('/api/health', (req, res) => {
     status: 'OK', 
     message: 'ERP KRAM Backend is running',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    uploadDir: UPLOAD_DIR
   });
 });
 
@@ -164,4 +213,5 @@ app.listen(PORT, () => {
   console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
   console.log(`🌐 CORS origins: ${getCorsOrigins().join(', ')}`);
   console.log(`🔒 Trust proxy level: ${trustProxyLevel}`);
+  console.log(`📁 Upload directory: ${UPLOAD_DIR}`);
 });

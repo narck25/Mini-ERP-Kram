@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const employeeDocumentController = require('../controllers/employeeDocument.controller');
-const { upload, ensureTempDir } = require('../middlewares/upload.middleware');
+const { upload, ensureUploadDirs } = require('../middlewares/upload.middleware');
 const authMiddleware = require('../middlewares/auth.middleware');
 
 // Aplicar autenticación a todas las rutas
@@ -22,7 +22,7 @@ router.get('/employee-documents/allowed-types',
 // Subir documento para un empleado (escritura - requiere RH o Admin)
 router.post('/employee/:employeeId/documents',
   authMiddleware.requireRHOrAdmin(),
-  ensureTempDir,
+  ensureUploadDirs,
   upload.single('document'),
   employeeDocumentController.uploadEmployeeDocument
 );
