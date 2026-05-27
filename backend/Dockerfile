@@ -1,10 +1,12 @@
 # ============================================================
 # STAGE 1: Builder - Instalar dependencias y generar Prisma
 # ============================================================
-FROM node:18-alpine AS builder
+FROM node:20-slim AS builder
 
 # Instalar OpenSSL para Prisma PostgreSQL connection
-RUN apk add --no-cache openssl
+RUN apt-get update -qq && \
+    apt-get install -y -qq openssl ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -13,7 +15,11 @@ COPY package*.json ./
 COPY prisma ./prisma
 
 # Instalar dependencias (postinstall ejecutará prisma generate)
-RUN npm ci --include=dev --no-audit --no-fund
+# NOTA: Usamos npm install en vez de npm ci porque el lockfile
+# fue generado con npm 11 (lockfileVersion 3) y en Docker
+# puede haber incompatibilidades menores de versión.
+RUN npm cache clean --force && \
+    npm install --no-audit --no-fund
 
 # Copiar código fuente
 COPY src ./src
@@ -21,18 +27,20 @@ COPY src ./src
 # ============================================================
 # STAGE 2: Runner - Solo lo necesario para producción
 # ============================================================
-FROM node:18-alpine AS runner
+FROM node:20-slim AS runner
 
 # Instalar OpenSSL para Prisma y curl para healthcheck
-RUN apk add --no-cache openssl curl
+RUN apt-get update -qq && \
+    apt-get install -y -qq openssl ca-certificates curl && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 ENV NODE_ENV=production
 
 # Crear usuario no-root
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nodeuser
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nodeuser
 
 # Copiar desde builder
 COPY --from=builder /app/package*.json ./
