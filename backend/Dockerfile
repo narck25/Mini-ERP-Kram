@@ -1,6 +1,8 @@
 # ============================================================
 # STAGE 1: Builder - Instalar dependencias y generar Prisma
 # ============================================================
+# ARG BUILD_DATE para invalidar caché de Docker en Coolify
+ARG BUILD_DATE
 FROM node:20-slim AS builder
 
 # Instalar OpenSSL para Prisma PostgreSQL connection
@@ -14,12 +16,18 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma
 
+# Verificar que package-lock.json existe
+RUN test -f package-lock.json || (echo "ERROR: package-lock.json no encontrado" && exit 1)
+
 # Instalar dependencias (postinstall ejecutará prisma generate)
 # NOTA: Usamos npm install en vez de npm ci porque el lockfile
 # fue generado con npm 11 (lockfileVersion 3) y en Docker
 # puede haber incompatibilidades menores de versión.
 RUN npm cache clean --force && \
     npm install --no-audit --no-fund
+
+# Verificar que Prisma Client se generó correctamente
+RUN test -d node_modules/.prisma/client || (echo "ERROR: Prisma Client no generado" && exit 1)
 
 # Copiar código fuente
 COPY src ./src
