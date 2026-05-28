@@ -8,7 +8,6 @@ async function main() {
 
   // Limpiar datos existentes (incluyendo nuevos modelos)
   await prisma.session.deleteMany();
-  await prisma.candidate.deleteMany();
   await prisma.jobActivity.deleteMany();
   await prisma.jobVacancy.deleteMany();
   await prisma.candidateRH.deleteMany();
@@ -465,60 +464,6 @@ async function main() {
 
   console.log('✅ Actividades creadas');
 
-  // Crear candidatos para las vacantes
-  const candidates = [
-    {
-      vacancyId: createdVacancies[0].id,
-      firstName: 'Juan',
-      lastName: 'Pérez',
-      email: 'juan.perez@example.com',
-      phone: '555-123-4567',
-      cvUrl: 'https://example.com/cv/juan-perez.pdf',
-      status: 'EN_PROCESO',
-      notes: 'Buen desempeño en entrevista técnica',
-      interviewDate: new Date('2024-01-25')
-    },
-    {
-      vacancyId: createdVacancies[0].id,
-      firstName: 'María',
-      lastName: 'García',
-      email: 'maria.garcia@example.com',
-      phone: '555-987-6543',
-      cvUrl: 'https://example.com/cv/maria-garcia.pdf',
-      status: 'PENDIENTE',
-      notes: 'CV muy interesante, programar entrevista'
-    },
-    {
-      vacancyId: createdVacancies[1].id,
-      firstName: 'Carlos',
-      lastName: 'Rodríguez',
-      email: 'carlos.rodriguez@example.com',
-      phone: '555-456-7890',
-      cvUrl: 'https://example.com/cv/carlos-rodriguez.pdf',
-      status: 'RECHAZADO',
-      notes: 'No cumple con experiencia requerida'
-    },
-    {
-      vacancyId: createdVacancies[1].id,
-      firstName: 'Ana',
-      lastName: 'Martínez',
-      email: 'ana.martinez@example.com',
-      phone: '555-789-0123',
-      cvUrl: 'https://example.com/cv/ana-martinez.pdf',
-      status: 'CONTRATADO',
-      notes: 'Excelente candidata, contratada',
-      interviewDate: new Date('2024-01-20')
-    }
-  ];
-
-  for (const candidateData of candidates) {
-    await prisma.candidate.create({
-      data: candidateData
-    });
-  }
-
-  console.log('✅ Candidatos creados');
-
   // Crear comentarios para las vacantes existentes
   const comments = [
     {
@@ -604,7 +549,6 @@ async function main() {
   console.log(`   - ${employees.length} empleados creados`);
   console.log(`   - ${vacancies.length} vacantes creadas`);
   console.log(`   - ${activities.length} actividades creadas`);
-  console.log(`   - ${candidates.length} candidatos creados`);
   console.log(`   - ${comments.length} comentarios creados`);
   console.log(`   - ${candidatesRH.length} candidatos RH creados`);
 }

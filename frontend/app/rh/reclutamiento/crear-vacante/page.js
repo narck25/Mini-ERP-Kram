@@ -211,11 +211,6 @@ function CrearVacantePageContent() {
     );
   }
 
-  // Depuración: mostrar información del usuario
-  console.log('User en crear-vacante:', user);
-  console.log('User role:', user?.role);
-  console.log('Is RH or ADMIN?', user && ['RH', 'ADMIN'].includes(user.role));
-
   return (
     <DashboardLayout>
       <div className="p-6">

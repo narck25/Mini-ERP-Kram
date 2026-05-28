@@ -77,7 +77,7 @@ function mapEmployeeFromCsv(row, prisma) {
     contrato: row['CONTRATO'] || row['contrato'] || null,
     horario: row['HORARIO'] || row['horario'] || null,
     puesto: row['PUESTO'] || row['puesto'] || null,
-    departamento_nombre: row['DEPARTAMENTO'] || row['DEPARTAMENTO_ID'] || row['departamento_id'] || row['departamento'] || row['DEPARTAMENTO'] || null,
+    departamento_nombre: row['DEPARTAMENTO'] || row['DEPARTAMENTO_ID'] || row['departamento_id'] || row['departamento'] || null,
     
     // Datos Financieros
     salarioMensual: parseNumber(row['SALARIO MENSUAL'] || row['SALARIO_MENSUAL'] || row['salarioMensual'] || row['salary']),
@@ -262,14 +262,19 @@ async function prepareForPrisma(employeeData, prisma) {
           if (departamentoInsensitive) {
             departamento_id = departamentoInsensitive.id;
           } else {
-            // Mostrar opciones disponibles
-            const allDepartments = await prisma.department.findMany({
-              select: { nombre: true },
-              orderBy: { nombre: 'asc' }
+            // CREACIÓN DINÁMICA: El departamento no existe, crearlo automáticamente
+            // Esto permite que al escribir un departamento nuevo en el Excel, el sistema lo cree
+            console.log(`🏗️ Departamento no encontrado, creando dinámicamente: "${departamentoValue}"`);
+            const nuevoDepartamento = await prisma.department.create({
+              data: {
+                nombre: departamentoValue.trim(), // Ya viene en MAYÚSCULAS por el normalize en mapEmployeeFromCsv
+                descripcion: `Departamento importado desde CSV: ${departamentoValue}`,
+                estado: 'Activo'
+              },
+              select: { id: true }
             });
-            
-            const departmentNames = allDepartments.map(d => d.nombre).join(', ');
-            throw new Error(`Departamento no encontrado: "${departamentoValue}". Departamentos disponibles: ${departmentNames}`);
+            departamento_id = nuevoDepartamento.id;
+            console.log(`✅ Departamento creado dinámicamente: ${departamentoValue} (ID: ${departamento_id})`);
           }
         }
       }

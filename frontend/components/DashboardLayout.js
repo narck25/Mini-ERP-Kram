@@ -15,7 +15,7 @@ const myPortalNavigation = [
 
 // Sección 2: "Administración Global" (Gestión Total)
 const adminNavigation = [
-  { name: 'RH - Dashboard', href: '/rh-dashboard', icon: '📋', roles: ['ADMIN', 'RH'] },
+  { name: 'RH - Dashboard', href: '/rh/dashboard-completo', icon: '📋', roles: ['ADMIN', 'RH'] },
   { name: 'RH - Reclutamiento', href: '/rh/reclutamiento', icon: '📋', roles: ['ADMIN', 'RH'] },
   { name: 'Crear Vacante HR', href: '/rh/reclutamiento/crear-vacante', icon: '➕', roles: ['ADMIN', 'RH'] },
   { name: 'Dashboard Completo', href: '/rh/dashboard-completo', icon: '📊', roles: ['ADMIN', 'RH'] },
@@ -23,13 +23,13 @@ const adminNavigation = [
   { name: 'Gestión Global de Compras', href: '/dashboard/compras', icon: '📊', roles: ['ADMIN', 'COMPRAS'] },
   { name: 'Organización', href: '/dashboard/organizacion', icon: '🏢', roles: ['ADMIN'] },
   { name: 'Accesos/Usuarios', href: '/dashboard/accesos', icon: '🔐', roles: ['ADMIN'] },
-  { name: 'Reportes', href: '/dashboard/reports', icon: '📊', module: 'REPORTES' },
-  { name: 'Configuración', href: '/dashboard/settings', icon: '⚙️', module: 'CONFIGURACION' },
+  { name: 'Reportes', href: '/rh/dashboard-completo', icon: '📊', module: 'REPORTES' },
+  { name: 'Configuración', href: '/dashboard/accesos', icon: '⚙️', module: 'CONFIGURACION' },
 ]
 
 const userNavigation = [
   { name: 'Tu perfil', href: '/dashboard/profile' },
-  { name: 'Configuración', href: '/dashboard/settings' },
+  { name: 'Configuración', href: '/dashboard/accesos' },
 ]
 
 export default function DashboardLayout({ children }) {
@@ -245,10 +245,7 @@ export default function DashboardLayout({ children }) {
                 {/* Menú desplegable del usuario - SOLO PARA DESKTOP */}
                 <div className="relative mt-2">
                   <button
-                    onClick={() => {
-                      console.log('Botón Opciones de usuario clickeado, userMenuOpen:', !userMenuOpen);
-                      setUserMenuOpen(!userMenuOpen);
-                    }}
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center text-sm font-medium text-gray-800 hover:text-blue-600 focus:outline-none px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-150"
                   >
                     <span className="mr-2">👤 Opciones</span>

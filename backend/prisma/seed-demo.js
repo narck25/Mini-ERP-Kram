@@ -21,9 +21,6 @@ async function main() {
   console.log('🗑️  Eliminando solicitudes de compra...');
   await prisma.purchaseRequest.deleteMany();
   
-  console.log('🗑️  Eliminando candidatos...');
-  await prisma.candidate.deleteMany();
-  
   console.log('🗑️  Eliminando candidatos RH...');
   await prisma.candidateRH.deleteMany();
   

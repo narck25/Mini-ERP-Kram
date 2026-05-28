@@ -374,7 +374,7 @@ function MyVacanciesPageContent() {
                   
                   <div className="mt-6">
                     <Link
-                      href={`/vacancies/${vacancy.id}`}
+                      href={`/reclutamiento/vacantes/${vacancy.id}`}
                       className="block w-full text-center bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-md font-medium"
                     >
                       Ver Detalles

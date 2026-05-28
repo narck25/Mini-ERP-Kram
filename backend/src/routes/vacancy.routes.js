@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const vacancyController = require('../controllers/vacancy.controller');
+const recruitmentController = require('../controllers/recruitment.controller');
 const AuthMiddleware = require('../middlewares/auth.middleware');
 
 // Todas las rutas requieren autenticación
@@ -8,46 +8,46 @@ router.use(AuthMiddleware.verifyToken);
 
 // Ruta para obtener datos del formulario de vacante (accesible para todos los roles que pueden crear vacantes)
 router.get('/vacancies/form-data', 
-  AuthMiddleware.requireRole(['ADMIN', 'RH', 'SISTEMAS', 'COMPRAS', 'PRODUCCION']), 
-  vacancyController.getVacancyFormData
+  AuthMiddleware.requireModule('RECLUTAMIENTO'), 
+  recruitmentController.getVacancyFormData
 );
 
 // Rutas para jefes de área (SISTEMAS, COMPRAS, PRODUCCION)
 router.post('/vacancies', 
-  AuthMiddleware.requireRole(['SISTEMAS', 'COMPRAS', 'PRODUCCION']), 
-  vacancyController.createVacancy
+  AuthMiddleware.requireModule('RECLUTAMIENTO'), 
+  recruitmentController.createVacancyRequest
 );
 router.get('/vacancies/my', 
-  AuthMiddleware.requireRole(['SISTEMAS', 'COMPRAS', 'PRODUCCION']), 
-  vacancyController.getMyVacancies
+  AuthMiddleware.requireModule('RECLUTAMIENTO'), 
+  recruitmentController.getMyVacancyRequests
 );
 
 // Rutas para RH/Admin
 router.get('/vacancies', 
-  AuthMiddleware.requireRole(['ADMIN', 'RH']), 
-  vacancyController.getAllVacancies
+  AuthMiddleware.requireModule('RECLUTAMIENTO'), 
+  recruitmentController.getAllVacancyRequests
 );
 router.get('/vacancies/stats', 
-  AuthMiddleware.requireRole(['ADMIN', 'RH']), 
-  vacancyController.getVacancyStats
+  AuthMiddleware.requireModule('RECLUTAMIENTO'), 
+  recruitmentController.getVacancyRequestStats
 );
 router.put('/vacancies/:id/approve', 
-  AuthMiddleware.requireRole(['ADMIN', 'RH']), 
-  vacancyController.approveVacancy
+  AuthMiddleware.requireRHOrAdmin(), 
+  recruitmentController.approveVacancyRequest
 );
 router.post('/vacancies/:id/activities', 
-  AuthMiddleware.requireRole(['ADMIN', 'RH']), 
-  vacancyController.addActivity
+  AuthMiddleware.requireModule('RECLUTAMIENTO'), 
+  recruitmentController.createJobActivities
 );
 router.put('/activities/:activityId', 
-  AuthMiddleware.requireRole(['ADMIN', 'RH']), 
-  vacancyController.updateActivity
+  AuthMiddleware.requireModule('RECLUTAMIENTO'), 
+  recruitmentController.updateActivity
 );
 
 // Rutas públicas (requieren autenticación) - Todos los roles
 router.get('/vacancies/:id', 
-  AuthMiddleware.requireRole(['ADMIN', 'RH', 'SISTEMAS', 'COMPRAS', 'PRODUCCION']), 
-  vacancyController.getVacancyById
+  AuthMiddleware.requireModule('RECLUTAMIENTO'), 
+  recruitmentController.getVacancyRequestById
 );
 
 module.exports = router;

@@ -164,7 +164,6 @@ model JobVacancy {
   observacionesPromocion    String?        @map("observaciones_promocion")
   conocimientosAdicionales  String?        @map("conocimientos_adicionales")
   
-  Candidate               Candidate[]
   candidatesRH            CandidateRH[]
   JobActivity             JobActivity[]
   autorizadoPor           Employee?        @relation("AutorizadoPor", fields: [autorizadoPorId], references: [id])
@@ -191,26 +190,6 @@ model JobActivity {
   vacancy      JobVacancy @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
 
   @@map("job_activities")
-}
-
-model Candidate {
-  id            String     @id @default(cuid())
-  vacancyId     String
-  firstName     String
-  lastName      String
-  email         String
-  phone         String?
-  status        String     @default("PENDIENTE")
-  notes         String?
-  interviewDate DateTime?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  cvUrl         String?
-  psychTestUrl  String?
-  vacancy       JobVacancy @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
-
-  @@unique([vacancyId, email])
-  @@map("candidates")
 }
 
 model Department {
