@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
@@ -9,15 +9,100 @@ import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
+// ============================================================
+// MODAL REUTILIZABLE PARA EDITAR SECCIONES
+// ============================================================
+function EditSectionModal({ isOpen, onClose, title, children, onSave, saving }) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="space-y-6">{children}</div>
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-6">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md font-medium hover:bg-gray-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={onSave}
+              disabled={saving}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? 'Guardando...' : 'Guardar Cambios'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// BOTÓN DE EDICIÓN REUTILIZABLE
+// ============================================================
+function EditButton({ onClick, label = "Editar" }) {
+  return (
+    <button
+      onClick={onClick}
+      className="ml-2 px-3 py-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md font-medium border border-blue-200 transition-colors"
+    >
+      ✎ {label}
+    </button>
+  );
+}
+
+// ============================================================
+// COMPONENTE PRINCIPAL
+// ============================================================
 function EmployeeProfilePage() {
   const { id } = useParams();
   const router = useRouter();
   const { user } = useAuth();
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
+
+  // Estados para cada modal de sección
+  const [showPersonalModal, setShowPersonalModal] = useState(false);
+  const [showLaboralModal, setShowLaboralModal] = useState(false);
+  const [showContacto, setShowContacto] = useState(false);
+  const [showLegalModal, setShowLegalModal] = useState(false);
+  const [showFinancieroModal, setShowFinancieroModal] = useState(false);
+  const [showUniformesModal, setShowUniformesModal] = useState(false);
+  const [showBeneficiariosModal, setShowBeneficiariosModal] = useState(false);
+  const [showFamiliaresModal, setShowFamiliaresModal] = useState(false);
+
+  // Formularios individuales por sección
+  const [personalForm, setPersonalForm] = useState({});
+  const [laboralForm, setLaboralForm] = useState({});
+  const [contactoForm, setContactoForm] = useState({});
+  const [legalForm, setLegalForm] = useState({});
+  const [financieroForm, setFinancieroForm] = useState({});
+  const [uniformesForm, setUniformesForm] = useState({});
+  const [beneficiariosForm, setBeneficiariosForm] = useState({});
+  const [familiaresForm, setFamiliaresForm] = useState({});
+
+  // Foto de perfil
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef(null);
+
+  // Documentos
+  const [documents, setDocuments] = useState([]);
+  const [allowedDocumentTypes, setAllowedDocumentTypes] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [newDocument, setNewDocument] = useState({ tipo_documento: '', document: null });
 
   useEffect(() => {
     if (user && id) {
@@ -25,11 +110,10 @@ function EmployeeProfilePage() {
     }
   }, [user, id]);
 
-  // Inicializar formulario de edición cuando se carga el empleado
+  // Inicializar formularios cuando se carga el empleado
   useEffect(() => {
     if (employee) {
-      setEditForm({
-        // Datos Personales
+      setPersonalForm({
         clave: employee.clave || '',
         nombres: employee.nombres || employee.nombre || '',
         apellidoPaterno: employee.apellidoPaterno || '',
@@ -40,22 +124,8 @@ function EmployeeProfilePage() {
         nacionalidad: employee.nacionalidad || '',
         sexo: employee.sexo || '',
         nivelAcademico: employee.nivelAcademico || '',
-        
-        // Contacto y Dirección
-        telefonoCasa: employee.telefonoCasa || '',
-        telefonoMovil: employee.telefonoMovil || '',
-        correoElectronico: employee.correoElectronico || '',
-        correoEmpresa: employee.correoEmpresa || '',
-        direccionCompleta: employee.direccionCompleta || '',
-        estado: employee.estado || '',
-        cpFiscal: employee.cpFiscal || '',
-        
-        // Datos Legales
-        rfc: employee.rfc || '',
-        curp: employee.curp || '',
-        nss: employee.nss || '',
-        
-        // Datos Laborales
+      });
+      setLaboralForm({
         fecha_ingreso: employee.fechaAlta ? new Date(employee.fechaAlta).toISOString().split('T')[0] : '',
         estatus: employee.estatus || 'Activo',
         sucursal: employee.sucursal || '',
@@ -65,26 +135,38 @@ function EmployeeProfilePage() {
         horario: employee.horario || '',
         puestoId: employee.puestoId || '',
         departamento_id: employee.departamento_id || '',
-        
-        // Datos Financieros
         salary: employee.salarioMensual || '',
-        clabe: employee.clabe || '',
-        numeroCuenta: employee.numeroCuenta || '',
-        banco: employee.banco || '',
-        
-        // Nuevos campos: Jefe Directo, SD, SDI
         jefeDirecto: employee.jefeDirecto || '',
         sd: employee.sd || '',
         sdi: employee.sdi || '',
-        
-        // Uniformes y Extras
+      });
+      setContactoForm({
+        telefonoCasa: employee.telefonoCasa || '',
+        telefonoMovil: employee.telefonoMovil || '',
+        correoElectronico: employee.correoElectronico || '',
+        correoEmpresa: employee.correoEmpresa || '',
+        direccionCompleta: employee.direccionCompleta || '',
+        estado: employee.estado || '',
+        cpFiscal: employee.cpFiscal || '',
+      });
+      setLegalForm({
+        rfc: employee.rfc || '',
+        curp: employee.curp || '',
+        nss: employee.nss || '',
+      });
+      setFinancieroForm({
+        clabe: employee.clabe || '',
+        numeroCuenta: employee.numeroCuenta || '',
+        banco: employee.banco || '',
+      });
+      setUniformesForm({
         tallaCamisa: employee.tallaCamisa || '',
         tallaPlayera: employee.tallaPlayera || '',
         tallaPantalon: employee.tallaPantalon || '',
         tallaZapatos: employee.tallaZapatos || '',
+      });
+      setBeneficiariosForm({
         nombreConyuge: employee.nombreConyuge || '',
-        
-        // Beneficiarios
         beneficiario1: employee.beneficiario1 || '',
         fechaNacBeneficiario1: employee.fechaNacBeneficiario1 ? new Date(employee.fechaNacBeneficiario1).toISOString().split('T')[0] : '',
         porcentaje1: employee.porcentaje1 || '',
@@ -92,51 +174,68 @@ function EmployeeProfilePage() {
         fechaNacBeneficiario2: employee.fechaNacBeneficiario2 ? new Date(employee.fechaNacBeneficiario2).toISOString().split('T')[0] : '',
         porcentaje2: employee.porcentaje2 || '',
       });
+      setFamiliaresForm({
+        esPadre: employee.esPadre || false,
+        numeroHijos: employee.numeroHijos || 0,
+      });
     }
   }, [employee]);
 
-  const handleEditFormChange = (e) => {
-    const { name, value } = e.target;
-    setEditForm({
-      ...editForm,
-      [name]: value
-    });
+  // Handlers genéricos para cambios en formularios
+  const handleFormChange = (setter) => (e) => {
+    const { name, value, type, checked } = e.target;
+    setter(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
   };
 
-  const handleSaveChanges = async () => {
-    if (!employee) return;
+  // Handlers específicos para cada sección
+  const handlePersonalChange = handleFormChange(setPersonalForm);
+  const handleLaboralChange = handleFormChange(setLaboralForm);
+  const handleContactoChange = handleFormChange(setContactoForm);
+  const handleLegalChange = handleFormChange(setLegalForm);
+  const handleFinancieroChange = handleFormChange(setFinancieroForm);
+  const handleUniformesChange = handleFormChange(setUniformesForm);
+  const handleBeneficiariosChange = handleFormChange(setBeneficiariosForm);
+  const handleFamiliaresChange = handleFormChange(setFamiliaresForm);
 
+  // ============================================================
+  // FUNCIONES DE GUARDADO POR SECCIÓN
+  // ============================================================
+  const saveSection = async (sectionData, closeModal) => {
+    if (!employee) return;
     setSaving(true);
     try {
-      const response = await api.put(`/employees/${employee.id}`, editForm);
-      toast.success('Empleado actualizado exitosamente');
-      setShowEditModal(false);
-      // Recargar datos del empleado
+      await api.put(`/employees/${employee.id}`, sectionData);
+      toast.success('Sección actualizada exitosamente');
+      closeModal(false);
       await fetchEmployee();
     } catch (error) {
-      console.error('Error updating employee:', error);
-      toast.error(error.response?.data?.error || 'Error al actualizar el empleado');
+      console.error('Error updating section:', error);
+      toast.error(error.response?.data?.error || 'Error al actualizar la sección');
     } finally {
       setSaving(false);
     }
   };
 
-  const [documents, setDocuments] = useState([]);
-  const [allowedDocumentTypes, setAllowedDocumentTypes] = useState([]);
-  const [uploading, setUploading] = useState(false);
-  const [showUploadForm, setShowUploadForm] = useState(false);
-  const [newDocument, setNewDocument] = useState({
-    tipo_documento: '',
-    document: null
-  });
+  const savePersonal = () => saveSection(personalForm, setShowPersonalModal);
+  const saveLaboral = () => saveSection(laboralForm, setShowLaboralModal);
+  const saveContacto = () => saveSection(contactoForm, setShowContacto);
+  const saveLegal = () => saveSection(legalForm, setShowLegalModal);
+  const saveFinanciero = () => saveSection(financieroForm, setShowFinancieroModal);
+  const saveUniformes = () => saveSection(uniformesForm, setShowUniformesModal);
+  const saveBeneficiarios = () => saveSection(beneficiariosForm, setShowBeneficiariosModal);
+  const saveFamiliares = () => saveSection(familiaresForm, setShowFamiliaresModal);
 
+  // ============================================================
+  // DOCUMENTOS
+  // ============================================================
   const fetchEmployee = async () => {
     try {
       const response = await api.get(`/employees/${id}`);
       setEmployee(response.data.employee);
-      // Cargar documentos del empleado
       await fetchDocuments();
-      // Cargar tipos de documentos permitidos
       await fetchAllowedDocumentTypes();
     } catch (error) {
       console.error('Error fetching employee:', error);
@@ -168,10 +267,7 @@ function EmployeeProfilePage() {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setNewDocument({
-        ...newDocument,
-        document: file
-      });
+      setNewDocument({ ...newDocument, document: file });
     }
   };
 
@@ -180,26 +276,18 @@ function EmployeeProfilePage() {
       toast.error('Por favor selecciona un tipo de documento y un archivo');
       return;
     }
-
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append('tipo_documento', newDocument.tipo_documento);
       formData.append('document', newDocument.document);
-
       await api.post(`/employee/${id}/documents`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
-
       toast.success('Documento subido exitosamente');
-      setNewDocument({
-        tipo_documento: '',
-        document: null
-      });
+      setNewDocument({ tipo_documento: '', document: null });
       setShowUploadForm(false);
-      await fetchDocuments(); // Recargar lista de documentos
+      await fetchDocuments();
     } catch (error) {
       console.error('Error uploading document:', error);
       toast.error(error.response?.data?.error || 'Error al subir documento');
@@ -210,10 +298,7 @@ function EmployeeProfilePage() {
 
   const handleDownloadDocument = async (documentId, fileName) => {
     try {
-      const response = await api.get(`/employee-documents/${documentId}/download`, {
-        responseType: 'blob'
-      });
-      
+      const response = await api.get(`/employee-documents/${documentId}/download`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -228,177 +313,153 @@ function EmployeeProfilePage() {
   };
 
   const handleDeleteDocument = async (documentId) => {
-    if (!confirm('¿Estás seguro de que deseas eliminar este documento? Esta acción no se puede deshacer.')) {
-      return;
-    }
-
+    if (!confirm('¿Estás seguro de que deseas eliminar este documento? Esta acción no se puede deshacer.')) return;
     try {
       await api.delete(`/employee-documents/${documentId}`);
       toast.success('Documento eliminado exitosamente');
-      await fetchDocuments(); // Recargar lista de documentos
+      await fetchDocuments();
     } catch (error) {
       console.error('Error deleting document:', error);
       toast.error(error.response?.data?.error || 'Error al eliminar documento');
     }
   };
 
-  // Función para calcular la edad
+  // ============================================================
+  // FOTO DE PERFIL
+  // ============================================================
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validar que sea imagen
+    if (!file.type.startsWith('image/')) {
+      toast.error('Solo se permiten archivos de imagen');
+      return;
+    }
+
+    // Validar tamaño (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('La imagen no debe superar los 5MB');
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('photo', file);
+      await api.post(`/employees/${employee.id}/photo`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      toast.success('Foto de perfil actualizada exitosamente');
+      await fetchEmployee();
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      toast.error(error.response?.data?.error || 'Error al subir la foto');
+    } finally {
+      setUploadingPhoto(false);
+      // Resetear el input file
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDownloadPhoto = () => {
+    if (!employee.fotoUrl) return;
+    const link = document.createElement('a');
+    link.href = employee.fotoUrl;
+    link.setAttribute('download', `foto_${employee.clave || employee.id}.jpg`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
+  // ============================================================
+  // FUNCIONES AUXILIARES
+  // ============================================================
   const calcularEdad = (fechaNacimiento) => {
     if (!fechaNacimiento) return 'No especificada';
     const nacimiento = new Date(fechaNacimiento);
     const hoy = new Date();
     let edad = hoy.getFullYear() - nacimiento.getFullYear();
     const mes = hoy.getMonth() - nacimiento.getMonth();
-    if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
-      edad--;
-    }
+    if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) edad--;
     return `${edad} años`;
   };
 
-  // Función para calcular la antigüedad con días
   const calcularAntiguedad = (fechaAlta) => {
     if (!fechaAlta) return 'No especificada';
     const ingreso = new Date(fechaAlta);
     const hoy = new Date();
-    
     let años = hoy.getFullYear() - ingreso.getFullYear();
     let meses = hoy.getMonth() - ingreso.getMonth();
     let días = hoy.getDate() - ingreso.getDate();
-    
-    // Ajustar días negativos
     if (días < 0) {
       meses--;
-      // Obtener días del mes anterior
       const ultimoDiaMesAnterior = new Date(hoy.getFullYear(), hoy.getMonth(), 0).getDate();
       días += ultimoDiaMesAnterior;
     }
-    
-    // Ajustar meses negativos
-    if (meses < 0) {
-      años--;
-      meses += 12;
-    }
-    
-    // Formatear resultado
+    if (meses < 0) { años--; meses += 12; }
     const partes = [];
-    if (años > 0) {
-      partes.push(`${años} ${años === 1 ? 'año' : 'años'}`);
-    }
-    if (meses > 0) {
-      partes.push(`${meses} ${meses === 1 ? 'mes' : 'meses'}`);
-    }
-    if (días > 0) {
-      partes.push(`${días} ${días === 1 ? 'día' : 'días'}`);
-    }
-    
-    if (partes.length === 0) {
-      return '0 días';
-    }
-    
+    if (años > 0) partes.push(`${años} ${años === 1 ? 'año' : 'años'}`);
+    if (meses > 0) partes.push(`${meses} ${meses === 1 ? 'mes' : 'meses'}`);
+    if (días > 0) partes.push(`${días} ${días === 1 ? 'día' : 'días'}`);
+    if (partes.length === 0) return '0 días';
     return partes.join(', ');
   };
 
-  // Función para convertir fecha a letras
   const fechaALetras = (fecha) => {
     if (!fecha) return 'No especificada';
-    const fechaObj = new Date(fecha);
-    const opciones = { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    };
-    return fechaObj.toLocaleDateString('es-MX', opciones);
+    return new Date(fecha).toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   };
 
-  // Función para convertir número a texto (salario) en formato VEINTICINCO MIL 00/100 M.N.
   const numeroATexto = (numero) => {
     if (!numero) return 'No especificado';
-    
-    // Separar parte entera y decimal
     const entero = Math.floor(numero);
     const decimal = Math.round((numero - entero) * 100);
-    
-    // Convertir parte entera a texto
     const textoEntero = convertirNumeroATexto(entero);
-    // Formatear decimal como 00/100
     const textoDecimal = decimal.toString().padStart(2, '0') + '/100';
-    
-    // Retornar en formato solicitado: VEINTICINCO MIL 00/100 M.N.
     return `${textoEntero} ${textoDecimal} M.N.`;
   };
 
-  // Función auxiliar para convertir números enteros a texto en mayúsculas
   const convertirNumeroATexto = (numero) => {
     if (numero === 0) return 'CERO';
-    
     const unidades = ['', 'UN', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE'];
     const decenas = ['', 'DIEZ', 'VEINTE', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA'];
     const especiales = ['DIEZ', 'ONCE', 'DOCE', 'TRECE', 'CATORCE', 'QUINCE', 'DIECISÉIS', 'DIECISIETE', 'DIECIOCHO', 'DIECINUEVE'];
     const centenas = ['', 'CIENTO', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS', 'QUINIENTOS', 'SEISCIENTOS', 'SETECIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS'];
-    
-    if (numero < 10) {
-      return unidades[numero];
-    }
-    
-    if (numero < 20) {
-      return especiales[numero - 10];
-    }
-    
+    if (numero < 10) return unidades[numero];
+    if (numero < 20) return especiales[numero - 10];
     if (numero < 100) {
       const d = Math.floor(numero / 10);
       const u = numero % 10;
-      
-      if (u === 0) {
-        return decenas[d];
-      } else if (d === 2) {
-        // Casos especiales: veintiuno, veintidós, etc.
-        const veinti = ['VEINTIUNO', 'VEINTIDÓS', 'VEINTITRÉS', 'VEINTICUATRO', 'VEINTICINCO', 
-                       'VEINTISÉIS', 'VEINTISIETE', 'VEINTIOCHO', 'VEINTINUEVE'];
+      if (u === 0) return decenas[d];
+      if (d === 2) {
+        const veinti = ['VEINTIUNO', 'VEINTIDÓS', 'VEINTITRÉS', 'VEINTICUATRO', 'VEINTICINCO', 'VEINTISÉIS', 'VEINTISIETE', 'VEINTIOCHO', 'VEINTINUEVE'];
         return veinti[u - 1];
-      } else {
-        return `${decenas[d]} Y ${unidades[u]}`;
       }
+      return `${decenas[d]} Y ${unidades[u]}`;
     }
-    
-    if (numero === 100) {
-      return 'CIEN';
-    }
-    
+    if (numero === 100) return 'CIEN';
     if (numero < 1000) {
       const c = Math.floor(numero / 100);
       const resto = numero % 100;
-      
-      if (resto === 0) {
-        return centenas[c];
-      } else {
-        return `${centenas[c]} ${convertirNumeroATexto(resto)}`;
-      }
+      if (resto === 0) return centenas[c];
+      return `${centenas[c]} ${convertirNumeroATexto(resto)}`;
     }
-    
     if (numero < 1000000) {
       const miles = Math.floor(numero / 1000);
       const resto = numero % 1000;
-      
-      let textoMiles = '';
-      if (miles === 1) {
-        textoMiles = 'MIL';
-      } else {
-        textoMiles = `${convertirNumeroATexto(miles)} MIL`;
-      }
-      
-      if (resto === 0) {
-        return textoMiles;
-      } else {
-        return `${textoMiles} ${convertirNumeroATexto(resto)}`;
-      }
+      let textoMiles = miles === 1 ? 'MIL' : `${convertirNumeroATexto(miles)} MIL`;
+      if (resto === 0) return textoMiles;
+      return `${textoMiles} ${convertirNumeroATexto(resto)}`;
     }
-    
-    // Para números mayores a un millón (por si acaso)
     return 'NÚMERO MUY GRANDE';
   };
 
-  // Verificar permisos usando accessibleModules
+  // ============================================================
+  // RENDER: VERIFICACIÓN DE PERMISOS Y ESTADOS
+  // ============================================================
   if (!user || !user.accessibleModules?.includes('EMPLEADOS')) {
     return (
       <DashboardLayout>
@@ -432,10 +493,7 @@ function EmployeeProfilePage() {
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <h2 className="text-red-800 font-semibold">Empleado no encontrado</h2>
             <p className="text-red-600 mt-1">El empleado que buscas no existe o no tienes permisos para verlo.</p>
-            <button
-              onClick={() => router.push('/rh/empleados')}
-              className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
-            >
+            <button onClick={() => router.push('/rh/empleados')} className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium">
               Volver a la lista de empleados
             </button>
           </div>
@@ -444,1051 +502,600 @@ function EmployeeProfilePage() {
     );
   }
 
+  const canEdit = user && (user.role === 'ADMIN' || user.accessibleModules?.includes('EMPLEADOS'));
+
+  // ============================================================
+  // RENDER PRINCIPAL
+  // ============================================================
   return (
     <DashboardLayout>
-      <div className="p-6">
+      <div className="p-6 max-w-7xl mx-auto">
         {/* Encabezado */}
         <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Perfil del Empleado</h1>
-              <div className="flex items-center space-x-4 mt-2">
-                <Link
-                  href="/rh/empleados"
-                  className="text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  ← Volver a la lista
-                </Link>
+          <Link href="/rh/empleados" className="text-blue-600 hover:text-blue-800 font-medium">
+            ← Volver a la lista
+          </Link>
+        </div>
+
+        {/* ============================================================ */}
+        {/* HERO CARD - Foto + Nombre + Puesto */}
+        {/* ============================================================ */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl shadow-lg p-8 mb-8 text-white">
+          <div className="flex items-center gap-8">
+            {/* Foto del empleado (HERO) */}
+            <div className="flex-shrink-0 flex flex-col items-center gap-2">
+              {employee.fotoUrl ? (
+                <img
+                  src={employee.fotoUrl}
+                  alt={`Foto de ${employee.nombres || employee.nombre || ''}`}
+                  className="h-32 w-32 object-cover rounded-full border-4 border-white shadow-lg"
+                />
+              ) : (
+                <div className="h-32 w-32 rounded-full bg-white bg-opacity-20 border-4 border-white flex items-center justify-center shadow-lg">
+                  <span className="text-5xl font-bold text-white">
+                    {((employee.nombres || employee.nombre || '?')[0]).toUpperCase()}
+                  </span>
+                </div>
+              )}
+              {/* Botones de foto (solo ADMIN/RH) */}
+              {user && (user.role === 'ADMIN' || user.role === 'RH') && (
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingPhoto}
+                    className="px-3 py-1 text-xs bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-md font-medium transition-all"
+                  >
+                    {uploadingPhoto ? 'Subiendo...' : employee.fotoUrl ? 'Cambiar Foto' : 'Subir Foto'}
+                  </button>
+                  {employee.fotoUrl && (
+                    <button
+                      onClick={handleDownloadPhoto}
+                      className="px-3 py-1 text-xs bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-md font-medium transition-all"
+                    >
+                      Descargar
+                    </button>
+                  )}
+                </div>
+              )}
+              {/* Input file oculto */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                className="hidden"
+              />
+            </div>
+            {/* Información principal */}
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold">
+                {employee.nombres || employee.nombre || ''} {employee.apellidoPaterno || ''} {employee.apellidoMaterno || ''}
+              </h1>
+              <p className="text-xl text-blue-100 mt-1">{employee.puesto?.nombre || 'Sin puesto asignado'}</p>
+              <div className="flex items-center gap-4 mt-3">
+                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${employee.estatus === 'Activo' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                  {employee.estatus || 'Sin estatus'}
+                </span>
+                <span className="text-blue-100 text-sm">
+                  <span className="font-semibold">Clave:</span> {employee.clave || 'N/A'}
+                </span>
+                <span className="text-blue-100 text-sm">
+                  <span className="font-semibold">Antigüedad:</span> {calcularAntiguedad(employee.fechaAlta)}
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Información del empleado */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">
-                {employee.nombres || employee.nombre || ''} {employee.apellidoPaterno || ''} {employee.apellidoMaterno || ''}
-              </h2>
-              <p className="text-gray-600">{employee.puesto?.nombre || 'Sin puesto asignado'}</p>
+        {/* ============================================================ */}
+        {/* GRID DE CARDS POR SECCIÓN */}
+        {/* ============================================================ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          {/* CARD: DATOS PERSONALES */}
+          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <span className="text-blue-600">👤</span> Datos Personales
+              </h3>
+              {canEdit && <EditButton onClick={() => setShowPersonalModal(true)} />}
             </div>
-            <div className="flex flex-col items-end space-y-2">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                employee.estatus === 'Activo' 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-red-100 text-red-800'
-              }`}>
-                {employee.estatus}
-              </span>
-              {/* Botón de edición - solo visible para ADMIN o usuarios con acceso al módulo EMPLEADOS */}
-              {user && (user.role === 'ADMIN' || user.accessibleModules?.includes('EMPLEADOS')) && (
-                <button
-                  onClick={() => setShowEditModal(true)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
-                >
-                  Editar Información
-                </button>
-              )}
+            <div className="space-y-2">
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Nombres:</span><span className="text-sm text-gray-900">{employee.nombres || employee.nombre || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Apellido Paterno:</span><span className="text-sm text-gray-900">{employee.apellidoPaterno || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Apellido Materno:</span><span className="text-sm text-gray-900">{employee.apellidoMaterno || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Fecha de Nacimiento:</span><span className="text-sm text-gray-900">{employee.fechaNacimiento ? new Date(employee.fechaNacimiento).toLocaleDateString('es-MX') : 'No especificada'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Edad:</span><span className="text-sm text-gray-900">{calcularEdad(employee.fechaNacimiento)}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Lugar de Nacimiento:</span><span className="text-sm text-gray-900">{employee.lugarNacimiento || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Estado Civil:</span><span className="text-sm text-gray-900">{employee.estadoCivil || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Nacionalidad:</span><span className="text-sm text-gray-900">{employee.nacionalidad || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Sexo:</span><span className="text-sm text-gray-900">{employee.sexo || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Nivel Académico:</span><span className="text-sm text-gray-900">{employee.nivelAcademico || 'No especificado'}</span></div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Columna 1: Datos Personales */}
-            <div className="lg:col-span-2">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Datos Personales</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Clave:</span>
-                  <p className="text-sm text-gray-600">{employee.clave || 'No especificado'}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Nombres:</span>
-                  <p className="text-sm text-gray-600">{employee.nombres || employee.nombre || 'No especificado'}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Apellido Paterno:</span>
-                  <p className="text-sm text-gray-600">{employee.apellidoPaterno || 'No especificado'}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Apellido Materno:</span>
-                  <p className="text-sm text-gray-600">{employee.apellidoMaterno || 'No especificado'}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Fecha de Nacimiento:</span>
-                  <p className="text-sm text-gray-600">
-                    {employee.fechaNacimiento ? new Date(employee.fechaNacimiento).toLocaleDateString('es-MX') : 'No especificada'}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Edad:</span>
-                  <p className="text-sm text-gray-600">{calcularEdad(employee.fechaNacimiento)}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Lugar de Nacimiento:</span>
-                  <p className="text-sm text-gray-600">{employee.lugarNacimiento || 'No especificado'}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Estado Civil:</span>
-                  <p className="text-sm text-gray-600">{employee.estadoCivil || 'No especificado'}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Nacionalidad:</span>
-                  <p className="text-sm text-gray-600">{employee.nacionalidad || 'No especificado'}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Sexo:</span>
-                  <p className="text-sm text-gray-600">{employee.sexo || 'No especificado'}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Nivel Académico:</span>
-                  <p className="text-sm text-gray-600">{employee.nivelAcademico || 'No especificado'}</p>
-                </div>
-              </div>
+          {/* CARD: DATOS LABORALES */}
+          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <span className="text-blue-600">💼</span> Datos Laborales
+              </h3>
+              {canEdit && <EditButton onClick={() => setShowLaboralModal(true)} />}
             </div>
-
-            {/* Columna 2: Datos Laborales */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Datos Laborales</h3>
-              <div className="space-y-3">
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Puesto:</span>
-                  <p className="text-sm text-gray-600">{employee.puesto?.nombre || 'Sin puesto asignado'}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Departamento:</span>
-                  <p className="text-sm text-gray-600">{employee.departamento?.nombre || 'No asignado'}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Fecha de Ingreso:</span>
-                  <p className="text-sm text-gray-600">
-                    {employee.fechaAlta ? new Date(employee.fechaAlta).toLocaleDateString('es-MX') : 'No especificada'}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Fecha de Ingreso (en letras):</span>
-                  <p className="text-sm text-gray-600">{fechaALetras(employee.fechaAlta)}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Antigüedad:</span>
-                  <p className="text-sm text-gray-600">{calcularAntiguedad(employee.fechaAlta)}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Estatus:</span>
-                  <p className="text-sm text-gray-600">{employee.estatus || 'No especificado'}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Salario Mensual:</span>
-                  <p className="text-sm text-gray-600">
-                    {employee.salarioMensual ? `$${employee.salarioMensual.toLocaleString('es-MX')}` : 'No especificado'}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Salario Mensual (en texto):</span>
-                  <p className="text-sm text-gray-600">{numeroATexto(employee.salarioMensual)}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Área:</span>
-                  <p className="text-sm text-gray-600">{employee.area || 'No especificado'}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Región:</span>
-                  <p className="text-sm text-gray-600">{employee.region || 'No especificado'}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Contrato:</span>
-                  <p className="text-sm text-gray-600">{employee.contrato || 'No especificado'}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Horario:</span>
-                  <p className="text-sm text-gray-600">{employee.horario || 'No especificado'}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Sucursal:</span>
-                  <p className="text-sm text-gray-600">{employee.sucursal || 'No especificado'}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Columna 3: Información Adicional */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Información Adicional</h3>
-              <div className="space-y-3">
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Jefe Directo:</span>
-                  <p className="text-sm text-gray-600">{employee.reportaA?.nombre || employee.jefeDirecto || 'No especificado'}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">SD (Sueldo Diario):</span>
-                  <p className="text-sm text-gray-600">
-                    {employee.sd ? `$${employee.sd.toLocaleString('es-MX')}` : 'No especificado'}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">SDI (Sueldo Diario Integrado):</span>
-                  <p className="text-sm text-gray-600">
-                    {employee.sdi ? `$${employee.sdi.toLocaleString('es-MX')}` : 'No especificado'}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Documentos:</span>
-                  <p className="text-sm text-gray-600">
-                    {employee.documents?.length || 0} documentos
-                  </p>
-                </div>
-              </div>
+            <div className="space-y-2">
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Puesto:</span><span className="text-sm text-gray-900">{employee.puesto?.nombre || 'Sin puesto asignado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Departamento:</span><span className="text-sm text-gray-900">{employee.departamento?.nombre || 'No asignado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Fecha de Ingreso:</span><span className="text-sm text-gray-900">{employee.fechaAlta ? new Date(employee.fechaAlta).toLocaleDateString('es-MX') : 'No especificada'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Salario Mensual:</span><span className="text-sm text-gray-900">{employee.salarioMensual ? `$${employee.salarioMensual.toLocaleString('es-MX')}` : 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Área:</span><span className="text-sm text-gray-900">{employee.area || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Región:</span><span className="text-sm text-gray-900">{employee.region || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Contrato:</span><span className="text-sm text-gray-900">{employee.contrato || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Horario:</span><span className="text-sm text-gray-900">{employee.horario || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Sucursal:</span><span className="text-sm text-gray-900">{employee.sucursal || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Jefe Directo:</span><span className="text-sm text-gray-900">{employee.reportaA?.nombre || employee.jefeDirecto || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">SD / SDI:</span><span className="text-sm text-gray-900">${employee.sd?.toLocaleString('es-MX') || '0'} / ${employee.sdi?.toLocaleString('es-MX') || '0'}</span></div>
             </div>
           </div>
 
-          {/* Sección de Contacto y Dirección */}
-          <div className="mt-8 pt-8 border-t border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Contacto y Dirección</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <span className="text-sm font-medium text-gray-700">Teléfono Casa:</span>
-                <p className="text-sm text-gray-600">{employee.telefonoCasa || 'No especificado'}</p>
-              </div>
-              <div>
-                <span className="text-sm font-medium text-gray-700">Teléfono Móvil:</span>
-                <p className="text-sm text-gray-600">{employee.telefonoMovil || 'No especificado'}</p>
-              </div>
-              <div>
-                <span className="text-sm font-medium text-gray-700">Correo Electrónico:</span>
-                <p className="text-sm text-gray-600">{employee.correoElectronico || 'No especificado'}</p>
-              </div>
-              <div>
-                <span className="text-sm font-medium text-gray-700">Correo Empresa:</span>
-                <p className="text-sm text-gray-600">{employee.correoEmpresa || 'No especificado'}</p>
-              </div>
-              <div className="md:col-span-2">
-                <span className="text-sm font-medium text-gray-700">Dirección Completa:</span>
-                <p className="text-sm text-gray-600">{employee.direccionCompleta || 'No especificado'}</p>
-              </div>
-              <div>
-                <span className="text-sm font-medium text-gray-700">Estado:</span>
-                <p className="text-sm text-gray-600">{employee.estado || 'No especificado'}</p>
-              </div>
-              <div>
-                <span className="text-sm font-medium text-gray-700">CP Fiscal:</span>
-                <p className="text-sm text-gray-600">{employee.cpFiscal || 'No especificado'}</p>
-              </div>
+          {/* CARD: CONTACTO Y DIRECCIÓN */}
+          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <span className="text-blue-600">📞</span> Contacto y Dirección
+              </h3>
+              {canEdit && <EditButton onClick={() => setShowContacto(true)} />}
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Teléfono Casa:</span><span className="text-sm text-gray-900">{employee.telefonoCasa || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Teléfono Móvil:</span><span className="text-sm text-gray-900">{employee.telefonoMovil || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Correo Electrónico:</span><span className="text-sm text-gray-900">{employee.correoElectronico || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Correo Empresa:</span><span className="text-sm text-gray-900">{employee.correoEmpresa || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Dirección:</span><span className="text-sm text-gray-900 text-right max-w-[60%]">{employee.direccionCompleta || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Estado:</span><span className="text-sm text-gray-900">{employee.estado || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">CP Fiscal:</span><span className="text-sm text-gray-900">{employee.cpFiscal || 'No especificado'}</span></div>
             </div>
           </div>
 
-          {/* Sección de Datos Legales */}
-          <div className="mt-8 pt-8 border-t border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Datos Legales</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <span className="text-sm font-medium text-gray-700">RFC:</span>
-                <p className="text-sm text-gray-600">{employee.rfc || 'No especificado'}</p>
-              </div>
-              <div>
-                <span className="text-sm font-medium text-gray-700">CURP:</span>
-                <p className="text-sm text-gray-600">{employee.curp || 'No especificado'}</p>
-              </div>
-              <div>
-                <span className="text-sm font-medium text-gray-700">NSS:</span>
-                <p className="text-sm text-gray-600">{employee.nss || 'No especificado'}</p>
-              </div>
+          {/* CARD: DATOS LEGALES */}
+          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <span className="text-blue-600">⚖️</span> Datos Legales
+              </h3>
+              {canEdit && <EditButton onClick={() => setShowLegalModal(true)} />}
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">RFC:</span><span className="text-sm text-gray-900">{employee.rfc || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">CURP:</span><span className="text-sm text-gray-900">{employee.curp || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">NSS:</span><span className="text-sm text-gray-900">{employee.nss || 'No especificado'}</span></div>
             </div>
           </div>
 
-          {/* Sección de Datos Financieros */}
-          <div className="mt-8 pt-8 border-t border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Datos Financieros</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <span className="text-sm font-medium text-gray-700">Banco:</span>
-                <p className="text-sm text-gray-600">{employee.banco || 'No especificado'}</p>
-              </div>
-              <div>
-                <span className="text-sm font-medium text-gray-700">Número de Cuenta:</span>
-                <p className="text-sm text-gray-600">{employee.numeroCuenta || 'No especificado'}</p>
-              </div>
-              <div>
-                <span className="text-sm font-medium text-gray-700">CLABE:</span>
-                <p className="text-sm text-gray-600">{employee.clabe || 'No especificado'}</p>
-              </div>
+          {/* CARD: DATOS FINANCIEROS */}
+          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <span className="text-blue-600">💰</span> Datos Financieros
+              </h3>
+              {canEdit && <EditButton onClick={() => setShowFinancieroModal(true)} />}
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Banco:</span><span className="text-sm text-gray-900">{employee.banco || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Número de Cuenta:</span><span className="text-sm text-gray-900">{employee.numeroCuenta || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">CLABE:</span><span className="text-sm text-gray-900">{employee.clabe || 'No especificado'}</span></div>
             </div>
           </div>
 
-          {/* Sección de Uniformes */}
-          <div className="mt-8 pt-8 border-t border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Uniformes</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <span className="text-sm font-medium text-gray-700">Talla Camisa:</span>
-                <p className="text-sm text-gray-600">{employee.tallaCamisa || 'No especificado'}</p>
-              </div>
-              <div>
-                <span className="text-sm font-medium text-gray-700">Talla Playera:</span>
-                <p className="text-sm text-gray-600">{employee.tallaPlayera || 'No especificado'}</p>
-              </div>
-              <div>
-                <span className="text-sm font-medium text-gray-700">Talla Pantalón:</span>
-                <p className="text-sm text-gray-600">{employee.tallaPantalon || 'No especificado'}</p>
-              </div>
-              <div>
-                <span className="text-sm font-medium text-gray-700">Talla Zapatos:</span>
-                <p className="text-sm text-gray-600">{employee.tallaZapatos || 'No especificado'}</p>
-              </div>
+          {/* CARD: UNIFORMES */}
+          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <span className="text-blue-600">👕</span> Uniformes
+              </h3>
+              {canEdit && <EditButton onClick={() => setShowUniformesModal(true)} />}
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Talla Camisa:</span><span className="text-sm text-gray-900">{employee.tallaCamisa || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Talla Playera:</span><span className="text-sm text-gray-900">{employee.tallaPlayera || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Talla Pantalón:</span><span className="text-sm text-gray-900">{employee.tallaPantalon || 'No especificado'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Talla Zapatos:</span><span className="text-sm text-gray-900">{employee.tallaZapatos || 'No especificado'}</span></div>
             </div>
           </div>
 
-          {/* Sección de Beneficiarios */}
-          <div className="mt-8 pt-8 border-t border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Beneficiarios</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* CARD: BENEFICIARIOS */}
+          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow md:col-span-2">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <span className="text-blue-600">👨‍👩‍👧‍👦</span> Beneficiarios
+              </h3>
+              {canEdit && <EditButton onClick={() => setShowBeneficiariosModal(true)} />}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h4 className="font-medium text-gray-900 mb-2">Beneficiario 1</h4>
-                <div className="space-y-2">
-                  <div>
-                    <span className="text-sm font-medium text-gray-700">Nombre:</span>
-                    <p className="text-sm text-gray-600">{employee.beneficiario1 || 'No especificado'}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-700">Fecha de Nacimiento:</span>
-                    <p className="text-sm text-gray-600">
-                      {employee.fechaNacBeneficiario1 ? new Date(employee.fechaNacBeneficiario1).toLocaleDateString('es-MX') : 'No especificada'}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-700">Porcentaje:</span>
-                    <p className="text-sm text-gray-600">{employee.porcentaje1 ? `${employee.porcentaje1}%` : 'No especificado'}</p>
-                  </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Nombre:</span><span className="text-sm text-gray-900">{employee.beneficiario1 || 'No especificado'}</span></div>
+                  <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Fecha Nac.:</span><span className="text-sm text-gray-900">{employee.fechaNacBeneficiario1 ? new Date(employee.fechaNacBeneficiario1).toLocaleDateString('es-MX') : 'No especificada'}</span></div>
+                  <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Porcentaje:</span><span className="text-sm text-gray-900">{employee.porcentaje1 ? `${employee.porcentaje1}%` : 'No especificado'}</span></div>
                 </div>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h4 className="font-medium text-gray-900 mb-2">Beneficiario 2</h4>
-                <div className="space-y-2">
-                  <div>
-                    <span className="text-sm font-medium text-gray-700">Nombre:</span>
-                    <p className="text-sm text-gray-600">{employee.beneficiario2 || 'No especificado'}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-700">Fecha de Nacimiento:</span>
-                    <p className="text-sm text-gray-600">
-                      {employee.fechaNacBeneficiario2 ? new Date(employee.fechaNacBeneficiario2).toLocaleDateString('es-MX') : 'No especificada'}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-700">Porcentaje:</span>
-                    <p className="text-sm text-gray-600">{employee.porcentaje2 ? `${employee.porcentaje2}%` : 'No especificado'}</p>
-                  </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Nombre:</span><span className="text-sm text-gray-900">{employee.beneficiario2 || 'No especificado'}</span></div>
+                  <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Fecha Nac.:</span><span className="text-sm text-gray-900">{employee.fechaNacBeneficiario2 ? new Date(employee.fechaNacBeneficiario2).toLocaleDateString('es-MX') : 'No especificada'}</span></div>
+                  <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Porcentaje:</span><span className="text-sm text-gray-900">{employee.porcentaje2 ? `${employee.porcentaje2}%` : 'No especificado'}</span></div>
                 </div>
               </div>
             </div>
           </div>
-          {/* Sección de Archivo Digital */}
-          <div className="mt-8 pt-8 border-t border-gray-200">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">Archivo Digital</h3>
-              {user && (user.role === 'ADMIN' || user.role === 'RH') && (
-                <button
-                  onClick={() => setShowUploadForm(!showUploadForm)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
-                >
-                  {showUploadForm ? 'Cancelar' : 'Subir Documento'}
-                </button>
-              )}
-            </div>
 
-            {/* Formulario de subida de documentos (solo para RH y Admin) */}
-            {showUploadForm && user && (user.role === 'ADMIN' || user.role === 'RH') && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <h4 className="font-medium text-blue-900 mb-3">Subir Nuevo Documento</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tipo de Documento *
-                    </label>
-                    <select
-                      value={newDocument.tipo_documento}
-                      onChange={(e) => setNewDocument({...newDocument, tipo_documento: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    >
-                      <option value="">Seleccionar tipo</option>
-                      {allowedDocumentTypes.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Archivo *
-                    </label>
-                    <input
-                      type="file"
-                      onChange={handleFileChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                      required
-                    />
-                    {newDocument.document && (
-                      <p className="mt-1 text-sm text-gray-600">
-                        Archivo seleccionado: {newDocument.document.name}
-                      </p>
-                    )}
-                  </div>
+          {/* CARD: DATOS FAMILIARES */}
+          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <span className="text-blue-600">🏠</span> Datos Familiares
+              </h3>
+              {canEdit && <EditButton onClick={() => setShowFamiliaresModal(true)} />}
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">¿Es Padre/Madre?</span><span className="text-sm text-gray-900">{employee.esPadre ? 'Sí' : 'No'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Número de Hijos:</span><span className="text-sm text-gray-900">{employee.numeroHijos || 0}</span></div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* ============================================================ */}
+        {/* CARD FULL WIDTH: ARCHIVO DIGITAL */}
+        {/* ============================================================ */}
+        <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 mt-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <span className="text-blue-600">📁</span> Archivo Digital
+            </h3>
+            {user && (user.role === 'ADMIN' || user.role === 'RH') && (
+              <button onClick={() => setShowUploadForm(!showUploadForm)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium">
+                {showUploadForm ? 'Cancelar' : 'Subir Documento'}
+              </button>
+            )}
+          </div>
+
+          {showUploadForm && user && (user.role === 'ADMIN' || user.role === 'RH') && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <h4 className="font-medium text-blue-900 mb-3">Subir Nuevo Documento</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento *</label>
+                  <select value={newDocument.tipo_documento} onChange={(e) => setNewDocument({...newDocument, tipo_documento: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    <option value="">Seleccionar tipo</option>
+                    {allowedDocumentTypes.map((type) => (<option key={type} value={type}>{type}</option>))}
+                  </select>
                 </div>
-                <div className="mt-4 flex justify-end">
-                  <button
-                    onClick={handleUploadDocument}
-                    disabled={uploading}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {uploading ? 'Subiendo...' : 'Subir Documento'}
-                  </button>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Archivo *</label>
+                  <input type="file" onChange={handleFileChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" required />
+                  {newDocument.document && <p className="mt-1 text-sm text-gray-600">Archivo seleccionado: {newDocument.document.name}</p>}
                 </div>
               </div>
-            )}
-
-            {/* Lista de documentos */}
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-              {documents.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Tipo de Documento
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Nombre del Archivo
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Fecha de Subida
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Tamaño
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Acciones
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {documents.map((doc) => (
-                        <tr key={doc.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {doc.tipo_documento}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {doc.nombre_archivo}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {new Date(doc.uploaded_at).toLocaleDateString('es-MX')}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {doc.size_bytes ? `${Math.round(doc.size_bytes / 1024)} KB` : 'N/A'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button
-                              onClick={() => handleDownloadDocument(doc.id, doc.nombre_archivo)}
-                              className="text-blue-600 hover:text-blue-900 mr-3"
-                            >
-                              Descargar
-                            </button>
-                            {user && (user.role === 'ADMIN' || user.role === 'RH') && (
-                              <button
-                                onClick={() => handleDeleteDocument(doc.id)}
-                                className="text-red-600 hover:text-red-900"
-                              >
-                                Eliminar
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">No hay documentos registrados para este empleado.</p>
-                  {user && (user.role === 'ADMIN' || user.role === 'RH') && (
-                    <p className="text-gray-400 text-sm mt-2">
-                      Haz clic en "Subir Documento" para agregar el primer documento.
-                    </p>
-                  )}
-                </div>
-              )}
+              <div className="mt-4 flex justify-end">
+                <button onClick={handleUploadDocument} disabled={uploading} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                  {uploading ? 'Subiendo...' : 'Subir Documento'}
+                </button>
+              </div>
             </div>
+          )}
+
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            {documents.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo de Documento</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre del Archivo</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha de Subida</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tamaño</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {documents.map((doc) => (
+                      <tr key={doc.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{doc.tipo_documento}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{doc.nombre_archivo}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(doc.uploaded_at).toLocaleDateString('es-MX')}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{doc.size_bytes ? `${Math.round(doc.size_bytes / 1024)} KB` : 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button onClick={() => handleDownloadDocument(doc.id, doc.nombre_archivo)} className="text-blue-600 hover:text-blue-900 mr-3">Descargar</button>
+                          {user && (user.role === 'ADMIN' || user.role === 'RH') && (
+                            <button onClick={() => handleDeleteDocument(doc.id)} className="text-red-600 hover:text-red-900">Eliminar</button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No hay documentos registrados para este empleado.</p>
+                {user && (user.role === 'ADMIN' || user.role === 'RH') && (
+                  <p className="text-gray-400 text-sm mt-2">Haz clic en "Subir Documento" para agregar el primer documento.</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Modal de Edición */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Editar Información del Empleado</h2>
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+      {/* ============================================================ */}
+      {/* MODALES DE EDICIÓN POR SECCIÓN */}
+      {/* ============================================================ */}
+
+      {/* MODAL: DATOS PERSONALES */}
+      <EditSectionModal isOpen={showPersonalModal} onClose={() => setShowPersonalModal(false)} title="Editar Datos Personales" onSave={savePersonal} saving={saving}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Clave</label>
+            <input type="text" name="clave" value={personalForm.clave} onChange={handlePersonalChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nombres *</label>
+            <input type="text" name="nombres" value={personalForm.nombres} onChange={handlePersonalChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Apellido Paterno</label>
+            <input type="text" name="apellidoPaterno" value={personalForm.apellidoPaterno} onChange={handlePersonalChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Apellido Materno</label>
+            <input type="text" name="apellidoMaterno" value={personalForm.apellidoMaterno} onChange={handlePersonalChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento</label>
+            <input type="date" name="fechaNacimiento" value={personalForm.fechaNacimiento} onChange={handlePersonalChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Lugar de Nacimiento</label>
+            <input type="text" name="lugarNacimiento" value={personalForm.lugarNacimiento} onChange={handlePersonalChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Estado Civil</label>
+            <input type="text" name="estadoCivil" value={personalForm.estadoCivil} onChange={handlePersonalChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nacionalidad</label>
+            <input type="text" name="nacionalidad" value={personalForm.nacionalidad} onChange={handlePersonalChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Sexo</label>
+            <select name="sexo" value={personalForm.sexo} onChange={handlePersonalChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">Seleccionar</option>
+              <option value="Masculino">Masculino</option>
+              <option value="Femenino">Femenino</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nivel Académico</label>
+            <input type="text" name="nivelAcademico" value={personalForm.nivelAcademico} onChange={handlePersonalChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+      </EditSectionModal>
+
+      {/* MODAL: DATOS LABORALES */}
+      <EditSectionModal isOpen={showLaboralModal} onClose={() => setShowLaboralModal(false)} title="Editar Datos Laborales" onSave={saveLaboral} saving={saving}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Puesto ID *</label>
+            <input type="text" name="puestoId" value={laboralForm.puestoId} onChange={handleLaboralChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="ID del puesto (ej: clm...)" required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Ingreso *</label>
+            <input type="date" name="fecha_ingreso" value={laboralForm.fecha_ingreso} onChange={handleLaboralChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Estatus</label>
+            <select name="estatus" value={laboralForm.estatus} onChange={handleLaboralChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="Activo">Activo</option>
+              <option value="Inactivo">Inactivo</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Sucursal</label>
+            <input type="text" name="sucursal" value={laboralForm.sucursal} onChange={handleLaboralChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Área</label>
+            <input type="text" name="area" value={laboralForm.area} onChange={handleLaboralChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Región</label>
+            <input type="text" name="region" value={laboralForm.region} onChange={handleLaboralChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Contrato</label>
+            <input type="text" name="contrato" value={laboralForm.contrato} onChange={handleLaboralChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Horario</label>
+            <input type="text" name="horario" value={laboralForm.horario} onChange={handleLaboralChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Salario Mensual</label>
+            <input type="number" step="0.01" name="salary" value={laboralForm.salary} onChange={handleLaboralChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">SD (Sueldo Diario)</label>
+            <input type="number" step="0.01" name="sd" value={laboralForm.sd} onChange={handleLaboralChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">SDI (Sueldo Diario Integrado)</label>
+            <input type="number" step="0.01" name="sdi" value={laboralForm.sdi} onChange={handleLaboralChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+      </EditSectionModal>
+
+      {/* MODAL: CONTACTO Y DIRECCIÓN */}
+      <EditSectionModal isOpen={showContacto} onClose={() => setShowContacto(false)} title="Editar Contacto y Dirección" onSave={saveContacto} saving={saving}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono Casa</label>
+            <input type="text" name="telefonoCasa" value={contactoForm.telefonoCasa} onChange={handleContactoChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono Móvil</label>
+            <input type="text" name="telefonoMovil" value={contactoForm.telefonoMovil} onChange={handleContactoChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
+            <input type="email" name="correoElectronico" value={contactoForm.correoElectronico} onChange={handleContactoChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Correo Empresa</label>
+            <input type="email" name="correoEmpresa" value={contactoForm.correoEmpresa} onChange={handleContactoChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Dirección Completa</label>
+            <textarea name="direccionCompleta" value={contactoForm.direccionCompleta} onChange={handleContactoChange} rows="2" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+            <input type="text" name="estado" value={contactoForm.estado} onChange={handleContactoChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">CP Fiscal</label>
+            <input type="text" name="cpFiscal" value={contactoForm.cpFiscal} onChange={handleContactoChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+      </EditSectionModal>
+
+      {/* MODAL: DATOS LEGALES */}
+      <EditSectionModal isOpen={showLegalModal} onClose={() => setShowLegalModal(false)} title="Editar Datos Legales" onSave={saveLegal} saving={saving}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">RFC *</label>
+            <input type="text" name="rfc" value={legalForm.rfc} onChange={handleLegalChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">CURP *</label>
+            <input type="text" name="curp" value={legalForm.curp} onChange={handleLegalChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">NSS *</label>
+            <input type="text" name="nss" value={legalForm.nss} onChange={handleLegalChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+          </div>
+        </div>
+      </EditSectionModal>
+
+      {/* MODAL: DATOS FINANCIEROS */}
+      <EditSectionModal isOpen={showFinancieroModal} onClose={() => setShowFinancieroModal(false)} title="Editar Datos Financieros" onSave={saveFinanciero} saving={saving}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Banco</label>
+            <input type="text" name="banco" value={financieroForm.banco} onChange={handleFinancieroChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Número de Cuenta</label>
+            <input type="text" name="numeroCuenta" value={financieroForm.numeroCuenta} onChange={handleFinancieroChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">CLABE</label>
+            <input type="text" name="clabe" value={financieroForm.clabe} onChange={handleFinancieroChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+      </EditSectionModal>
+
+      {/* MODAL: UNIFORMES */}
+      <EditSectionModal isOpen={showUniformesModal} onClose={() => setShowUniformesModal(false)} title="Editar Uniformes" onSave={saveUniformes} saving={saving}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Talla Camisa</label>
+            <input type="text" name="tallaCamisa" value={uniformesForm.tallaCamisa} onChange={handleUniformesChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Talla Playera</label>
+            <input type="text" name="tallaPlayera" value={uniformesForm.tallaPlayera} onChange={handleUniformesChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Talla Pantalón</label>
+            <input type="text" name="tallaPantalon" value={uniformesForm.tallaPantalon} onChange={handleUniformesChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Talla Zapatos</label>
+            <input type="text" name="tallaZapatos" value={uniformesForm.tallaZapatos} onChange={handleUniformesChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+      </EditSectionModal>
+
+      {/* MODAL: BENEFICIARIOS */}
+      <EditSectionModal isOpen={showBeneficiariosModal} onClose={() => setShowBeneficiariosModal(false)} title="Editar Beneficiarios" onSave={saveBeneficiarios} saving={saving}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h4 className="font-medium text-gray-900 mb-3">Beneficiario 1</h4>
+            <div className="grid grid-cols-1 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                <input type="text" name="beneficiario1" value={beneficiariosForm.beneficiario1} onChange={handleBeneficiariosChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
-
-              <div className="space-y-6">
-                {/* Datos Personales */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Datos Personales</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Clave</label>
-                      <input
-                        type="text"
-                        name="clave"
-                        value={editForm.clave}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Nombres *</label>
-                      <input
-                        type="text"
-                        name="nombres"
-                        value={editForm.nombres}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Apellido Paterno</label>
-                      <input
-                        type="text"
-                        name="apellidoPaterno"
-                        value={editForm.apellidoPaterno}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Apellido Materno</label>
-                      <input
-                        type="text"
-                        name="apellidoMaterno"
-                        value={editForm.apellidoMaterno}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento</label>
-                      <input
-                        type="date"
-                        name="fechaNacimiento"
-                        value={editForm.fechaNacimiento}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Lugar de Nacimiento</label>
-                      <input
-                        type="text"
-                        name="lugarNacimiento"
-                        value={editForm.lugarNacimiento}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Estado Civil</label>
-                      <input
-                        type="text"
-                        name="estadoCivil"
-                        value={editForm.estadoCivil}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Nacionalidad</label>
-                      <input
-                        type="text"
-                        name="nacionalidad"
-                        value={editForm.nacionalidad}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Sexo</label>
-                      <select
-                        name="sexo"
-                        value={editForm.sexo}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Seleccionar</option>
-                        <option value="Masculino">Masculino</option>
-                        <option value="Femenino">Femenino</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Nivel Académico</label>
-                      <input
-                        type="text"
-                        name="nivelAcademico"
-                        value={editForm.nivelAcademico}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Datos Laborales */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Datos Laborales</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Puesto ID *</label>
-                      <input
-                        type="text"
-                        name="puestoId"
-                        value={editForm.puestoId}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="ID del puesto (ej: clm...)"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Ingreso *</label>
-                      <input
-                        type="date"
-                        name="fecha_ingreso"
-                        value={editForm.fecha_ingreso}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Estatus</label>
-                      <select
-                        name="estatus"
-                        value={editForm.estatus}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="Activo">Activo</option>
-                        <option value="Inactivo">Inactivo</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Sucursal</label>
-                      <input
-                        type="text"
-                        name="sucursal"
-                        value={editForm.sucursal}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Área</label>
-                      <input
-                        type="text"
-                        name="area"
-                        value={editForm.area}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Región</label>
-                      <input
-                        type="text"
-                        name="region"
-                        value={editForm.region}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Contrato</label>
-                      <input
-                        type="text"
-                        name="contrato"
-                        value={editForm.contrato}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Horario</label>
-                      <input
-                        type="text"
-                        name="horario"
-                        value={editForm.horario}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Salario Mensual</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        name="salary"
-                        value={editForm.salary}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div className="hidden">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Jefe Directo</label>
-                      <input
-                        type="text"
-                        name="jefeDirecto"
-                        value={editForm.jefeDirecto}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        disabled
-                      />
-                      <p className="text-sm text-gray-500 mt-1">Campo deshabilitado para la demo</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">SD (Sueldo Diario)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        name="sd"
-                        value={editForm.sd}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">SDI (Sueldo Diario Integrado)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        name="sdi"
-                        value={editForm.sdi}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Contacto y Dirección */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Contacto y Dirección</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono Casa</label>
-                      <input
-                        type="text"
-                        name="telefonoCasa"
-                        value={editForm.telefonoCasa}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono Móvil</label>
-                      <input
-                        type="text"
-                        name="telefonoMovil"
-                        value={editForm.telefonoMovil}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
-                      <input
-                        type="email"
-                        name="correoElectronico"
-                        value={editForm.correoElectronico}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Correo Empresa</label>
-                      <input
-                        type="email"
-                        name="correoEmpresa"
-                        value={editForm.correoEmpresa}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Dirección Completa</label>
-                      <textarea
-                        name="direccionCompleta"
-                        value={editForm.direccionCompleta}
-                        onChange={handleEditFormChange}
-                        rows="2"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                      <input
-                        type="text"
-                        name="estado"
-                        value={editForm.estado}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">CP Fiscal</label>
-                      <input
-                        type="text"
-                        name="cpFiscal"
-                        value={editForm.cpFiscal}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Datos Legales */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Datos Legales</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">RFC *</label>
-                      <input
-                        type="text"
-                        name="rfc"
-                        value={editForm.rfc}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">CURP *</label>
-                      <input
-                        type="text"
-                        name="curp"
-                        value={editForm.curp}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">NSS *</label>
-                      <input
-                        type="text"
-                        name="nss"
-                        value={editForm.nss}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Datos Financieros */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Datos Financieros</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Banco</label>
-                      <input
-                        type="text"
-                        name="banco"
-                        value={editForm.banco}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Número de Cuenta</label>
-                      <input
-                        type="text"
-                        name="numeroCuenta"
-                        value={editForm.numeroCuenta}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">CLABE</label>
-                      <input
-                        type="text"
-                        name="clabe"
-                        value={editForm.clabe}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Uniformes */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Uniformes</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Talla Camisa</label>
-                      <input
-                        type="text"
-                        name="tallaCamisa"
-                        value={editForm.tallaCamisa}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Talla Playera</label>
-                      <input
-                        type="text"
-                        name="tallaPlayera"
-                        value={editForm.tallaPlayera}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Talla Pantalón</label>
-                      <input
-                        type="text"
-                        name="tallaPantalon"
-                        value={editForm.tallaPantalon}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Talla Zapatos</label>
-                      <input
-                        type="text"
-                        name="tallaZapatos"
-                        value={editForm.tallaZapatos}
-                        onChange={handleEditFormChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Beneficiarios */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Beneficiarios</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-gray-900 mb-3">Beneficiario 1</h4>
-                      <div className="grid grid-cols-1 gap-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                          <input
-                            type="text"
-                            name="beneficiario1"
-                            value={editForm.beneficiario1}
-                            onChange={handleEditFormChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento</label>
-                          <input
-                            type="date"
-                            name="fechaNacBeneficiario1"
-                            value={editForm.fechaNacBeneficiario1}
-                            onChange={handleEditFormChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Porcentaje (%)</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            name="porcentaje1"
-                            value={editForm.porcentaje1}
-                            onChange={handleEditFormChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-gray-900 mb-3">Beneficiario 2</h4>
-                      <div className="grid grid-cols-1 gap-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                          <input
-                            type="text"
-                            name="beneficiario2"
-                            value={editForm.beneficiario2}
-                            onChange={handleEditFormChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento</label>
-                          <input
-                            type="date"
-                            name="fechaNacBeneficiario2"
-                            value={editForm.fechaNacBeneficiario2}
-                            onChange={handleEditFormChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Porcentaje (%)</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            name="porcentaje2"
-                            value={editForm.porcentaje2}
-                            onChange={handleEditFormChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Botones de acción */}
-                <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
-                  <button
-                    onClick={() => setShowEditModal(false)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md font-medium hover:bg-gray-50"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleSaveChanges}
-                    disabled={saving}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {saving ? 'Guardando...' : 'Guardar Cambios'}
-                  </button>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento</label>
+                <input type="date" name="fechaNacBeneficiario1" value={beneficiariosForm.fechaNacBeneficiario1} onChange={handleBeneficiariosChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Porcentaje (%)</label>
+                <input type="number" step="0.01" name="porcentaje1" value={beneficiariosForm.porcentaje1} onChange={handleBeneficiariosChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+            </div>
+          </div>
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h4 className="font-medium text-gray-900 mb-3">Beneficiario 2</h4>
+            <div className="grid grid-cols-1 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                <input type="text" name="beneficiario2" value={beneficiariosForm.beneficiario2} onChange={handleBeneficiariosChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento</label>
+                <input type="date" name="fechaNacBeneficiario2" value={beneficiariosForm.fechaNacBeneficiario2} onChange={handleBeneficiariosChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Porcentaje (%)</label>
+                <input type="number" step="0.01" name="porcentaje2" value={beneficiariosForm.porcentaje2} onChange={handleBeneficiariosChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
             </div>
           </div>
         </div>
-      )}
+      </EditSectionModal>
+
+      {/* MODAL: DATOS FAMILIARES */}
+      <EditSectionModal isOpen={showFamiliaresModal} onClose={() => setShowFamiliaresModal(false)} title="Editar Datos Familiares" onSave={saveFamiliares} saving={saving}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">¿Es Padre/Madre?</label>
+            <select
+              name="esPadre"
+              value={familiaresForm.esPadre}
+              onChange={(e) => setFamiliaresForm({...familiaresForm, esPadre: e.target.value === 'true'})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="false">No</option>
+              <option value="true">Sí</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Número de Hijos</label>
+            <input
+              type="number"
+              min="0"
+              name="numeroHijos"
+              value={familiaresForm.numeroHijos}
+              onChange={handleFamiliaresChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+      </EditSectionModal>
     </DashboardLayout>
   );
 }

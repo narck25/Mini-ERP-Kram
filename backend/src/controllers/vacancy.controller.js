@@ -4,9 +4,6 @@ const prisma = new PrismaClient();
 // Crear nueva vacante (formulario digitalizado)
 exports.createVacancy = async (req, res) => {
   try {
-    console.log('📥 CREATE VACANCY REQUEST BODY:', JSON.stringify(req.body, null, 2));
-    console.log('📥 USER:', req.user);
-    
     const {
       // Información de la Vacante
       titulo,

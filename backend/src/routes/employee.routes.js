@@ -1,4 +1,6 @@
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
 const router = express.Router();
 const employeeCoreController = require('../controllers/employee-core.controller');
 const employeeCsvController = require('../controllers/employee-csv.controller');
@@ -50,19 +52,31 @@ router.get('/managers', employeeOrgController.getManagers);
 router.post('/employees/:id/photo',
   AuthMiddleware.requireRHOrAdmin(),
   (req, res, next) => {
+    // Asegurar que el directorio de fotos existe
+    const photosDir = path.join(process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads'), 'photos');
+    if (!fs.existsSync(photosDir)) {
+      try {
+        fs.mkdirSync(photosDir, { recursive: true });
+      } catch (dirErr) {
+        console.error('Error creating photos directory:', dirErr);
+      }
+    }
     uploadPhoto.single('photo')(req, res, (err) => {
       if (err) {
-        console.error('Photo upload error:', err);
+        console.error('❌ Photo upload error:', err);
+        console.error('Stack:', err.stack?.substring(0, 300));
         return res.status(400).json({
           error: 'Error al subir la foto',
           message: err.message
         });
       }
+      console.log('✅ Photo upload middleware passed, file:', req.file?.originalname);
       next();
     });
   },
   employeePhotoController.uploadProfilePhoto
 );
+
 
 // Ruta para obtener puestos por departamento
 router.get('/departments/:id/job-positions', employeeOrgController.getJobPositionsByDepartment);

@@ -52,9 +52,7 @@ export default function OrganizacionPage() {
   const handleDepartmentSubmit = async (e) => {
     e.preventDefault();
     try {
-      console.log('Enviando datos:', formData);
       const response = await api.post('/departments', formData);
-      console.log('Respuesta del servidor:', response.data);
       setShowDepartmentForm(false);
       setFormData({ nombre: '', descripcion: '', estado: 'Activo' });
       fetchData();

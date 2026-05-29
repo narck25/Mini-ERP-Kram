@@ -128,3 +128,10 @@ logs
 # Temporary files
 tmp/
 temp/
+
+# Uploaded files (user content, not code)
+uploads/photos/
+uploads/cvs/
+uploads/employee-documents/
+uploads/psych-tests/
+uploads/purchase-quotes/

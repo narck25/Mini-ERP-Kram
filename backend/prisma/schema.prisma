@@ -102,6 +102,9 @@ model Employee {
   sdi                   Float?
   nivelJerarquico       NivelJerarquico?   @default(OPERATIVO)
   reportaAId            String?
+  fotoUrl               String?
+  esPadre               Boolean            @default(false)
+  numeroHijos           Int                @default(0)
   documents             EmployeeDocument[]
   departamento          Department         @relation(fields: [departamento_id], references: [id])
   user                  User?              @relation(fields: [userId], references: [id])

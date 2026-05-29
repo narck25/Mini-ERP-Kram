@@ -2,38 +2,42 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const csv = require('csv-parser');
 const { Readable } = require('stream');
-const { mapEmployeeFromCsv, validateEmployeeData, prepareForPrisma } = require('../utils/csvMapper');
+const fs = require('fs');
+const { mapEmployeeFromCsv, validateEmployeeData, prepareForPrisma, validateCsvHeaders } = require('../utils/csvMapper');
 
 // Importar empleados desde CSV
 exports.importEmployees = async (req, res) => {
   let transaction;
+  const filePath = req.file?.path;
   try {
-    console.log('📥 Import employees called');
-    console.log('📥 User:', req.user ? { id: req.user.id, role: req.user.role } : 'No user');
-    console.log('📥 Request file:', req.file);
-    console.log('📥 Request headers:', req.headers);
-    
     if (!req.file) {
-      console.log('❌ No file provided');
       return res.status(400).json({ error: 'No se proporcionó archivo CSV' });
     }
 
-    console.log('File details:', {
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size,
-      bufferLength: req.file.buffer.length
-    });
+    if (!filePath) {
+      return res.status(500).json({ error: 'Error interno: no se pudo determinar la ruta del archivo subido' });
+    }
 
     const results = [];
     const errors = [];
-    const buffer = req.file.buffer;
-    const stream = Readable.from(buffer.toString());
+
+    // Leer el archivo desde el disco (Multer usa diskStorage, req.file.buffer es undefined)
+    const fileContent = fs.readFileSync(filePath, 'utf8');
+    const stream = Readable.from(fileContent);
+
+    let csvHeaders = [];
 
     await new Promise((resolve, reject) => {
       stream
         .pipe(csv({
-          mapHeaders: ({ header }) => header.trim(),
+          mapHeaders: ({ header }) => {
+            const trimmed = header.trim();
+            // Capturar las cabeceras en la primera llamada
+            if (!csvHeaders.includes(trimmed)) {
+              csvHeaders.push(trimmed);
+            }
+            return trimmed;
+          },
           mapValues: ({ value }) => value.trim()
         }))
         .on('data', (data) => {
@@ -49,6 +53,17 @@ exports.importEmployees = async (req, res) => {
 
     if (results.length === 0) {
       return res.status(400).json({ error: 'El archivo CSV está vacío o no contiene datos válidos' });
+    }
+
+    // Validar cabeceras del CSV (solo REQUERIDAS: RFC, CURP, NSS, FECHA ALTA, PUESTO)
+    const headerValidation = validateCsvHeaders(csvHeaders);
+    if (!headerValidation.valid) {
+      const missingSample = headerValidation.missingHeaders.join(', ');
+      return res.status(400).json({
+        error: 'El CSV no contiene las columnas obligatorias. Verifique que incluya: RFC, CURP, NSS, FECHA ALTA, PUESTO',
+        missingHeaders: headerValidation.missingHeaders,
+        message: `Columnas obligatorias faltantes: ${missingSample}`
+      });
     }
 
     // Validar duplicados dentro del archivo
@@ -184,6 +199,16 @@ exports.importEmployees = async (req, res) => {
       error: 'Error al importar empleados',
       message: error.message 
     });
+  } finally {
+    // Limpiar archivo temporal del disco para no acumular basura
+    if (filePath) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch (cleanupError) {
+        // Solo log, no debe interrumpir la respuesta
+        console.warn(`⚠️ No se pudo eliminar archivo temporal: ${filePath}`, cleanupError.message);
+      }
+    }
   }
 };
 

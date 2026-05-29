@@ -50,13 +50,9 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       setLoading(true)
-      console.log('Attempting login with:', { email })
       const response = await authApi.login({ email, password })
-      console.log('Login response:', response.data)
       
       const { user, token } = response.data
-      console.log('Token received:', token ? 'Yes' : 'No')
-      console.log('User received:', user)
       
       // Guardar token en localStorage (para cliente)
       localStorage.setItem('token', token)
@@ -67,7 +63,6 @@ export const AuthProvider = ({ children }) => {
       setUser(user)
       
       toast.success('¡Inicio de sesión exitoso!')
-      console.log('Redirecting to dashboard...')
       router.push('/dashboard')
       
       return { success: true }

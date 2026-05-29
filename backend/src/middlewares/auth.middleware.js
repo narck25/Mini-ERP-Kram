@@ -84,9 +84,6 @@ class AuthMiddleware {
         });
       }
 
-      // DEBUG: Log de intento de acceso
-      console.log('💥 INTENTO DE ACCESO:', req.originalUrl, 'ROL:', req.user?.role, 'ALLOWED:', allowedRoles);
-
       if (!AuthUtils.hasRole(req.user.role, allowedRoles)) {
         const roleNames = {
           'ADMIN': 'Administrador',
@@ -123,16 +120,11 @@ class AuthMiddleware {
    * Middleware to check if user is RH or Admin
    */
   static requireRHOrAdmin() {
-    console.log('🔧 requireRHOrAdmin middleware factory called');
     return (req, res, next) => {
-      console.log('🔧 requireRHOrAdmin middleware executing for:', req.originalUrl);
-      console.log('🔧 User:', req.user ? { id: req.user.id, role: req.user.role } : 'No user');
-      console.log('🔧 Headers:', req.headers);
       try {
         return AuthMiddleware.requireRole(['ADMIN', 'RH'])(req, res, next);
       } catch (error) {
-        console.error('🔧 Error en requireRHOrAdmin:', error);
-        console.error('🔧 Error stack:', error.stack);
+        console.error('Error en requireRHOrAdmin:', error);
         return res.status(500).json({ error: 'Error interno en middleware de autenticación' });
       }
     };
@@ -171,9 +163,6 @@ class AuthMiddleware {
           message: 'Debe iniciar sesión para acceder a este recurso'
         });
       }
-
-      // DEBUG: Log de intento de acceso a módulo
-      console.log('🔐 INTENTO DE ACCESO A MÓDULO:', req.originalUrl, 'ROL:', req.user?.role, 'MÓDULO:', moduleName, 'MÓDULOS DEL USUARIO:', req.user?.accessibleModules);
 
       // Check if user has the required module
       if (!req.user.accessibleModules || !req.user.accessibleModules.includes(moduleName)) {

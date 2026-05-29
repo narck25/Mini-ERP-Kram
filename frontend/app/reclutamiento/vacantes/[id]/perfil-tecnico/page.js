@@ -110,16 +110,7 @@ function TechnicalProfilePageContent() {
     try {
       setSubmitting(true);
       
-      // DEBUG: Log de lo que se está enviando
-      console.log('=== DEBUG Frontend ===');
-      console.log('URL:', `/recruitment/vacancies/${id}/technical-profile`);
-      console.log('Form data:', formData);
-      console.log('Actividades:', formData.actividades);
-      console.log('=== FIN DEBUG ===');
-      
       const response = await api.put(`/recruitment/vacancies/${id}/technical-profile`, formData);
-      
-      console.log('Response:', response);
       
       toast.success('Perfil técnico definido exitosamente. La vacante ahora está en estado "Buscando".');
       router.push(`/reclutamiento/vacantes/${id}`);

@@ -22,6 +22,8 @@ function EmpleadosPageContent() {
   const [csvFile, setCsvFile] = useState(null);
   const [importResults, setImportResults] = useState(null);
   const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
 
   // Filtros
   const [filters, setFilters] = useState({
@@ -136,9 +138,7 @@ function EmpleadosPageContent() {
         userId: formData.userId || null
       };
       
-      console.log('📤 Enviando datos para crear empleado:', cleanedData);
-      const response = await api.post('/employees', cleanedData);
-      console.log('✅ Respuesta del servidor:', response.data);
+      await api.post('/employees', cleanedData);
       toast.success('Empleado creado exitosamente');
       setShowCreateModal(false);
       resetForm();
@@ -224,7 +224,7 @@ function EmpleadosPageContent() {
       rfc: employee.rfc || '',
       curp: employee.curp || '',
       nss: employee.nss || '',
-      fecha_ingreso: employee.fecha_ingreso || employee.fechaAlta ? (employee.fecha_ingreso || employee.fechaAlta).split('T')[0] : '',
+      fecha_ingreso: (employee.fecha_ingreso || employee.fechaAlta || '').split('T')[0],
       estatus: employee.estatus || 'Activo',
       puestoId: employee.puestoId || '',
       departamento_id: employee.departamento_id || '',
@@ -246,7 +246,10 @@ function EmpleadosPageContent() {
       return;
     }
 
+    if (exporting) return; // Prevenir doble clic
+
     try {
+      setExporting(true);
       const params = {};
       if (filters.estatus) params.estatus = filters.estatus;
       if (filters.departamento_id) params.departamento_id = filters.departamento_id;
@@ -270,6 +273,8 @@ function EmpleadosPageContent() {
       } else {
         toast.error('Error al exportar empleados');
       }
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -280,7 +285,10 @@ function EmpleadosPageContent() {
       return;
     }
 
+    if (downloadingTemplate) return; // Prevenir doble clic
+
     try {
+      setDownloadingTemplate(true);
       const response = await employeeApi.downloadTemplate();
 
       // Crear un enlace para descargar el archivo
@@ -300,6 +308,8 @@ function EmpleadosPageContent() {
       } else {
         toast.error('Error al descargar la plantilla');
       }
+    } finally {
+      setDownloadingTemplate(false);
     }
   };
 
@@ -394,7 +404,6 @@ function EmpleadosPageContent() {
 
   // Determinar qué información mostrar según el rol
   const isRHOrAdmin = user.role === 'RH' || user.role === 'ADMIN';
-  const isJefeArea = ['SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(user.role);
 
   return (
     <DashboardLayout>
@@ -414,21 +423,40 @@ function EmpleadosPageContent() {
               <div className="flex gap-3">
                 <button
                   onClick={handleDownloadTemplate}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
+                  disabled={downloadingTemplate}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
                 >
-                  Descargar Plantilla
+                  {downloadingTemplate ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Descargando...
+                    </>
+                  ) : 'Descargar Plantilla'}
                 </button>
                 <button
                   onClick={() => setShowImportModal(true)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
+                  disabled={importing}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Importar CSV
                 </button>
                 <button
                   onClick={handleExport}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
+                  disabled={exporting}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
                 >
-                  Exportar CSV
+                  {exporting ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Exportando...
+                    </>
+                  ) : 'Exportar CSV'}
                 </button>
                 <button
                   onClick={() => setShowCreateModal(true)}
@@ -1182,9 +1210,17 @@ function EmpleadosPageContent() {
                     <button
                       type="submit"
                       disabled={!csvFile || importing}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
                     >
-                      {importing ? 'Importando...' : 'Importar'}
+                      {importing ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Importando...
+                        </>
+                      ) : 'Importar'}
                     </button>
                   </div>
                 </form>

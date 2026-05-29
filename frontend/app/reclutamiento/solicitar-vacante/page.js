@@ -104,7 +104,6 @@ export default function SolicitarVacantePage() {
   const fetchDepartments = async () => {
     try {
       const response = await api.get('/vacancies/form-data');
-      console.log('Departments data from API:', response.data);
       setDepartments(response.data.data || []);
     } catch (error) {
       console.error('Error fetching departments:', error);
@@ -115,7 +114,6 @@ export default function SolicitarVacantePage() {
   const fetchManagers = async () => {
     try {
       const response = await api.get('/managers');
-      console.log('Managers data from API:', response.data);
       setManagers(response.data.managers || []);
     } catch (error) {
       console.error('Error fetching managers:', error);
@@ -128,12 +126,9 @@ export default function SolicitarVacantePage() {
     
     // Si se cambia el departamento, actualizar los puestos disponibles y resetear el puesto seleccionado
     if (name === 'departamento_id') {
-      console.log('Departamento seleccionado:', value);
       const selectedDepartment = departments.find(dept => dept.id === value);
-      console.log('Departamento encontrado:', selectedDepartment);
       // El backend ya filtra por estado 'Activo', así que tomamos todos los puestos que vienen
       const positions = selectedDepartment?.jobPositions || [];
-      console.log('Puestos encontrados:', positions);
       setAvailablePositions(positions);
       
       setFormData(prev => ({
@@ -250,8 +245,6 @@ export default function SolicitarVacantePage() {
         conocimientosAdicionales: formData.conocimientosAdicionales || null,
         requerimientos_tecnicos: formData.requerimientos_tecnicos || ['']
       };
-
-      console.log('📤 Enviando payload de vacante:', payload);
 
       await api.post('/vacancies', payload);
       

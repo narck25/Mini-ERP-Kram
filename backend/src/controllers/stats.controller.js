@@ -63,24 +63,18 @@ exports.getRHStats = async (req, res) => {
 // Obtener estadísticas para el dashboard de RH (nuevo endpoint optimizado)
 exports.getRHDashboardStats = async (req, res) => {
   try {
-    console.log('📊 Iniciando getRHDashboardStats para usuario:', req.user?.id, 'rol:', req.user?.role);
-    
     // Verificar que el usuario tenga acceso al módulo EMPLEADOS
     if (!req.user.accessibleModules?.includes('EMPLEADOS') && !['RH', 'ADMIN'].includes(req.user.role)) {
-      console.log('❌ Acceso denegado - Usuario sin módulo EMPLEADOS:', req.user?.role, 'módulos:', req.user?.accessibleModules);
       return res.status(403).json({ error: 'Acceso denegado. No tienes acceso al módulo de Empleados.' });
     }
 
     // Obtener fecha actual y fecha de inicio del mes
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    console.log('📅 Fechas calculadas - ahora:', now, 'inicio mes:', startOfMonth);
     
     // 1. Estadísticas de empleados
-    console.log('🔍 Consultando estadísticas de empleados...');
     const totalEmployees = await prisma.employee.count();
     const activeEmployees = await prisma.employee.count({ where: { estatus: 'Activo' } });
-    console.log('✅ Empleados - total:', totalEmployees, 'activos:', activeEmployees);
     
     // Por ahora, establecer valores por defecto para vacaciones e incapacidades
     // TODO: Implementar lógica real cuando existan los modelos correspondientes
@@ -88,29 +82,22 @@ exports.getRHDashboardStats = async (req, res) => {
     const employeesOnLeave = 0;
 
     // 2. Estadísticas de vacantes (solo JobVacancy, no existe vacancyRequest)
-    console.log('🔍 Consultando estadísticas de vacantes...');
     const totalVacancies = await prisma.jobVacancy.count();
-    console.log('✅ Vacantes totales:', totalVacancies);
     
     const openVacancies = await prisma.jobVacancy.count({ 
       where: { estatus: { in: ['Aprobada', 'Buscando'] } } 
     });
-    console.log('✅ Vacantes abiertas:', openVacancies);
     
     const inProgressVacancies = await prisma.jobVacancy.count({ 
       where: { estatus: 'Buscando' } 
     });
-    console.log('✅ Vacantes en proceso:', inProgressVacancies);
     
     const closedVacancies = await prisma.jobVacancy.count({ 
       where: { estatus: 'Cerrada' } 
     });
-    console.log('✅ Vacantes cerradas:', closedVacancies);
 
     // 3. Estadísticas de reclutamiento
-    console.log('🔍 Consultando estadísticas de reclutamiento...');
     const totalCandidates = await prisma.candidateRH.count();
-    console.log('✅ Candidatos totales:', totalCandidates);
     
     const hiresThisMonth = await prisma.employee.count({
       where: {
@@ -120,15 +107,12 @@ exports.getRHDashboardStats = async (req, res) => {
         }
       }
     });
-    console.log('✅ Contrataciones este mes:', hiresThisMonth);
     
     const pendingVacancies = await prisma.jobVacancy.count({ 
       where: { estatus: 'Solicitada' } 
     });
-    console.log('✅ Vacantes pendientes:', pendingVacancies);
 
     // 4. Contrataciones recientes (últimos 5 empleados contratados)
-    console.log('🔍 Consultando contrataciones recientes...');
     const recentHires = await prisma.employee.findMany({
       where: {
         fechaAlta: {
@@ -156,7 +140,6 @@ exports.getRHDashboardStats = async (req, res) => {
         }
       }
     });
-    console.log('✅ Contrataciones recientes encontradas:', recentHires.length);
 
     const responseData = {
       employees: {
@@ -188,7 +171,6 @@ exports.getRHDashboardStats = async (req, res) => {
       lastUpdated: new Date().toISOString()
     };
 
-    console.log('✅ Dashboard stats generados exitosamente');
     res.json(responseData);
   } catch (error) {
     console.error('❌ Error getting RH dashboard stats:', error);

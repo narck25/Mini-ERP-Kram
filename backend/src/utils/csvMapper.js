@@ -1,4 +1,60 @@
 /**
+ * Columnas REQUERIDAS en el CSV de importación
+ * Solo estas son obligatorias para que la importación funcione
+ */
+const REQUIRED_HEADERS = [
+  'RFC', 'CURP', 'NSS', 'FECHA ALTA', 'PUESTO'
+];
+
+/**
+ * Columnas RECOMENDADAS en el CSV de importación
+ * No son obligatorias pero ayudan a tener datos más completos
+ */
+const RECOMMENDED_HEADERS = [
+  'CLAVE', 'NOMBRES', 'APELLIDO PATERNO', 'APELLIDO MATERNO',
+  'FECHA NACIMIENTO', 'LUGAR NACIMIENTO', 'ESTADO CIVIL', 'NACIONALIDAD', 'SEXO', 'NIVEL ACADEMICO',
+  'TELEFONO CASA', 'TELEFONO MOVIL', 'CORREO ELECTRONICO', 'CORREO EMPRESA',
+  'DIRECCION COMPLETA', 'ESTADO', 'CP FISCAL',
+  'FECHA BAJA', 'ESTATUS', 'SUCURSAL', 'AREA', 'REGION', 'CONTRATO', 'HORARIO', 'DEPARTAMENTO',
+  'SALARIO MENSUAL', 'CLABE', 'NUMERO CUENTA', 'BANCO',
+  'JEFE DIRECTO', 'SD', 'SDI',
+  'TALLA CAMISA', 'TALLA PLAYERA', 'TALLA PANTALON', 'TALLA ZAPATOS', 'NOMBRE CONYUGE',
+  'BENEFICIARIO 1', 'FECHA NAC BENEFICIARIO 1', 'PORCENTAJE 1',
+  'BENEFICIARIO 2', 'FECHA NAC BENEFICIARIO 2', 'PORCENTAJE 2'
+];
+
+/**
+ * Valida que las cabeceras del CSV contengan al menos las columnas REQUERIDAS
+ * @param {string[]} headers - Cabeceras del archivo CSV
+ * @returns {Object} { valid: boolean, missingHeaders: string[], recommendedHeaders: string[] }
+ */
+function validateCsvHeaders(headers) {
+  const normalizedHeaders = headers.map(h => h.trim().toUpperCase());
+  const missingRequired = [];
+  const missingRecommended = [];
+  
+  // Verificar columnas REQUERIDAS (obligatorias)
+  for (const expected of REQUIRED_HEADERS) {
+    if (!normalizedHeaders.includes(expected)) {
+      missingRequired.push(expected);
+    }
+  }
+  
+  // Verificar columnas RECOMENDADAS (opcionales, solo informativo)
+  for (const expected of RECOMMENDED_HEADERS) {
+    if (!normalizedHeaders.includes(expected)) {
+      missingRecommended.push(expected);
+    }
+  }
+  
+  return {
+    valid: missingRequired.length === 0,
+    missingHeaders: missingRequired,
+    recommendedHeaders: missingRecommended
+  };
+}
+
+/**
  * Mapea una fila del CSV a un objeto Employee listo para Prisma
  * @param {Object} row - Fila del csv-parser
  * @returns {Object} Objeto mapeado para Prisma
@@ -6,15 +62,15 @@
 function mapEmployeeFromCsv(row, prisma) {
   // Función auxiliar para convertir fechas
   const parseDate = (dateStr) => {
-    if (!dateStr || dateStr.trim() === '') return null;
+    if (!dateStr || dateStr?.trim() === '') return null;
     try {
       // Intentar formato DD/MM/YYYY primero (común en México)
-      if (dateStr.includes('/')) {
+      if (dateStr?.includes('/')) {
         const [day, month, year] = dateStr.split('/').map(Number);
         return new Date(year, month - 1, day);
       }
       // Intentar formato YYYY-MM-DD
-      else if (dateStr.includes('-')) {
+      else if (dateStr?.includes('-')) {
         const [year, month, day] = dateStr.split('-').map(Number);
         return new Date(year, month - 1, day);
       }
@@ -31,7 +87,7 @@ function mapEmployeeFromCsv(row, prisma) {
 
   // Función auxiliar para convertir a número
   const parseNumber = (numStr) => {
-    if (!numStr || numStr.trim() === '') return null;
+    if (!numStr || numStr?.trim() === '') return null;
     const num = parseFloat(numStr.replace(/[^0-9.-]/g, ''));
     return isNaN(num) ? null : num;
   };
@@ -387,5 +443,6 @@ async function prepareForPrisma(employeeData, prisma) {
 module.exports = {
   mapEmployeeFromCsv,
   validateEmployeeData,
-  prepareForPrisma
+  prepareForPrisma,
+  validateCsvHeaders
 };

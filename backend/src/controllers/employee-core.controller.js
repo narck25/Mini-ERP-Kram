@@ -14,25 +14,20 @@ exports.getAllEmployees = async (req, res) => {
     if (user.role === 'ADMIN' || user.role === 'RH') {
       // ADMIN o Recursos Humanos: Ver todos los empleados
       // No se aplican restricciones adicionales
-      console.log(`🔍 ADMIN/RH (${user.role}): Mostrando todos los empleados`);
     } else if (user.employeeNivelJerarquico && user.employeeId) {
       // Usuario tiene empleado asociado y nivel jerárquico
       const nivelJerarquico = user.employeeNivelJerarquico;
       const employeeId = user.employeeId;
       const departamentoId = user.employeeDepartamentoId;
       
-      console.log(`🔍 Usuario ${user.name} (${user.role}) - Empleado ID: ${employeeId}, Nivel: ${nivelJerarquico}, Depto: ${departamentoId}`);
-      
       if (nivelJerarquico === 'GERENTE' || nivelJerarquico === 'DIRECTOR' || 
           nivelJerarquico === 'VICEPRESIDENTE' || nivelJerarquico === 'PRESIDENTE') {
         // GERENTE / DIRECTOR o superior: Ver empleados de su mismo departamento
         if (departamentoId) {
           where.departamento_id = departamentoId;
-          console.log(`🔍 ${nivelJerarquico}: Mostrando empleados del departamento ${departamentoId}`);
         } else {
           // Si no tiene departamento asignado, solo ver su propio registro
           where.id = employeeId;
-          console.log(`🔍 ${nivelJerarquico} sin departamento: Mostrando solo su propio registro`);
         }
       } else if (nivelJerarquico === 'SUPERVISOR') {
         // SUPERVISOR: Ver su propio registro y empleados que le reportan directamente
@@ -40,20 +35,16 @@ exports.getAllEmployees = async (req, res) => {
           { id: employeeId }, // Su propio registro
           { reportaAId: employeeId } // Empleados que le reportan
         ];
-        console.log(`🔍 SUPERVISOR: Mostrando su registro (${employeeId}) y empleados que le reportan`);
       } else if (nivelJerarquico === 'OPERATIVO') {
         // OPERATIVO: Solo ver su propio registro
         where.id = employeeId;
-        console.log(`🔍 OPERATIVO: Mostrando solo su propio registro (${employeeId})`);
       } else {
         // Nivel no reconocido: Por seguridad, solo ver su propio registro
         where.id = employeeId;
-        console.log(`🔍 Nivel no reconocido (${nivelJerarquico}): Mostrando solo su propio registro`);
       }
     } else {
       // Usuario sin empleado asociado: Por seguridad, no mostrar nada
       where.id = null; // Esto no devolverá resultados
-      console.log(`🔍 Usuario sin empleado asociado: No mostrando empleados`);
     }
     
     // Aplicar filtros adicionales del usuario (si existen)
@@ -116,11 +107,9 @@ exports.getAllEmployees = async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    console.log(`🔍 Total empleados encontrados: ${employees.length}`);
     res.json({ employees });
   } catch (error) {
-    console.error('Error getting employees:', error);
-    console.error('Error Prisma:', error);
+    console.error('Error getting employees:', error.message);
     res.status(500).json({ error: 'Error al obtener los empleados' });
   }
 };
@@ -186,8 +175,7 @@ exports.getCurrentEmployee = async (req, res) => {
 
     res.json({ employee });
   } catch (error) {
-    console.error('Error getting current employee:', error);
-    console.error('Error Prisma:', error);
+    console.error('Error getting current employee:', error.message);
     res.status(500).json({ error: 'Error al obtener el empleado actual' });
   }
 };
@@ -294,8 +282,6 @@ exports.getEmployeeById = async (req, res) => {
 // Crear un nuevo empleado
 exports.createEmployee = async (req, res) => {
   try {
-    console.log("📥 Payload recibido en createEmployee:", JSON.stringify(req.body, null, 2));
-    
     const {
       // Datos Personales
       clave,
@@ -364,6 +350,13 @@ exports.createEmployee = async (req, res) => {
       beneficiario2,
       fechaNacBeneficiario2,
       porcentaje2,
+      
+      // Datos Familiares
+      esPadre,
+      numeroHijos,
+      
+      // Foto
+      fotoUrl,
       
       // Relación con usuario
       userId
@@ -478,6 +471,13 @@ exports.createEmployee = async (req, res) => {
       beneficiario2: beneficiario2 || null,
       fechaNacBeneficiario2: fechaNacBeneficiario2 ? new Date(fechaNacBeneficiario2) : null,
       porcentaje2: porcentaje2 && porcentaje2 !== '' ? parseFloat(porcentaje2) : null,
+      
+      // Datos Familiares
+      esPadre: esPadre !== undefined ? esPadre : false,
+      numeroHijos: numeroHijos !== undefined ? (numeroHijos !== '' ? parseInt(numeroHijos) : 0) : 0,
+      
+      // Foto
+      fotoUrl: fotoUrl || null,
     };
 
     // Agregar relaciones solo si existen
@@ -505,8 +505,6 @@ exports.createEmployee = async (req, res) => {
         connect: { id: reportaAId }
       };
     }
-
-    console.log("📝 Datos preparados para crear empleado:", JSON.stringify(employeeData, null, 2));
 
     const employee = await prisma.employee.create({
       data: employeeData,
@@ -613,6 +611,13 @@ exports.updateEmployee = async (req, res) => {
       beneficiario2,
       fechaNacBeneficiario2,
       porcentaje2,
+      
+      // Datos Familiares
+      esPadre,
+      numeroHijos,
+      
+      // Foto
+      fotoUrl,
       
       // Relación con usuario
       userId
@@ -754,6 +759,13 @@ exports.updateEmployee = async (req, res) => {
       beneficiario2: beneficiario2 !== undefined ? beneficiario2 : existingEmployee.beneficiario2,
       fechaNacBeneficiario2: fechaNacBeneficiario2 !== undefined ? (fechaNacBeneficiario2 ? new Date(fechaNacBeneficiario2) : null) : existingEmployee.fechaNacBeneficiario2,
       porcentaje2: porcentaje2 !== undefined ? (porcentaje2 && porcentaje2 !== '' ? parseFloat(porcentaje2) : null) : existingEmployee.porcentaje2,
+      
+      // Datos Familiares
+      esPadre: esPadre !== undefined ? esPadre : existingEmployee.esPadre,
+      numeroHijos: numeroHijos !== undefined ? (numeroHijos !== '' ? parseInt(numeroHijos) : 0) : existingEmployee.numeroHijos,
+      
+      // Foto
+      fotoUrl: fotoUrl !== undefined ? fotoUrl : existingEmployee.fotoUrl,
       
       // Relación con usuario
       user: userId !== undefined ? {
