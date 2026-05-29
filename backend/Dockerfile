@@ -35,9 +35,9 @@ COPY scripts ./scripts
 # ============================================================
 FROM node:20-slim AS runner
 
-# Instalar OpenSSL para Prisma y curl para healthcheck
+# Instalar OpenSSL para Prisma, curl para healthcheck y su-exec para cambio de usuario
 RUN apt-get update -qq && \
-    apt-get install -y -qq openssl ca-certificates curl && \
+    apt-get install -y -qq openssl ca-certificates curl su-exec && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -66,14 +66,6 @@ RUN mkdir -p /app/uploads/cvs \
 # Establecer permisos generales
 RUN chown -R nodeuser:nodejs /app
 
-# Dar permisos 777 a uploads DESPUÉS del chown para que el volumen
-# persistente de Docker funcione (el volumen reemplaza el directorio
-# y lo crea con permisos root, pero 777 permite escritura a cualquiera)
-RUN chmod -R 777 /app/uploads
-
-# Usar usuario no-root
-USER nodeuser
-
 # Exponer puerto
 EXPOSE 3001
 
@@ -81,5 +73,9 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:3001/api/health || exit 1
 
-# Comando de inicio: resolver migraciones fallidas, migraciones, seed y servidor
-CMD node scripts/resolve-migrations.js && npx prisma migrate deploy && node prisma/seed.js && node src/index.js
+# Script de entrada: arregla permisos de uploads como root, luego ejecuta la app como nodeuser
+COPY --chown=root:root scripts/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["node", "src/index.js"]
