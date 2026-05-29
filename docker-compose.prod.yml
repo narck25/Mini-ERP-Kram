@@ -74,8 +74,11 @@ services:
       NEXT_TELEMETRY_DISABLED: 1
       # Configuración de memoria para Node.js (previene memory leaks)
       NODE_OPTIONS: "--max-old-space-size=512"
-    ports:
-      - "3002:3000"
+    # No exponer puertos fijos - Coolify maneja el enrutamiento
+    # ports:
+    #   - "3002:3000"
+    expose:
+      - "3000"
     networks:
       - kram-network
     deploy:
