@@ -57,17 +57,11 @@ export const employeeApi = {
   
   // Importación/Exportación
   import: (formData) => {
-    // En producción, enviar directamente al backend para evitar problemas con el proxy de Next.js
-    // con multipart/form-data. En desarrollo, usar el proxy normal.
-    const isProduction = process.env.NODE_ENV === 'production' || window.location.hostname !== 'localhost';
-    const baseURL = isProduction 
-      ? (process.env.NEXT_PUBLIC_API_URL || 'https://apierp.kramhub.site') 
-      : '/api';
-    
-    return axios.post(`${baseURL}/employees/import`, formData, {
+    // Usar el proxy de Next.js (/api) para multipart/form-data
+    // El backend ahora usa memoryStorage, compatible con el proxy
+    return api.post('/employees/import', formData, {
       headers: { 
-        'Content-Type': 'multipart/form-data',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Content-Type': 'multipart/form-data'
       }
     });
   },
