@@ -14,7 +14,23 @@ try {
   UPLOAD_SUBDIRS.forEach(subdir => {
     const dirPath = path.join(UPLOAD_DIR, subdir);
     if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
+      try {
+        fs.mkdirSync(dirPath, { recursive: true });
+      } catch (mkdirErr) {
+        // Si falla mkdir, intentar arreglar permisos del directorio padre
+        // (útil cuando el volumen Docker tiene permisos root)
+        if (mkdirErr.code === 'EACCES') {
+          try {
+            fs.chmodSync(UPLOAD_DIR, 0o777);
+            fs.mkdirSync(dirPath, { recursive: true });
+            console.log(`   ✅ Creado ${subdir} después de corregir permisos`);
+          } catch (chmodErr) {
+            throw chmodErr;
+          }
+        } else {
+          throw mkdirErr;
+        }
+      }
     }
   });
   console.log('✅ Upload directories initialized');
