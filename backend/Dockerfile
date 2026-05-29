@@ -55,18 +55,21 @@ COPY --from=builder /app/src ./src
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/prisma ./prisma
 
-# Crear directorios de uploads con permisos 777 para que el volumen
-# persistente funcione incluso si el mount cambia el owner
+# Crear directorios de uploads
 RUN mkdir -p /app/uploads/cvs \
              /app/uploads/employee-documents \
              /app/uploads/psych-tests \
              /app/uploads/purchase-quotes \
              /app/uploads/temp \
-             /app/uploads/photos && \
-    chmod -R 777 /app/uploads
+             /app/uploads/photos
 
 # Establecer permisos generales
 RUN chown -R nodeuser:nodejs /app
+
+# Dar permisos 777 a uploads DESPUÉS del chown para que el volumen
+# persistente de Docker funcione (el volumen reemplaza el directorio
+# y lo crea con permisos root, pero 777 permite escritura a cualquiera)
+RUN chmod -R 777 /app/uploads
 
 # Usar usuario no-root
 USER nodeuser
