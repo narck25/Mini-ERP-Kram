@@ -8,21 +8,30 @@ const { mapEmployeeFromCsv, validateEmployeeData, prepareForPrisma, validateCsvH
 // Importar empleados desde CSV
 exports.importEmployees = async (req, res) => {
   let transaction;
-  const filePath = req.file?.path;
+  let filePath = req.file?.path;
+  const fileBuffer = req.file?.buffer;
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No se proporcionó archivo CSV' });
     }
 
-    if (!filePath) {
-      return res.status(500).json({ error: 'Error interno: no se pudo determinar la ruta del archivo subido' });
+    let fileContent;
+    
+    // Intentar leer desde buffer primero (memoryStorage o proxy que transforma)
+    if (fileBuffer && fileBuffer.length > 0) {
+      fileContent = fileBuffer.toString('utf8');
+    } 
+    // Fallback: leer desde disco (diskStorage)
+    else if (filePath) {
+      fileContent = fs.readFileSync(filePath, 'utf8');
+    }
+    // Si no hay ni buffer ni path, error
+    else {
+      return res.status(500).json({ error: 'Error interno: no se pudo leer el archivo subido' });
     }
 
     const results = [];
     const errors = [];
-
-    // Leer el archivo desde el disco (Multer usa diskStorage, req.file.buffer es undefined)
-    const fileContent = fs.readFileSync(filePath, 'utf8');
     const stream = Readable.from(fileContent);
 
     let csvHeaders = [];

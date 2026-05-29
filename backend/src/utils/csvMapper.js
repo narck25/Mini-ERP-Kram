@@ -340,10 +340,8 @@ async function prepareForPrisma(employeeData, prisma) {
     }
   }
 
-  // Validar que se tenga un departamento_id si es requerido
-  if (!departamento_id) {
-    throw new Error('Departamento es requerido. Por favor especifique un departamento válido (nombre o ID numérico 1-7).');
-  }
+  // El departamento es opcional - si no se especifica, se deja como null
+  // El empleado se creará sin departamento asignado
 
   // Buscar puesto por nombre (si se proporciona)
   let puestoId = null;

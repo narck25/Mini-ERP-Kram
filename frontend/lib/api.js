@@ -56,9 +56,22 @@ export const employeeApi = {
   delete: (id) => api.delete(`/employees/${id}`),
   
   // Importación/Exportación
-  import: (formData) => api.post('/employees/import', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
+  import: (formData) => {
+    // En producción, enviar directamente al backend para evitar problemas con el proxy de Next.js
+    // con multipart/form-data. En desarrollo, usar el proxy normal.
+    const isProduction = process.env.NODE_ENV === 'production' || window.location.hostname !== 'localhost';
+    const baseURL = isProduction 
+      ? (process.env.NEXT_PUBLIC_API_URL || 'https://apierp.kramhub.site') 
+      : '/api';
+    
+    return axios.post(`${baseURL}/employees/import`, formData, {
+      headers: { 
+        'Content-Type': 'multipart/form-data',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+  },
+
   export: (params) => api.get('/employees/export', { 
     params,
     responseType: 'blob'

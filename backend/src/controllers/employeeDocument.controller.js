@@ -87,8 +87,15 @@ exports.uploadEmployeeDocument = async (req, res) => {
     const uniqueFileName = `${employeeId}_${Date.now()}${fileExtension}`;
     const filePath = path.join(UPLOAD_DIR, uniqueFileName);
 
-    // Mover el archivo a la carpeta de uploads
-    fs.renameSync(file.path, filePath);
+    // Guardar el archivo en la carpeta de uploads
+    // Soporta tanto diskStorage (file.path) como memoryStorage (file.buffer)
+    if (file.buffer && file.buffer.length > 0) {
+      fs.writeFileSync(filePath, file.buffer);
+    } else if (file.path) {
+      fs.renameSync(file.path, filePath);
+    } else {
+      return res.status(500).json({ error: 'Error interno: no se pudo leer el archivo subido' });
+    }
 
     // Crear registro en la base de datos
     const document = await prisma.employeeDocument.create({

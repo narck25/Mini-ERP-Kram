@@ -89,9 +89,9 @@ const limits = {
 // Middlewares de upload
 // ============================================================
 
-// Upload genérico temporal
+// Upload genérico temporal (usa memoryStorage para compatibilidad con proxies)
 const upload = multer({
-  storage: createStorage(PATHS.temp),
+  storage: multer.memoryStorage(),
   fileFilter: fileFilter,
   limits: limits
 });
