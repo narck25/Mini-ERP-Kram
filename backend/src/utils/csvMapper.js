@@ -188,22 +188,22 @@ function validateEmployeeData(employeeData, rowNumber = 0) {
 
   if (!employeeData.rfc) {
     errors.push(`Fila ${rowNumber}: RFC es requerido`);
-  } else if (employeeData.rfc.length !== 13) {
-    errors.push(`Fila ${rowNumber}: RFC debe tener exactamente 13 caracteres (tiene ${employeeData.rfc.length})`);
+  } else if (employeeData.rfc.length < 12 || employeeData.rfc.length > 13) {
+    errors.push(`Fila ${rowNumber}: RFC debe tener 12 o 13 caracteres (tiene ${employeeData.rfc.length}): "${employeeData.rfc}"`);
   }
 
   if (!employeeData.curp) {
     errors.push(`Fila ${rowNumber}: CURP es requerido`);
-  } else if (employeeData.curp.length !== 18) {
-    errors.push(`Fila ${rowNumber}: CURP debe tener exactamente 18 caracteres (tiene ${employeeData.curp.length})`);
+  } else if (employeeData.curp.length < 17 || employeeData.curp.length > 18) {
+    errors.push(`Fila ${rowNumber}: CURP debe tener 17 o 18 caracteres (tiene ${employeeData.curp.length}): "${employeeData.curp}"`);
   }
 
   if (!employeeData.nss) {
     errors.push(`Fila ${rowNumber}: NSS es requerido`);
   } else if (!/^\d+$/.test(employeeData.nss)) {
-    errors.push(`Fila ${rowNumber}: NSS debe contener solo dígitos`);
+    errors.push(`Fila ${rowNumber}: NSS debe contener solo dígitos (valor: "${employeeData.nss}")`);
   } else if (employeeData.nss.length < 10 || employeeData.nss.length > 11) {
-    errors.push(`Fila ${rowNumber}: NSS debe tener entre 10 y 11 dígitos (tiene ${employeeData.nss.length})`);
+    errors.push(`Fila ${rowNumber}: NSS debe tener entre 10 y 11 dígitos (tiene ${employeeData.nss.length}): "${employeeData.nss}"`);
   }
 
   if (!employeeData.fechaAlta) {
