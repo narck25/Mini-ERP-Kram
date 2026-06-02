@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const bcrypt = require('bcrypt');
 const csv = require('csv-parser');
 const { Readable } = require('stream');
 const fs = require('fs');
@@ -14,6 +15,9 @@ exports.importEmployees = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: 'No se proporcionó archivo CSV' });
     }
+
+    // Determinar si se deben crear usuarios automáticamente
+    const createUsers = req.body.createUsers === 'true' || req.body.createUsers === true;
 
     let fileContent;
     
@@ -128,6 +132,7 @@ exports.importEmployees = async (req, res) => {
     // Iniciar transacción para importación atómica
     transaction = await prisma.$transaction(async (tx) => {
       const importedEmployees = [];
+      const createdUsers = [];
       const batchErrors = [];
       
       // Verificar duplicados en la base de datos antes de insertar
@@ -159,13 +164,77 @@ exports.importEmployees = async (req, res) => {
             data: dataToInsert
           });
 
-          importedEmployees.push({
+          const employeeResult = {
             id: employee.id,
             nombre: employee.nombre,
             rfc: employee.rfc,
             curp: employee.curp,
             nss: employee.nss
-          });
+          };
+
+          // Si se solicita crear usuarios automáticamente
+          if (createUsers) {
+            const email = employee.correoEmpresa || employee.correoElectronico;
+            const nombreCompleto = employee.nombres || employee.nombre || '';
+
+            if (email) {
+              // Verificar que el email no esté ya registrado
+              const existingUser = await tx.user.findUnique({
+                where: { email }
+              });
+
+              if (!existingUser) {
+                // Generar contraseña temporal: primeros 10 caracteres del RFC (en minúsculas)
+                const tempPassword = employee.rfc ? employee.rfc.substring(0, 10).toLowerCase() : 'kram2026';
+                const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+                const newUser = await tx.user.create({
+                  data: {
+                    email,
+                    password: hashedPassword,
+                    name: nombreCompleto,
+                    role: 'EMPLEADO_BASICO',
+                    accessibleModules: ['DASHBOARD'],
+                    isActive: true,
+                    employee: {
+                      connect: { id: employee.id }
+                    }
+                  },
+                  select: {
+                    id: true,
+                    email: true,
+                    name: true,
+                    role: true
+                  }
+                });
+
+                createdUsers.push({
+                  id: newUser.id,
+                  email: newUser.email,
+                  name: newUser.name,
+                  employeeId: employee.id,
+                  tempPassword
+                });
+
+                console.log(`✅ Usuario creado automáticamente para: ${nombreCompleto} (${email})`);
+              } else {
+                // Si ya existe un usuario con ese email, vincularlo al empleado
+                await tx.user.update({
+                  where: { id: existingUser.id },
+                  data: {
+                    employee: {
+                      connect: { id: employee.id }
+                    }
+                  }
+                });
+                console.log(`✅ Usuario existente vinculado al empleado: ${nombreCompleto} (${email})`);
+              }
+            } else {
+              console.log(`⚠️ No se pudo crear usuario para ${nombreCompleto}: no tiene correo electrónico`);
+            }
+          }
+
+          importedEmployees.push(employeeResult);
         } catch (error) {
           batchErrors.push(`Fila ${rowNumber}: Error al crear empleado - ${error.message}`);
         }
@@ -176,21 +245,36 @@ exports.importEmployees = async (req, res) => {
         throw new Error(`Errores durante la importación: ${batchErrors.join('; ')}`);
       }
 
-      return importedEmployees;
+      return { importedEmployees, createdUsers };
     });
 
-    res.json({
-      message: `Importación completada exitosamente. ${transaction.length} empleados importados.`,
-      imported: transaction.length,
+    const responseData = {
+      message: `Importación completada exitosamente. ${transaction.importedEmployees.length} empleados importados.`,
+      imported: transaction.importedEmployees.length,
       errors: 0,
-      importedEmployees: transaction,
+      importedEmployees: transaction.importedEmployees,
       summary: {
         totalRows: results.length,
-        successful: transaction.length,
+        successful: transaction.importedEmployees.length,
         failed: 0,
-        successRate: results.length > 0 ? ((transaction.length / results.length) * 100).toFixed(2) + '%' : '0%'
+        successRate: results.length > 0 ? ((transaction.importedEmployees.length / results.length) * 100).toFixed(2) + '%' : '0%'
       }
-    });
+    };
+
+    // Agregar información de usuarios creados si aplica
+    if (createUsers) {
+      responseData.usersCreated = transaction.createdUsers.length;
+      responseData.createdUsers = transaction.createdUsers.map(u => ({
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        employeeId: u.employeeId,
+        tempPassword: u.tempPassword
+      }));
+      responseData.message += ` ${transaction.createdUsers.length} usuarios creados automáticamente.`;
+    }
+
+    res.json(responseData);
   } catch (error) {
     console.error('Error importing employees:', error);
     

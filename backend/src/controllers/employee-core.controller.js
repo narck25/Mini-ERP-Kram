@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const bcrypt = require('bcrypt');
 
 // Obtener todos los empleados con reglas de visibilidad basadas en jerarquía
 exports.getAllEmployees = async (req, res) => {
@@ -527,10 +528,61 @@ exports.createEmployee = async (req, res) => {
       }
     });
 
-    res.status(201).json({
+    // Crear usuario automáticamente si se solicita
+    let createdUser = null;
+    const createUser = req.body.createUser === 'true' || req.body.createUser === true;
+
+    if (createUser && !userId) {
+      const email = employee.correoEmpresa || employee.correoElectronico;
+      const nombreCompleto = employee.nombres || employee.nombre || '';
+
+      if (email) {
+        // Verificar que el email no esté ya registrado
+        const existingUser = await prisma.user.findUnique({
+          where: { email }
+        });
+
+        if (!existingUser) {
+          // Generar contraseña temporal: primeros 10 caracteres del RFC (en minúsculas)
+          const tempPassword = employee.rfc ? employee.rfc.substring(0, 10).toLowerCase() : 'kram2026';
+          const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+          createdUser = await prisma.user.create({
+            data: {
+              email,
+              password: hashedPassword,
+              name: nombreCompleto,
+              role: 'EMPLEADO_BASICO',
+              accessibleModules: ['DASHBOARD'],
+              isActive: true,
+              employee: {
+                connect: { id: employee.id }
+              }
+            },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              role: true
+            }
+          });
+
+          console.log(`✅ Usuario creado automáticamente para: ${nombreCompleto} (${email})`);
+        }
+      }
+    }
+
+    const response = {
       message: 'Empleado creado exitosamente',
       employee
-    });
+    };
+
+    if (createdUser) {
+      response.user = createdUser;
+      response.message += ' Usuario creado automáticamente.';
+    }
+
+    res.status(201).json(response);
   } catch (error) {
     console.error('❌ Error creating employee:', error);
     console.error('❌ Error details:', error.message);
@@ -815,7 +867,12 @@ exports.deleteEmployee = async (req, res) => {
 
     // Verificar si el empleado existe
     const existingEmployee = await prisma.employee.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        user: {
+          select: { id: true, isActive: true }
+        }
+      }
     });
 
     if (!existingEmployee) {
@@ -830,9 +887,21 @@ exports.deleteEmployee = async (req, res) => {
       }
     });
 
+    // También desactivar el usuario vinculado si existe
+    let userDeactivated = false;
+    if (existingEmployee.user) {
+      await prisma.user.update({
+        where: { id: existingEmployee.user.id },
+        data: { isActive: false }
+      });
+      userDeactivated = true;
+      console.log(`✅ Usuario ${existingEmployee.user.id} desactivado por baja del empleado ${id}`);
+    }
+
     res.json({
       message: 'Empleado dado de baja exitosamente',
-      employee
+      employee,
+      userDeactivated
     });
   } catch (error) {
     console.error('Error deleting employee:', error);
@@ -845,9 +914,14 @@ exports.deleteEmployeePermanently = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Verificar si el empleado existe
+    // Verificar si el empleado existe e incluir su usuario vinculado
     const existingEmployee = await prisma.employee.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        user: {
+          select: { id: true, email: true, name: true }
+        }
+      }
     });
 
     if (!existingEmployee) {
@@ -881,6 +955,16 @@ exports.deleteEmployeePermanently = async (req, res) => {
       });
     }
 
+    // Eliminar el usuario vinculado si existe
+    let userDeleted = false;
+    if (existingEmployee.user) {
+      await prisma.user.delete({
+        where: { id: existingEmployee.user.id }
+      });
+      userDeleted = true;
+      console.log(`✅ Usuario ${existingEmployee.user.email} eliminado por eliminación permanente del empleado ${id}`);
+    }
+
     // Eliminar permanentemente el empleado
     await prisma.employee.delete({
       where: { id }
@@ -892,7 +976,13 @@ exports.deleteEmployeePermanently = async (req, res) => {
         id: existingEmployee.id,
         nombre: existingEmployee.nombre,
         rfc: existingEmployee.rfc
-      }
+      },
+      userDeleted,
+      userInfo: userDeleted ? {
+        id: existingEmployee.user.id,
+        email: existingEmployee.user.email,
+        name: existingEmployee.user.name
+      } : null
     });
   } catch (error) {
     console.error('Error deleting employee permanently:', error);

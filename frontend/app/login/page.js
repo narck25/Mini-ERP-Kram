@@ -148,44 +148,6 @@ export default function LoginPage() {
               </p>
             </div>
 
-            {/* Separador */}
-            <div className="relative my-8">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/10"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white/5 text-slate-400">Usuarios de prueba</span>
-              </div>
-            </div>
-
-            {/* Botones de usuarios demo */}
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => handleDemoLogin('admin')}
-                className="py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-slate-300 hover:text-white transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_10px_rgba(255,255,255,0.1)]"
-              >
-                <span className="font-medium">Admin</span>
-              </button>
-              <button
-                onClick={() => handleDemoLogin('rh')}
-                className="py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-slate-300 hover:text-white transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_10px_rgba(255,255,255,0.1)]"
-              >
-                <span className="font-medium">RH</span>
-              </button>
-              <button
-                onClick={() => handleDemoLogin('sistemas')}
-                className="py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-slate-300 hover:text-white transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_10px_rgba(255,255,255,0.1)]"
-              >
-                <span className="font-medium">Sistemas</span>
-              </button>
-              <button
-                onClick={() => handleDemoLogin('compras')}
-                className="py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-slate-300 hover:text-white transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_10px_rgba(255,255,255,0.1)]"
-              >
-                <span className="font-medium">Compras</span>
-              </button>
-            </div>
-
             {/* Enlace de regreso */}
             <div className="mt-8 text-center">
               <Link 

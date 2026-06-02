@@ -145,15 +145,6 @@ export default async function HomePage() {
         </div>
       </div>
 
-      {/* Información de usuarios de prueba */}
-      <div className="absolute bottom-4 left-0 right-0 text-center">
-        <div className="inline-block bg-black/40 backdrop-blur-sm border border-white/10 rounded-2xl px-6 py-3 max-w-2xl mx-auto">
-          <p className="text-slate-300 text-xs md:text-sm">
-            Usuarios de prueba: admin@kram.com (password123), rh@kram.com (password123), 
-            sistemas@kram.com (password123), compras@kram.com (password123)
-          </p>
-        </div>
-      </div>
     </div>
   )
 }

@@ -177,23 +177,6 @@ export default function RegisterPage() {
               </p>
             </div>
 
-            {/* Información de usuarios de prueba */}
-            <div className="mt-8 pt-8 border-t border-white/10">
-              <div className="text-center">
-                <p className="text-slate-400 text-sm mb-3">
-                  ¿Quieres probar el sistema? Usa estos usuarios de prueba:
-                </p>
-                <div className="inline-block bg-black/30 backdrop-blur-sm border border-white/10 rounded-xl px-4 py-3">
-                  <p className="text-slate-300 text-xs">
-                    admin@kram.com (password123)<br />
-                    rh@kram.com (password123)<br />
-                    sistemas@kram.com (password123)<br />
-                    compras@kram.com (password123)
-                  </p>
-                </div>
-              </div>
-            </div>
-
             {/* Enlace de regreso */}
             <div className="mt-8 text-center">
               <Link 

@@ -68,5 +68,5 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:3001/api/health || exit 1
 
-# Comando de inicio: resolver migraciones fallidas, migraciones, seed y servidor
-CMD node scripts/resolve-migrations.js && npx prisma migrate deploy && node prisma/seed.js && node src/index.js
+# Comando de inicio: resolver migraciones fallidas, migraciones, seed de producción y servidor
+CMD node scripts/resolve-migrations.js && npx prisma migrate deploy && node prisma/seed-prod.js && node src/index.js

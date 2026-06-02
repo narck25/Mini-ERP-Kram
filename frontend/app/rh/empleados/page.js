@@ -22,6 +22,7 @@ function EmpleadosPageContent() {
   const [csvFile, setCsvFile] = useState(null);
   const [importResults, setImportResults] = useState(null);
   const [importing, setImporting] = useState(false);
+  const [createUsers, setCreateUsers] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
 
@@ -170,8 +171,15 @@ function EmpleadosPageContent() {
     }
 
     try {
-      await api.delete(`/employees/${id}`);
-      toast.success('Empleado dado de baja exitosamente');
+      const response = await api.delete(`/employees/${id}`);
+      const message = response.data.message || 'Empleado dado de baja exitosamente';
+      const userDeactivated = response.data.userDeactivated;
+      
+      if (userDeactivated) {
+        toast.success(`${message} 🔐 El usuario vinculado también fue desactivado.`);
+      } else {
+        toast.success(message);
+      }
       fetchEmployees();
     } catch (error) {
       console.error('Error deleting employee:', error);
@@ -322,6 +330,7 @@ function EmpleadosPageContent() {
 
     const formData = new FormData();
     formData.append('file', csvFile);
+    formData.append('createUsers', createUsers ? 'true' : 'false');
 
     try {
       setImporting(true);
@@ -1174,6 +1183,25 @@ function EmpleadosPageContent() {
                         )}
                       </div>
                     </div>
+                  </div>
+
+                  {/* Checkbox para crear usuarios automáticamente */}
+                  <div className="mb-6">
+                    <label className="inline-flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={createUsers}
+                        onChange={(e) => setCreateUsers(e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">
+                        Crear usuarios automáticamente para los empleados importados
+                      </span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1 ml-6">
+                      Se creará un usuario con rol EMPLEADO_BASICO usando el correo del empleado. 
+                      La contraseña temporal será los primeros 10 caracteres del RFC.
+                    </p>
                   </div>
 
                   {importResults && (

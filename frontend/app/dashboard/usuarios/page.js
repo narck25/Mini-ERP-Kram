@@ -52,6 +52,7 @@ function UsersManagementPage() {
     { id: 'SISTEMAS', name: 'Jefe de Sistemas' },
     { id: 'COMPRAS', name: 'Jefe de Compras' },
     { id: 'PRODUCCION', name: 'Jefe de Producción' },
+    { id: 'EMPLEADO_BASICO', name: 'Empleado Básico' },
   ];
 
   useEffect(() => {

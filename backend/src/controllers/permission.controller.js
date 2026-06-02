@@ -70,7 +70,7 @@ class PermissionController {
   static async updateUserPermissions(req, res) {
     try {
       const { id } = req.params;
-      const { accessibleModules } = req.body;
+      const { accessibleModules, role } = req.body;
 
       // Validar que el usuario tenga permisos de ADMIN o RH
       if (!req.user || (req.user.role !== 'ADMIN' && req.user.role !== 'RH')) {
@@ -103,12 +103,21 @@ class PermissionController {
       // Asegurar que DASHBOARD siempre esté incluido
       const modulesToSet = [...new Set([...accessibleModules, 'DASHBOARD'])];
 
+      // Preparar datos de actualización
+      const updateData = {
+        accessibleModules: modulesToSet
+      };
+
+      // Si se proporciona un rol, actualizarlo también
+      const validRoles = ['ADMIN', 'RH', 'SISTEMAS', 'COMPRAS', 'PRODUCCION', 'EMPLEADO_BASICO'];
+      if (role && validRoles.includes(role)) {
+        updateData.role = role;
+      }
+
       // Actualizar el usuario
       const updatedUser = await prisma.user.update({
         where: { id },
-        data: {
-          accessibleModules: modulesToSet
-        },
+        data: updateData,
         select: {
           id: true,
           email: true,
@@ -120,7 +129,9 @@ class PermissionController {
 
       res.json({
         success: true,
-        message: 'Permisos actualizados correctamente',
+        message: role && role !== updatedUser.role 
+          ? `Permisos y rol actualizados correctamente` 
+          : 'Permisos actualizados correctamente',
         user: updatedUser
       });
     } catch (error) {
