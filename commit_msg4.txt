@@ -1,0 +1,1 @@
+fix: seed-prod ahora es idempotente - no borra datos existentes en cada deploy

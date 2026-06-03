@@ -1,1 +1,0 @@
-fix: optimizar Dockerfile frontend - chown solo a archivos necesarios, no node_modules

@@ -4,29 +4,13 @@ const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🏭 Iniciando seed de PRODUCCIÓN...');
-  console.log('');
-
-  // Limpiar datos existentes
-  console.log('🧹 Limpiando datos anteriores...');
-  await prisma.session.deleteMany();
-  await prisma.jobActivity.deleteMany();
-  await prisma.jobVacancy.deleteMany();
-  await prisma.candidateRH.deleteMany();
-  await prisma.vacancyComment.deleteMany();
-  await prisma.employeeDocument.deleteMany();
-  await prisma.employee.deleteMany();
-  await prisma.jobPosition.deleteMany();
-  await prisma.department.deleteMany();
-  await prisma.role.deleteMany();
-  await prisma.user.deleteMany();
-  console.log('✅ Datos anteriores eliminados');
+  console.log('🏭 Iniciando seed de PRODUCCIÓN (idempotente)...');
   console.log('');
 
   // ============================================================
-  // PASO 1: Crear roles del sistema
+  // PASO 1: Crear roles del sistema (si no existen)
   // ============================================================
-  console.log('📋 Creando roles del sistema...');
+  console.log('📋 Verificando roles del sistema...');
   const roles = [
     { name: 'ADMIN', description: 'Administrador del sistema', permissions: ['*'] },
     { name: 'RH', description: 'Recursos Humanos', permissions: ['users.read', 'users.write', 'vacancies.*'] },
@@ -37,31 +21,43 @@ async function main() {
   ];
 
   for (const roleData of roles) {
-    await prisma.role.create({ data: roleData });
+    const existing = await prisma.role.findUnique({ where: { name: roleData.name } });
+    if (!existing) {
+      await prisma.role.create({ data: roleData });
+      console.log(`   ✅ Rol creado: ${roleData.name}`);
+    } else {
+      console.log(`   ⏭️  Rol ya existe: ${roleData.name}`);
+    }
   }
-  console.log('✅ Roles creados');
+  console.log('✅ Roles verificados');
   console.log('');
 
   // ============================================================
-  // PASO 2: Crear solo el Administrador Principal
+  // PASO 2: Crear solo el Administrador Principal (si no existe)
   // ============================================================
-  console.log('👤 Creando Administrador Principal...');
-  const hashedPassword = await bcrypt.hash('password123', 10);
-
-  const adminUser = await prisma.user.create({
-    data: {
-      email: 'admin@kram.com',
-      password: hashedPassword,
-      name: 'Administrador Principal',
-      role: 'ADMIN',
-      accessibleModules: [
-        'DASHBOARD', 'EMPLEADOS', 'RECLUTAMIENTO', 
-        'VACACIONES', 'INCIDENCIAS', 'CONFIGURACION', 'REPORTES'
-      ],
-      isActive: true
-    }
-  });
-  console.log(`✅ Administrador creado: ${adminUser.email}`);
+  console.log('👤 Verificando Administrador Principal...');
+  
+  const existingAdmin = await prisma.user.findUnique({ where: { email: 'admin@kram.com' } });
+  
+  if (existingAdmin) {
+    console.log(`⏭️  Administrador ya existe: ${existingAdmin.email}`);
+  } else {
+    const hashedPassword = await bcrypt.hash('password123', 10);
+    const adminUser = await prisma.user.create({
+      data: {
+        email: 'admin@kram.com',
+        password: hashedPassword,
+        name: 'Administrador Principal',
+        role: 'ADMIN',
+        accessibleModules: [
+          'DASHBOARD', 'EMPLEADOS', 'RECLUTAMIENTO', 
+          'VACACIONES', 'INCIDENCIAS', 'CONFIGURACION', 'REPORTES'
+        ],
+        isActive: true
+      }
+    });
+    console.log(`✅ Administrador creado: ${adminUser.email}`);
+  }
   console.log('');
 
   // ============================================================

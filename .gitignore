@@ -70,6 +70,14 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Test files
+test_*.json
+test_*.js
+check_*.js
+debug_*.js
+reset_*.js
+list_*.js
+
 # Misc
 *.suo
 *.ntvs*

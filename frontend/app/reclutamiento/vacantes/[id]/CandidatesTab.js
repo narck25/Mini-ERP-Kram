@@ -34,24 +34,20 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
       return;
     }
 
-    // Validar que se suban ambos archivos
+    // Validar que el CV sea obligatorio
     if (!cvFile) {
       toast.error('El CV es obligatorio');
       return;
     }
-    
-    if (!psychTestFile) {
-      toast.error('Las pruebas psicométricas son obligatorias');
-      return;
-    }
 
-    // Validar que sean archivos PDF
+    // Validar que el CV sea PDF
     if (cvFile.type !== 'application/pdf') {
       toast.error('El CV debe ser un archivo PDF');
       return;
     }
     
-    if (psychTestFile.type !== 'application/pdf') {
+    // Validar pruebas psicométricas solo si se proporcionan
+    if (psychTestFile && psychTestFile.type !== 'application/pdf') {
       toast.error('Las pruebas psicométricas deben ser un archivo PDF');
       return;
     }
@@ -64,7 +60,10 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
         formData.append('comentarios_rh', newCandidate.comentarios_rh);
       }
       formData.append('cv', cvFile);
-      formData.append('psychTest', psychTestFile);
+      // Solo agregar psychTest si se seleccionó un archivo
+      if (psychTestFile) {
+        formData.append('psychTest', psychTestFile);
+      }
 
       await api.post(`/recruitment/vacancies/${vacancy.id}/candidates`, formData, {
         headers: {
@@ -72,7 +71,7 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
         }
       });
 
-      toast.success('Candidato registrado exitosamente con CV y pruebas psicométricas');
+      toast.success('Candidato registrado exitosamente');
       setShowAddCandidate(false);
       setNewCandidate({ nombre: '', comentarios_rh: '' });
       setCvFile(null);
@@ -241,14 +240,13 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Pruebas Psicométricas (PDF) *
+                  Pruebas Psicométricas (PDF) - Opcional
                 </label>
                 <input
                   type="file"
                   accept=".pdf"
                   onChange={(e) => setPsychTestFile(e.target.files[0])}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
                 />
                 {psychTestFile && (
                   <p className="text-sm text-green-600 mt-1">
@@ -436,7 +434,7 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
         <ul className="text-sm text-gray-600 space-y-1">
           {isRH && (
             <>
-              <li>• <strong>RH:</strong> Registra candidatos, sube sus CVs y pruebas psicométricas (ambos PDF obligatorios).</li>
+              <li>• <strong>RH:</strong> Registra candidatos, sube sus CVs (PDF obligatorio) y opcionalmente pruebas psicométricas.</li>
               <li>• <strong>RH:</strong> Agrega observaciones post-filtro para ayudar al solicitante en la evaluación.</li>
               <li>• <strong>Solicitante:</strong> Revisa los candidatos, lee las observaciones de RH, revisa CV y pruebas psicométricas, y marca visto bueno.</li>
             </>

@@ -925,21 +925,18 @@ exports.createCandidate = async (req, res) => {
       });
     }
 
-    // Validar que se suban ambos archivos
+    // Validar que el CV sea obligatorio
     if (!cvFile) {
       return res.status(400).json({ error: 'El CV es obligatorio' });
     }
-    
-    if (!psychTestFile) {
-      return res.status(400).json({ error: 'Las pruebas psicométricas son obligatorias' });
-    }
 
-    // Validar que sean archivos PDF
+    // Validar que el CV sea PDF
     if (cvFile.mimetype !== 'application/pdf') {
       return res.status(400).json({ error: 'El CV debe ser un archivo PDF' });
     }
-    
-    if (psychTestFile.mimetype !== 'application/pdf') {
+
+    // Validar pruebas psicométricas si se proporcionan
+    if (psychTestFile && psychTestFile.mimetype !== 'application/pdf') {
       return res.status(400).json({ error: 'Las pruebas psicométricas deben ser un archivo PDF' });
     }
 
@@ -947,30 +944,33 @@ exports.createCandidate = async (req, res) => {
     const fs = require('fs');
     const path = require('path');
     const cvsDir = path.join(__dirname, '../../uploads/cvs');
-    const psychTestsDir = path.join(__dirname, '../../uploads/psych-tests');
     
     if (!fs.existsSync(cvsDir)) {
       fs.mkdirSync(cvsDir, { recursive: true });
     }
-    
-    if (!fs.existsSync(psychTestsDir)) {
-      fs.mkdirSync(psychTestsDir, { recursive: true });
-    }
 
-    // Generar nombres únicos para los archivos
+    // Generar nombre único para el CV
     const cvUniqueName = `${Date.now()}_CV_${cvFile.originalname.replace(/\s+/g, '_')}`;
     const cvFilePath = path.join(cvsDir, cvUniqueName);
     
-    const psychTestUniqueName = `${Date.now()}_PSYCH_${psychTestFile.originalname.replace(/\s+/g, '_')}`;
-    const psychTestFilePath = path.join(psychTestsDir, psychTestUniqueName);
-    
-    // Mover los archivos del directorio temporal al directorio final
+    // Mover el CV del directorio temporal al directorio final
     fs.renameSync(cvFile.path, cvFilePath);
-    fs.renameSync(psychTestFile.path, psychTestFilePath);
     
-    // Guardar las URLs relativas
+    // Guardar la URL relativa del CV
     const cv_url = `/uploads/cvs/${cvUniqueName}`;
-    const psych_test_url = `/uploads/psych-tests/${psychTestUniqueName}`;
+    
+    // Procesar pruebas psicométricas si se proporcionaron
+    let psych_test_url = null;
+    if (psychTestFile) {
+      const psychTestsDir = path.join(__dirname, '../../uploads/psych-tests');
+      if (!fs.existsSync(psychTestsDir)) {
+        fs.mkdirSync(psychTestsDir, { recursive: true });
+      }
+      const psychTestUniqueName = `${Date.now()}_PSYCH_${psychTestFile.originalname.replace(/\s+/g, '_')}`;
+      const psychTestFilePath = path.join(psychTestsDir, psychTestUniqueName);
+      fs.renameSync(psychTestFile.path, psychTestFilePath);
+      psych_test_url = `/uploads/psych-tests/${psychTestUniqueName}`;
+    }
 
     // Crear el candidato
     const candidate = await prisma.candidateRH.create({
