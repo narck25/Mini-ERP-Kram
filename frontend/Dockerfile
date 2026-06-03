@@ -62,8 +62,8 @@ COPY --from=builder /app/next.config.js ./
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 
-# Establecer permisos correctos
-RUN chown -R nextjs:nodejs /app
+# Establecer permisos correctos (solo archivos de la app, no node_modules)
+RUN chown -R nextjs:nodejs /app/.next /app/public /app/package*.json /app/next.config.js
 
 # Usar usuario no-root
 USER nextjs
