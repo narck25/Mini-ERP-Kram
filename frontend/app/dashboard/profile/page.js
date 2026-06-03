@@ -8,10 +8,17 @@ import { toast } from 'react-hot-toast';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 function ProfilePageContent() {
-  const { user } = useAuth();
+  const { user, changePassword } = useAuth();
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [changingPassword, setChangingPassword] = useState(false);
   const [formData, setFormData] = useState({
     nombres: '',
     apellidoPaterno: '',
@@ -296,6 +303,17 @@ function ProfilePageContent() {
                       <p className="text-gray-900">{user?.isActive ? 'Activa' : 'Inactiva'}</p>
                     </div>
                   </div>
+                  <div className="mt-4 pt-4 border-t">
+                    <button
+                      onClick={() => {
+                        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                        setShowPasswordModal(true);
+                      }}
+                      className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md font-medium text-sm transition-colors"
+                    >
+                      Cambiar Contraseña
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -360,6 +378,120 @@ function ProfilePageContent() {
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Cambio de Contraseña */}
+        {showPasswordModal && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900">Cambiar Contraseña</h3>
+                <button
+                  onClick={() => setShowPasswordModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                
+                // Validar que la nueva contraseña coincida
+                if (passwordData.newPassword !== passwordData.confirmPassword) {
+                  toast.error('Las contraseñas nuevas no coinciden');
+                  return;
+                }
+                
+                // Validar longitud mínima
+                if (passwordData.newPassword.length < 6) {
+                  toast.error('La nueva contraseña debe tener al menos 6 caracteres');
+                  return;
+                }
+
+                setChangingPassword(true);
+                try {
+                  const result = await changePassword({
+                    currentPassword: passwordData.currentPassword,
+                    newPassword: passwordData.newPassword
+                  });
+                  
+                  if (result.success) {
+                    setShowPasswordModal(false);
+                    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                  }
+                } finally {
+                  setChangingPassword(false);
+                }
+              }}>
+                <div className="space-y-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Contraseña Actual *
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordData.currentPassword}
+                      onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                      placeholder="Ingresa tu contraseña actual"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nueva Contraseña *
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordData.newPassword}
+                      onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                      minLength={6}
+                      placeholder="Mínimo 6 caracteres"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Confirmar Nueva Contraseña *
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                      minLength={6}
+                      placeholder="Repite la nueva contraseña"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4 border-t">
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordModal(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                    disabled={changingPassword}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={changingPassword}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {changingPassword ? 'Cambiando...' : 'Cambiar Contraseña'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
