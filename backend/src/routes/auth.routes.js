@@ -14,7 +14,7 @@ const registerValidation = [
 ];
 
 const loginValidation = [
-  body('email').isEmail().normalizeEmail(),
+  body('email').isEmail(),
   body('password').notEmpty()
 ];
 

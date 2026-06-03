@@ -128,7 +128,12 @@ class AuthController {
       }
 
       // Check password
+      console.log('🔍 DEBUG LOGIN - Email:', email);
+      console.log('🔍 DEBUG LOGIN - Password provided:', password);
+      console.log('🔍 DEBUG LOGIN - Hash from DB:', user.password);
+      console.log('🔍 DEBUG LOGIN - Hash prefix:', user.password.substring(0, 4));
       const isValidPassword = await AuthUtils.comparePassword(password, user.password);
+      console.log('🔍 DEBUG LOGIN - isValidPassword:', isValidPassword);
       if (!isValidPassword) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }

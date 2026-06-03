@@ -22,7 +22,8 @@ const adminNavigation = [
   { name: 'Incidencias', href: '/rh/incidencias', icon: '⏰', roles: ['ADMIN', 'RH'] },
   { name: 'Gestión Global de Compras', href: '/dashboard/compras', icon: '📊', roles: ['ADMIN', 'COMPRAS'] },
   { name: 'Organización', href: '/dashboard/organizacion', icon: '🏢', roles: ['ADMIN'] },
-  { name: 'Accesos/Usuarios', href: '/dashboard/accesos', icon: '🔐', roles: ['ADMIN'] },
+  { name: 'Gestión de Accesos', href: '/dashboard/accesos', icon: '🔐', roles: ['ADMIN'] },
+  { name: 'Gestión de Usuarios', href: '/dashboard/usuarios', icon: '👤', roles: ['ADMIN'] },
   { name: 'Reportes', href: '/rh/dashboard-completo', icon: '📊', module: 'REPORTES' },
   { name: 'Configuración', href: '/dashboard/accesos', icon: '⚙️', module: 'CONFIGURACION' },
 ]

@@ -1,6 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 // Obtener todos los empleados con reglas de visibilidad basadas en jerarquía
 exports.getAllEmployees = async (req, res) => {
