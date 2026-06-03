@@ -1,6 +1,9 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+// Servicio de notificaciones por email
+const emailService = require('../services/email.service');
+
 // Función auxiliar para construir URLs correctamente
 const buildFileUrl = (req, filePath) => {
   if (!filePath) return null;
@@ -201,6 +204,35 @@ exports.createVacancyRequest = async (req, res) => {
         mensaje: mensajeComentario
       }
     });
+
+    // Notificar por email según el flujo
+    try {
+      if (['SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(req.user.role)) {
+        // Jefe de área creó solicitud → notificar a RH
+        const rhUsers = await prisma.user.findMany({
+          where: { role: { in: ['RH', 'ADMIN'] } },
+          select: { email: true, name: true }
+        });
+        const solicitanteNombre = vacancy.solicitante?.user?.name || req.user.name;
+        for (const rhUser of rhUsers) {
+          emailService.sendVacancyApprovalRequired(
+            rhUser.email,
+            rhUser.name,
+            vacancy,
+            solicitanteNombre
+          );
+        }
+      } else if (isDirect === true) {
+        // Flujo directo → notificar al solicitante
+        const solicitanteEmail = vacancy.solicitante?.user?.email;
+        const solicitanteNombre = vacancy.solicitante?.user?.name || 'Usuario';
+        if (solicitanteEmail) {
+          emailService.sendVacancyDirectCreated(solicitanteEmail, solicitanteNombre, vacancy);
+        }
+      }
+    } catch (emailErr) {
+      console.warn('⚠️ Error al enviar notificación por email:', emailErr.message);
+    }
 
     res.status(201).json({
       message: 'Solicitud de vacante creada exitosamente',
@@ -475,6 +507,17 @@ exports.approveVacancyRequest = async (req, res) => {
       }
     });
 
+    // Notificar al solicitante por email
+    try {
+      const solicitanteEmail = vacancy.solicitante?.user?.email;
+      const solicitanteNombre = vacancy.solicitante?.user?.name || 'Usuario';
+      if (solicitanteEmail) {
+        emailService.sendVacancyApproved(solicitanteEmail, solicitanteNombre, vacancy);
+      }
+    } catch (emailErr) {
+      console.warn('⚠️ Error al enviar notificación de aprobación:', emailErr.message);
+    }
+
     res.json({
       message: 'Solicitud de vacante aprobada exitosamente. El jefe de área debe definir las actividades del puesto.',
       vacancy
@@ -530,6 +573,22 @@ exports.closeVacancyRequest = async (req, res) => {
   }
 };
 
+// Función auxiliar para eliminar archivos del disco
+const deleteFileFromDisk = (filePath) => {
+  if (!filePath) return;
+  const fs = require('fs');
+  const path = require('path');
+  const absolutePath = path.join(__dirname, '../..', filePath);
+  try {
+    if (fs.existsSync(absolutePath)) {
+      fs.unlinkSync(absolutePath);
+      console.log(`🗑️ Archivo eliminado: ${absolutePath}`);
+    }
+  } catch (err) {
+    console.warn(`⚠️ No se pudo eliminar archivo ${absolutePath}: ${err.message}`);
+  }
+};
+
 // Eliminar vacante completamente (solo RH/ADMIN)
 exports.deleteVacancy = async (req, res) => {
   try {
@@ -537,11 +596,20 @@ exports.deleteVacancy = async (req, res) => {
 
     // Verificar que la vacante existe
     const vacancy = await prisma.jobVacancy.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        candidatesRH: true
+      }
     });
 
     if (!vacancy) {
       return res.status(404).json({ error: 'Vacante no encontrada' });
+    }
+
+    // Eliminar archivos del disco de todos los candidatos asociados
+    for (const candidate of vacancy.candidatesRH) {
+      deleteFileFromDisk(candidate.cv_url);
+      deleteFileFromDisk(candidate.psych_test_url);
     }
 
     // Eliminar registros relacionados en orden
@@ -706,6 +774,26 @@ exports.createJobActivities = async (req, res) => {
         mensaje: `📋 ${createdActivities.length} actividades del puesto definidas por el jefe de área. La vacante ahora está lista para búsqueda.`
       }
     });
+
+    // Notificar a RH que se definieron las actividades
+    try {
+      const rhUsers = await prisma.user.findMany({
+        where: { role: { in: ['RH', 'ADMIN'] } },
+        select: { email: true, name: true }
+      });
+      const solicitanteNombre = updatedVacancy.solicitante?.user?.name || req.user.name;
+      for (const rhUser of rhUsers) {
+        emailService.sendActivitiesDefined(
+          rhUser.email,
+          rhUser.name,
+          updatedVacancy,
+          solicitanteNombre,
+          createdActivities.length
+        );
+      }
+    } catch (emailErr) {
+      console.warn('⚠️ Error al enviar notificación de actividades:', emailErr.message);
+    }
 
     res.json({
       message: `Actividades del puesto creadas exitosamente. La vacante ahora está lista para búsqueda.`,
@@ -1030,7 +1118,7 @@ exports.createCandidate = async (req, res) => {
     // Procesar pruebas psicométricas si se proporcionaron
     let psych_test_url = null;
     if (psychTestFile) {
-      psych_test_url = `/uploads/cvs/${psychTestFile.filename}`;
+      psych_test_url = `/uploads/psych-tests/${psychTestFile.filename}`;
     }
 
     // Crear el candidato
@@ -1054,11 +1142,35 @@ exports.createCandidate = async (req, res) => {
       }
     });
 
+    // Notificar al solicitante que hay un nuevo candidato para revisar
+    try {
+      const fullVacancy = await prisma.jobVacancy.findUnique({
+        where: { id: vacancy_id },
+        include: {
+          solicitante: {
+            include: {
+              user: { select: { email: true, name: true } }
+            }
+          }
+        }
+      });
+      const solicitanteEmail = fullVacancy?.solicitante?.user?.email;
+      const solicitanteNombre = fullVacancy?.solicitante?.user?.name || 'Solicitante';
+      if (solicitanteEmail) {
+        emailService.sendCandidateReviewRequest(solicitanteEmail, solicitanteNombre, fullVacancy, nombre);
+      }
+    } catch (emailErr) {
+      console.warn('⚠️ Error al enviar notificación de nuevo candidato:', emailErr.message);
+    }
+
     res.status(201).json({
       message: 'Candidato registrado exitosamente con CV y pruebas psicométricas',
       candidate
     });
   } catch (error) {
+    // Si falla la creación, limpiar los archivos subidos
+    if (cvFile) deleteFileFromDisk(`/uploads/cvs/${cvFile.filename}`);
+    if (psychTestFile) deleteFileFromDisk(`/uploads/psych-tests/${psychTestFile.filename}`);
     console.error('Error creating candidate:', error);
     res.status(500).json({ error: 'Error al registrar el candidato' });
   }
@@ -1146,6 +1258,25 @@ exports.updateCandidateVote = async (req, res) => {
       }
     });
 
+    // Notificar a RH del voto
+    try {
+      const rhUsers = await prisma.user.findMany({
+        where: { role: { in: ['RH', 'ADMIN'] } },
+        select: { email: true, name: true }
+      });
+      for (const rhUser of rhUsers) {
+        emailService.sendCandidateVoted(
+          rhUser.email,
+          rhUser.name,
+          candidate.vacancy,
+          candidate.nombre,
+          vote
+        );
+      }
+    } catch (emailErr) {
+      console.warn('⚠️ Error al enviar notificación de voto:', emailErr.message);
+    }
+
     res.json({
       message: 'Voto registrado exitosamente',
       candidate: updatedCandidate
@@ -1214,6 +1345,24 @@ exports.selectCandidate = async (req, res) => {
         mensaje: `🎯 Candidato "${candidate.nombre}" seleccionado como final. La vacante ha sido cerrada.`
       }
     });
+
+    // Notificar a RH que se seleccionó candidato final
+    try {
+      const rhUsers = await prisma.user.findMany({
+        where: { role: { in: ['RH', 'ADMIN'] } },
+        select: { email: true, name: true }
+      });
+      for (const rhUser of rhUsers) {
+        emailService.sendCandidateSelected(
+          rhUser.email,
+          rhUser.name,
+          candidate.vacancy,
+          candidate.nombre
+        );
+      }
+    } catch (emailErr) {
+      console.warn('⚠️ Error al enviar notificación de selección:', emailErr.message);
+    }
 
     res.json({
       message: 'Candidato seleccionado y vacante cerrada exitosamente',
