@@ -530,6 +530,89 @@ exports.closeVacancyRequest = async (req, res) => {
   }
 };
 
+// Eliminar vacante completamente (solo RH/ADMIN)
+exports.deleteVacancy = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verificar que la vacante existe
+    const vacancy = await prisma.jobVacancy.findUnique({
+      where: { id }
+    });
+
+    if (!vacancy) {
+      return res.status(404).json({ error: 'Vacante no encontrada' });
+    }
+
+    // Eliminar registros relacionados en orden
+    await prisma.vacancyComment.deleteMany({ where: { vacancy_id: id } });
+    await prisma.jobActivity.deleteMany({ where: { vacancyId: id } });
+    await prisma.candidateRH.deleteMany({ where: { vacancy_id: id } });
+    await prisma.jobVacancy.delete({ where: { id } });
+
+    res.json({
+      message: 'Vacante eliminada permanentemente'
+    });
+  } catch (error) {
+    console.error('Error deleting vacancy:', error);
+    res.status(500).json({ error: 'Error al eliminar la vacante' });
+  }
+};
+
+// Cancelar vacante por el solicitante (cambia a estado Cerrada)
+exports.cancelVacancy = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    // Verificar que la vacante existe
+    const vacancy = await prisma.jobVacancy.findUnique({
+      where: { id },
+      include: {
+        solicitante: true
+      }
+    });
+
+    if (!vacancy) {
+      return res.status(404).json({ error: 'Vacante no encontrada' });
+    }
+
+    // Verificar que el usuario sea el solicitante
+    const employee = await prisma.employee.findUnique({
+      where: { userId }
+    });
+
+    if (!employee || vacancy.solicitanteId !== employee.id) {
+      return res.status(403).json({ error: 'Solo el solicitante puede cancelar esta vacante' });
+    }
+
+    // Cambiar estado a Cerrada
+    const updatedVacancy = await prisma.jobVacancy.update({
+      where: { id },
+      data: {
+        estatus: VACANCY_STATUS.CERRADA
+      }
+    });
+
+    // Crear comentario automático de cancelación
+    await prisma.vacancyComment.create({
+      data: {
+        vacancy_id: id,
+        user_id: userId,
+        mensaje: `🚫 Vacante cancelada por el solicitante.`
+      }
+    });
+
+    res.json({
+      message: 'Vacante cancelada exitosamente',
+      vacancy: updatedVacancy
+    });
+  } catch (error) {
+    console.error('Error cancelling vacancy:', error);
+    res.status(500).json({ error: 'Error al cancelar la vacante' });
+  }
+};
+
 // ============================================================
 // ACTIVIDADES DEL PUESTO
 // ============================================================

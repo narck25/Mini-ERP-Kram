@@ -1,1 +1,0 @@
-fix: pruebas psicométricas opcionales al registrar candidatos + seed idempotente

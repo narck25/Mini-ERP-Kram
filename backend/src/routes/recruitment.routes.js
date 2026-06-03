@@ -97,4 +97,16 @@ router.get('/recruitment/candidates/:candidate_id/cv',
   recruitmentController.downloadCandidateCV
 );
 
+// Eliminar vacante completamente (solo RH/ADMIN)
+router.delete('/recruitment/vacancies/:id', 
+  authMiddleware.requireRHOrAdmin(), 
+  recruitmentController.deleteVacancy
+);
+
+// Cancelar vacante por el solicitante (cambia a estado Cerrada)
+router.put('/recruitment/vacancies/:id/cancel', 
+  authMiddleware.requireModule('RECLUTAMIENTO'), 
+  recruitmentController.cancelVacancy
+);
+
 module.exports = router;

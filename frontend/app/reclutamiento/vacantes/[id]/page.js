@@ -90,6 +90,36 @@ function VacancyDetailPageContent() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm('⚠️ ¿Estás seguro de ELIMINAR PERMANENTEMENTE esta vacante? Se borrarán todos los candidatos, comentarios y actividades asociados. Esta acción NO se puede deshacer.')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/recruitment/vacancies/${id}`);
+      toast.success('Vacante eliminada permanentemente');
+      router.push((user.role === 'RH' || user.role === 'ADMIN') ? '/rh/reclutamiento' : '/reclutamiento/mis-solicitudes');
+    } catch (error) {
+      console.error('Error deleting vacancy:', error);
+      toast.error(error.response?.data?.error || 'Error al eliminar la vacante');
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!confirm('¿Estás seguro de cancelar esta vacante? Se cerrará y ya no estará disponible para búsqueda de candidatos.')) {
+      return;
+    }
+
+    try {
+      await api.put(`/recruitment/vacancies/${id}/cancel`);
+      toast.success('Vacante cancelada exitosamente');
+      fetchVacancy();
+    } catch (error) {
+      console.error('Error cancelling vacancy:', error);
+      toast.error(error.response?.data?.error || 'Error al cancelar la vacante');
+    }
+  };
+
   const getStatusColor = (estatus) => {
     switch (estatus) {
       case 'Solicitada': return 'bg-yellow-100 text-yellow-800';
@@ -171,6 +201,16 @@ function VacancyDetailPageContent() {
     return user && user.accessibleModules?.includes('RECLUTAMIENTO') && 
            vacancy?.estatus === 'Aprobada' && 
            vacancy?.solicitante?.user?.id === user.id;
+  };
+
+  const canDelete = () => {
+    return user && (user.role === 'RH' || user.role === 'ADMIN');
+  };
+
+  const canCancel = () => {
+    return user && user.accessibleModules?.includes('RECLUTAMIENTO') && 
+           vacancy?.solicitante?.user?.id === user.id &&
+           vacancy?.estatus !== 'Cerrada';
   };
 
   if (!user || !user.accessibleModules?.includes('RECLUTAMIENTO')) {
@@ -265,6 +305,24 @@ function VacancyDetailPageContent() {
                 >
                   Definir Perfil Técnico
                 </Link>
+              )}
+
+              {canCancel() && (
+                <button
+                  onClick={handleCancel}
+                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md font-medium text-sm"
+                >
+                  Cancelar Vacante
+                </button>
+              )}
+
+              {canDelete() && (
+                <button
+                  onClick={handleDelete}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium text-sm"
+                >
+                  Eliminar Vacante
+                </button>
               )}
             </div>
           </div>
