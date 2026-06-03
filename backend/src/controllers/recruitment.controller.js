@@ -1023,36 +1023,14 @@ exports.createCandidate = async (req, res) => {
       return res.status(400).json({ error: 'Las pruebas psicométricas deben ser un archivo PDF' });
     }
 
-    // Crear directorio para CVs si no existe
-    const fs = require('fs');
-    const path = require('path');
-    const cvsDir = path.join(__dirname, '../../uploads/cvs');
-    
-    if (!fs.existsSync(cvsDir)) {
-      fs.mkdirSync(cvsDir, { recursive: true });
-    }
-
-    // Generar nombre único para el CV
-    const cvUniqueName = `${Date.now()}_CV_${cvFile.originalname.replace(/\s+/g, '_')}`;
-    const cvFilePath = path.join(cvsDir, cvUniqueName);
-    
-    // Mover el CV del directorio temporal al directorio final
-    fs.renameSync(cvFile.path, cvFilePath);
-    
-    // Guardar la URL relativa del CV
-    const cv_url = `/uploads/cvs/${cvUniqueName}`;
+    // El middleware uploadCV ya guardó los archivos en disco con nombres únicos
+    // Solo necesitamos construir las URLs relativas
+    const cv_url = `/uploads/cvs/${cvFile.filename}`;
     
     // Procesar pruebas psicométricas si se proporcionaron
     let psych_test_url = null;
     if (psychTestFile) {
-      const psychTestsDir = path.join(__dirname, '../../uploads/psych-tests');
-      if (!fs.existsSync(psychTestsDir)) {
-        fs.mkdirSync(psychTestsDir, { recursive: true });
-      }
-      const psychTestUniqueName = `${Date.now()}_PSYCH_${psychTestFile.originalname.replace(/\s+/g, '_')}`;
-      const psychTestFilePath = path.join(psychTestsDir, psychTestUniqueName);
-      fs.renameSync(psychTestFile.path, psychTestFilePath);
-      psych_test_url = `/uploads/psych-tests/${psychTestUniqueName}`;
+      psych_test_url = `/uploads/cvs/${psychTestFile.filename}`;
     }
 
     // Crear el candidato

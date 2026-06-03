@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const recruitmentController = require('../controllers/recruitment.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
-const { upload, ensureUploadDirs, handleMulterError } = require('../middlewares/upload.middleware');
+const { upload, uploadCV, ensureUploadDirs, handleMulterError } = require('../middlewares/upload.middleware');
 
 // Aplicar autenticación a todas las rutas
 router.use(authMiddleware.verifyToken);
@@ -66,7 +66,7 @@ router.post('/recruitment/vacancies/:id/comments',
 router.post('/recruitment/vacancies/:vacancy_id/candidates',
   authMiddleware.requireRHOrAdmin(),
   ensureUploadDirs,
-  upload.fields([
+  uploadCV.fields([
     { name: 'cv', maxCount: 1 },
     { name: 'psychTest', maxCount: 1 }
   ]),
