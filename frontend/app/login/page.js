@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
+import { toast } from 'react-hot-toast'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -136,6 +137,16 @@ export default function LoginPage() {
               >
                 {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
               </button>
+
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  onClick={() => toast.error('Contacta al administrador del sistema o al departamento de RH para restablecer tu contraseña.')}
+                  className="text-sm text-slate-400 hover:text-teal-400 transition-colors"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
             </form>
 
             {/* Enlace a registro */}

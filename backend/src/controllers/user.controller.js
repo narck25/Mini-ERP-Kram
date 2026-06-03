@@ -242,6 +242,54 @@ class UserController {
     }
   }
 
+  // Restablecer contraseña de un usuario (ADMIN y RH)
+  static async resetPassword(req, res) {
+    try {
+      const { id } = req.params;
+      const { newPassword } = req.body;
+
+      // Validar que se proporcione una contraseña
+      if (!newPassword || newPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          error: 'La nueva contraseña debe tener al menos 6 caracteres',
+        });
+      }
+
+      // Verificar si el usuario existe
+      const existingUser = await prisma.user.findUnique({
+        where: { id },
+      });
+
+      if (!existingUser) {
+        return res.status(404).json({
+          success: false,
+          error: 'Usuario no encontrado',
+        });
+      }
+
+      // Hash de la nueva contraseña
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Actualizar contraseña
+      await prisma.user.update({
+        where: { id },
+        data: { password: hashedPassword },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Contraseña restablecida exitosamente',
+      });
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Error al restablecer la contraseña',
+      });
+    }
+  }
+
   // Eliminar usuario (solo ADMIN)
   static async deleteUser(req, res) {
     try {
