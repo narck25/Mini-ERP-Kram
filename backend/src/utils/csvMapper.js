@@ -251,46 +251,32 @@ async function prepareForPrisma(employeeData, prisma) {
       const isNumeric = /^\d+$/.test(numericValue);
       
       if (isNumeric) {
-        // Buscar directamente por ID (UUIDs no son numéricos, pero algunos IDs podrían ser)
-        const departamentoById = await prisma.department.findUnique({
-          where: { id: numericValue },
-          select: { id: true }
+        // El valor es un número (ej. "1", "2", "3") - buscar por posición/orden de creación
+        const allDepartments = await prisma.department.findMany({
+          orderBy: { createdAt: 'asc' },
+          select: { id: true, nombre: true }
         });
         
-        if (departamentoById) {
-          departamento_id = departamentoById.id;
+        const index = parseInt(numericValue) - 1; // Convertir a índice 0-based
+        
+        if (index >= 0 && index < allDepartments.length) {
+          // Encontrar por posición en la lista ordenada
+          departamento_id = allDepartments[index].id;
+          console.log(`✅ Departamento asignado por índice ${numericValue}: ${allDepartments[index].nombre} (ID: ${departamento_id})`);
         } else {
-          // Si no se encuentra por ID, intentar mapear IDs numéricos a nombres
-          const numericIdMap = {
-            '1': 'SISTEMAS',
-            '2': 'COMPRAS', 
-            '3': 'RH',
-            '4': 'Administración',
-            '5': 'Ventas',
-            '6': 'Marketing',
-            '7': 'PRODUCCION'
-          };
-          
-          if (numericIdMap[numericValue]) {
-            // Buscar el departamento por el nombre mapeado
-            const mappedDepartamento = await prisma.department.findFirst({
-              where: {
-                nombre: {
-                  equals: numericIdMap[numericValue],
-                  mode: 'insensitive'
-                }
-              },
-              select: { id: true }
-            });
-            
-            if (mappedDepartamento) {
-              departamento_id = mappedDepartamento.id;
-            } else {
-              throw new Error(`Departamento no encontrado para ID numérico "${numericValue}". El sistema espera nombres como "Sistemas", "RH", etc.`);
-            }
-          } else {
-            throw new Error(`ID de departamento no válido: "${numericValue}". IDs válidos: 1-7 o nombres de departamento.`);
-          }
+          // Si el índice está fuera de rango, crear el departamento dinámicamente
+          const nombreDepartamento = `DEPARTAMENTO ${numericValue}`;
+          console.log(`🏗️ Creando departamento dinámico para índice ${numericValue}: "${nombreDepartamento}"`);
+          const nuevoDepartamento = await prisma.department.create({
+            data: {
+              nombre: nombreDepartamento,
+              descripcion: `Departamento creado desde CSV con ID numérico ${numericValue}`,
+              estado: 'Activo'
+            },
+            select: { id: true }
+          });
+          departamento_id = nuevoDepartamento.id;
+          console.log(`✅ Departamento creado dinámicamente: ${nombreDepartamento} (ID: ${departamento_id})`);
         }
       } else {
         // No es numérico, buscar por nombre (exacto, los datos ya vienen en mayúsculas)
