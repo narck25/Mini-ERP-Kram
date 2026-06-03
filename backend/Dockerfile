@@ -61,6 +61,11 @@ RUN mkdir -p /app/uploads/cvs \
              /app/uploads/photos && \
     chmod -R 777 /app/uploads
 
+# Variables de entorno para Resend (notificaciones por email)
+# Se pueden sobreescribir en Coolify
+ENV RESEND_API_KEY=""
+ENV RESEND_FROM_EMAIL="noreply@pid.kramhub.site"
+
 # Exponer puerto
 EXPOSE 3001
 
