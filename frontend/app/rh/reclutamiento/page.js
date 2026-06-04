@@ -18,7 +18,18 @@ function RHReclutamientoPageContent() {
   // Filtros
   const [filters, setFilters] = useState({
     estatus: '',
-    departamento_id: ''
+    departamento_id: '',
+    search: '',
+    fecha_desde: '',
+    fecha_hasta: ''
+  });
+  
+  // Paginación
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0
   });
 
   useEffect(() => {
@@ -27,7 +38,7 @@ function RHReclutamientoPageContent() {
       fetchStats();
       fetchDepartments();
     }
-  }, [user, filters]);
+  }, [user, filters, pagination.page]);
 
   const fetchVacancies = async () => {
     try {
@@ -35,9 +46,17 @@ function RHReclutamientoPageContent() {
       const params = new URLSearchParams();
       if (filters.estatus) params.append('estatus', filters.estatus);
       if (filters.departamento_id) params.append('departamento_id', filters.departamento_id);
+      if (filters.search) params.append('search', filters.search);
+      if (filters.fecha_desde) params.append('fecha_desde', filters.fecha_desde);
+      if (filters.fecha_hasta) params.append('fecha_hasta', filters.fecha_hasta);
+      params.append('page', pagination.page);
+      params.append('limit', pagination.limit);
       
       const response = await api.get(`/recruitment/vacancies?${params.toString()}`);
       setVacancies(response.data.vacancies || []);
+      if (response.data.pagination) {
+        setPagination(prev => ({ ...prev, ...response.data.pagination }));
+      }
     } catch (error) {
       console.error('Error fetching vacancies:', error);
       toast.error('Error al cargar las solicitudes');
@@ -228,9 +247,40 @@ function RHReclutamientoPageContent() {
                 ))}
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Buscar por título</label>
+              <input
+                type="text"
+                value={filters.search}
+                onChange={(e) => handleFilterChange('search', e.target.value)}
+                placeholder="Buscar vacante..."
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-48"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Fecha desde</label>
+              <input
+                type="date"
+                value={filters.fecha_desde}
+                onChange={(e) => handleFilterChange('fecha_desde', e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Fecha hasta</label>
+              <input
+                type="date"
+                value={filters.fecha_hasta}
+                onChange={(e) => handleFilterChange('fecha_hasta', e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
             <div className="flex items-end">
               <button
-                onClick={() => setFilters({ estatus: '', departamento_id: '' })}
+                onClick={() => {
+                  setFilters({ estatus: '', departamento_id: '', search: '', fecha_desde: '', fecha_hasta: '' });
+                  setPagination(prev => ({ ...prev, page: 1 }));
+                }}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
               >
                 Limpiar Filtros
@@ -256,112 +306,147 @@ function RHReclutamientoPageContent() {
             <p className="text-gray-600">No se encontraron solicitudes con los filtros seleccionados.</p>
           </div>
         ) : (
-          <div className="space-y-6">
-            {vacancies.map((vacancy) => (
-              <div key={vacancy.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{vacancy.titulo}</h3>
-                      <p className="text-sm text-gray-600">
-                        {vacancy.departamento?.nombre} • Solicitado por: {vacancy.solicitante?.user?.name}
-                      </p>
+          <>
+            <div className="space-y-6">
+              {vacancies.map((vacancy) => (
+                <div key={vacancy.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">{vacancy.titulo}</h3>
+                        <p className="text-sm text-gray-600">
+                          {vacancy.departamento?.nombre} • Solicitado por: {vacancy.solicitante?.user?.name}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(vacancy.estatus)}`}>
+                          {getStatusText(vacancy.estatus)}
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          {new Date(vacancy.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(vacancy.estatus)}`}>
-                        {getStatusText(vacancy.estatus)}
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        {new Date(vacancy.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* Requerimientos técnicos */}
-                  {vacancy.requerimientos_tecnicos && vacancy.requerimientos_tecnicos.length > 0 && (
-                    <div className="mb-4">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Requerimientos técnicos iniciales:</h4>
-                      <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
-                        {vacancy.requerimientos_tecnicos.map((req, index) => (
-                          <li key={index}>{req}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">Solicitante:</span>
-                      <p className="text-sm text-gray-600">{vacancy.solicitante?.user?.email}</p>
-                    </div>
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">Comentarios:</span>
-                      <p className="text-sm text-gray-600">{vacancy._count.comments}</p>
-                    </div>
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">Candidatos:</span>
-                      <p className="text-sm text-gray-600">{vacancy._count.candidatesRH}</p>
-                    </div>
-                  </div>
-
-                  {/* Botones de acción */}
-                  <div className="flex flex-wrap gap-2 pt-4 border-t">
-                    <Link
-                      href={`/reclutamiento/vacantes/${vacancy.id}`}
-                      className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md font-medium text-sm"
-                    >
-                      Ver Detalles
-                    </Link>
                     
-                    {vacancy.estatus === 'Solicitada' && (
-                      <button
-                        onClick={() => handleApprove(vacancy.id)}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium text-sm"
-                      >
-                        Aprobar Solicitud
-                      </button>
+                    {/* Requerimientos técnicos */}
+                    {vacancy.requerimientos_tecnicos && vacancy.requerimientos_tecnicos.length > 0 && (
+                      <div className="mb-4">
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Requerimientos técnicos iniciales:</h4>
+                        <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                          {vacancy.requerimientos_tecnicos.map((req, index) => (
+                            <li key={index}>{req}</li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
-                    
-                    {vacancy.estatus === 'Aprobada' && (
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Solicitante:</span>
+                        <p className="text-sm text-gray-600">{vacancy.solicitante?.user?.email}</p>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Comentarios:</span>
+                        <p className="text-sm text-gray-600">{vacancy._count.comments}</p>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Candidatos:</span>
+                        <p className="text-sm text-gray-600">{vacancy._count.candidatesRH}</p>
+                      </div>
+                    </div>
+
+                    {/* Botones de acción */}
+                    <div className="flex flex-wrap gap-2 pt-4 border-t">
                       <Link
                         href={`/reclutamiento/vacantes/${vacancy.id}`}
-                        className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-md font-medium text-sm"
+                        className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md font-medium text-sm"
                       >
-                        Esperando Perfil Técnico
+                        Ver Detalles
                       </Link>
-                    )}
-                    
-                    {vacancy.estatus === 'Buscando' && (
-                      <Link
-                        href={`/reclutamiento/vacantes/${vacancy.id}`}
-                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md font-medium text-sm"
-                      >
-                        Gestionar Candidatos
-                      </Link>
-                    )}
-                    
-                    {vacancy.estatus !== 'Cerrada' && (
-                      <button
-                        onClick={() => handleClose(vacancy.id)}
-                        className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md font-medium text-sm"
-                      >
-                        Cerrar Solicitud
-                      </button>
-                    )}
-                    
-                    {vacancy.estatus === 'Cerrada' && (
-                      <button
-                        onClick={() => handleApprove(vacancy.id)}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium text-sm"
-                      >
-                        Reabrir Solicitud
-                      </button>
-                    )}
+                      
+                      {vacancy.estatus === 'Solicitada' && (
+                        <button
+                          onClick={() => handleApprove(vacancy.id)}
+                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium text-sm"
+                        >
+                          Aprobar Solicitud
+                        </button>
+                      )}
+                      
+                      {vacancy.estatus === 'Aprobada' && (
+                        <Link
+                          href={`/reclutamiento/vacantes/${vacancy.id}`}
+                          className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-md font-medium text-sm"
+                        >
+                          Esperando Perfil Técnico
+                        </Link>
+                      )}
+                      
+                      {vacancy.estatus === 'Buscando' && (
+                        <Link
+                          href={`/reclutamiento/vacantes/${vacancy.id}`}
+                          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md font-medium text-sm"
+                        >
+                          Gestionar Candidatos
+                        </Link>
+                      )}
+                      
+                      {vacancy.estatus !== 'Cerrada' && (
+                        <button
+                          onClick={() => handleClose(vacancy.id)}
+                          className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md font-medium text-sm"
+                        >
+                          Cerrar Solicitud
+                        </button>
+                      )}
+                      
+                      {vacancy.estatus === 'Cerrada' && (
+                        <button
+                          onClick={() => handleApprove(vacancy.id)}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium text-sm"
+                        >
+                          Reabrir Solicitud
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
+              ))}
+            </div>
+            
+            {/* Paginación */}
+            {pagination.totalPages > 1 && (
+              <div className="flex items-center justify-between bg-white rounded-lg shadow-md px-4 py-3 mt-6">
+                <div className="text-sm text-gray-600">
+                  Mostrando página {pagination.page} de {pagination.totalPages} ({pagination.total} resultados)
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                    disabled={pagination.page <= 1}
+                    className={`px-3 py-1 rounded-md text-sm font-medium ${
+                      pagination.page <= 1
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                    }`}
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                    disabled={pagination.page >= pagination.totalPages}
+                    className={`px-3 py-1 rounded-md text-sm font-medium ${
+                      pagination.page >= pagination.totalPages
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                    }`}
+                  >
+                    Siguiente
+                  </button>
+                </div>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
     </DashboardLayout>

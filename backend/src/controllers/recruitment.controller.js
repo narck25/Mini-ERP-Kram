@@ -315,45 +315,63 @@ exports.createDirectVacancy = async (req, res) => {
 // LISTADO DE VACANTES
 // ============================================================
 
-// Obtener mis solicitudes (para jefes de área)
+// Obtener mis solicitudes (para jefes de área) - CON PAGINACIÓN
 exports.getMyVacancyRequests = async (req, res) => {
   try {
     const userId = req.user.id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
     const employee = await prisma.employee.findUnique({
       where: { userId }
     });
 
     if (!employee) {
-      return res.json({ vacancies: [] });
+      return res.json({ vacancies: [], pagination: { total: 0, page: 1, limit, totalPages: 0 } });
     }
 
-    const vacancies = await prisma.jobVacancy.findMany({
-      where: { solicitanteId: employee.id },
-      include: {
-        departamento: true,
-        solicitante: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
+    const where = { solicitanteId: employee.id };
+
+    const [vacancies, total] = await Promise.all([
+      prisma.jobVacancy.findMany({
+        where,
+        include: {
+          departamento: true,
+          solicitante: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true
+                }
               }
+            }
+          },
+          _count: {
+            select: {
+              comments: true,
+              candidatesRH: true
             }
           }
         },
-        _count: {
-          select: {
-            comments: true,
-            candidatesRH: true
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
+      }),
+      prisma.jobVacancy.count({ where })
+    ]);
 
-    res.json({ vacancies });
+    res.json({
+      vacancies,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     console.error('🔥 ERROR PRISMA getMyVacancyRequests:', error.message || error);
     console.error('🔥 Error stack:', error.stack);
@@ -361,41 +379,74 @@ exports.getMyVacancyRequests = async (req, res) => {
   }
 };
 
-// Obtener todas las solicitudes (para ADMIN, SISTEMAS, RH)
+// Obtener todas las solicitudes (para ADMIN, SISTEMAS, RH) - CON PAGINACIÓN Y FILTROS COMBINADOS
 exports.getAllVacancyRequests = async (req, res) => {
   try {
-    const { estatus, departamento_id } = req.query;
+    const { estatus, departamento_id, search, fecha_desde, fecha_hasta } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
     
     const where = {};
     if (estatus) where.estatus = estatus;
     if (departamento_id) where.departamento_id = departamento_id;
+    
+    // Filtro por búsqueda de texto en título
+    if (search) {
+      where.titulo = { contains: search, mode: 'insensitive' };
+    }
+    
+    // Filtro por rango de fechas
+    if (fecha_desde || fecha_hasta) {
+      where.createdAt = {};
+      if (fecha_desde) where.createdAt.gte = new Date(fecha_desde);
+      if (fecha_hasta) {
+        // Incluir todo el día de fecha_hasta
+        const endDate = new Date(fecha_hasta);
+        endDate.setHours(23, 59, 59, 999);
+        where.createdAt.lte = endDate;
+      }
+    }
 
-    const vacancies = await prisma.jobVacancy.findMany({
-      where,
-      include: {
-        departamento: true,
-        solicitante: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
+    const [vacancies, total] = await Promise.all([
+      prisma.jobVacancy.findMany({
+        where,
+        include: {
+          departamento: true,
+          solicitante: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true
+                }
               }
+            }
+          },
+          _count: {
+            select: {
+              comments: true,
+              candidatesRH: true
             }
           }
         },
-        _count: {
-          select: {
-            comments: true,
-            candidatesRH: true
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
+      }),
+      prisma.jobVacancy.count({ where })
+    ]);
 
-    res.json({ vacancies });
+    res.json({
+      vacancies,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     console.error('Error getting all vacancy requests:', error);
     res.status(500).json({ error: 'Error al obtener las solicitudes de vacantes' });

@@ -11,18 +11,32 @@ export default function MisSolicitudesPage() {
   const { user } = useAuth();
   const [vacancies, setVacancies] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Paginación
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0
+  });
 
   useEffect(() => {
     if (user && ['ADMIN', 'RH', 'SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(user.role)) {
       fetchMyVacancies();
     }
-  }, [user]);
+  }, [user, pagination.page]);
 
   const fetchMyVacancies = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/recruitment/my-vacancies');
+      const params = new URLSearchParams();
+      params.append('page', pagination.page);
+      params.append('limit', pagination.limit);
+      const response = await api.get(`/recruitment/my-vacancies?${params.toString()}`);
       setVacancies(response.data.vacancies);
+      if (response.data.pagination) {
+        setPagination(prev => ({ ...prev, ...response.data.pagination }));
+      }
     } catch (error) {
       console.error('Error fetching vacancies:', error);
       toast.error('Error al cargar las solicitudes');
@@ -126,70 +140,105 @@ export default function MisSolicitudesPage() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-6">
-            {vacancies.map((vacancy) => (
-              <div key={vacancy.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{vacancy.titulo}</h3>
-                      <p className="text-sm text-gray-600">
-                        {vacancy.departamento?.nombre} • Solicitado: {new Date(vacancy.createdAt).toLocaleDateString()}
-                      </p>
+          <>
+            <div className="space-y-6">
+              {vacancies.map((vacancy) => (
+                <div key={vacancy.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">{vacancy.titulo}</h3>
+                        <p className="text-sm text-gray-600">
+                          {vacancy.departamento?.nombre} • Solicitado: {new Date(vacancy.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(vacancy.estatus)}`}>
+                          {getStatusText(vacancy.estatus)}
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          {vacancy._count.comments} comentarios
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(vacancy.estatus)}`}>
-                        {getStatusText(vacancy.estatus)}
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        {vacancy._count.comments} comentarios
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* Requerimientos técnicos */}
-                  {vacancy.requerimientos_tecnicos && vacancy.requerimientos_tecnicos.length > 0 && (
-                    <div className="mb-4">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Requerimientos técnicos:</h4>
-                      <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
-                        {vacancy.requerimientos_tecnicos.map((req, index) => (
-                          <li key={index}>{req}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Botones de acción */}
-                  <div className="flex flex-wrap gap-2 pt-4 border-t">
-                    <Link
-                      href={`/reclutamiento/vacantes/${vacancy.id}`}
-                      className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md font-medium text-sm"
-                    >
-                      Ver Detalles
-                    </Link>
                     
-                    {vacancy.estatus === 'Aprobada' && (
-                      <Link
-                        href={`/reclutamiento/vacantes/${vacancy.id}/perfil-tecnico`}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium text-sm"
-                      >
-                        Definir Perfil Técnico
-                      </Link>
+                    {/* Requerimientos técnicos */}
+                    {vacancy.requerimientos_tecnicos && vacancy.requerimientos_tecnicos.length > 0 && (
+                      <div className="mb-4">
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">Requerimientos técnicos:</h4>
+                        <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                          {vacancy.requerimientos_tecnicos.map((req, index) => (
+                            <li key={index}>{req}</li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
-                    
-                    {vacancy.estatus === 'Buscando' && (
+
+                    {/* Botones de acción */}
+                    <div className="flex flex-wrap gap-2 pt-4 border-t">
                       <Link
                         href={`/reclutamiento/vacantes/${vacancy.id}`}
-                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md font-medium text-sm"
+                        className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md font-medium text-sm"
                       >
-                        Ver Candidatos
+                        Ver Detalles
                       </Link>
-                    )}
+                      
+                      {vacancy.estatus === 'Aprobada' && (
+                        <Link
+                          href={`/reclutamiento/vacantes/${vacancy.id}/perfil-tecnico`}
+                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium text-sm"
+                        >
+                          Definir Perfil Técnico
+                        </Link>
+                      )}
+                      
+                      {vacancy.estatus === 'Buscando' && (
+                        <Link
+                          href={`/reclutamiento/vacantes/${vacancy.id}`}
+                          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md font-medium text-sm"
+                        >
+                          Ver Candidatos
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 </div>
+              ))}
+            </div>
+            
+            {/* Paginación */}
+            {pagination.totalPages > 1 && (
+              <div className="flex items-center justify-between bg-white rounded-lg shadow-md px-4 py-3 mt-6">
+                <div className="text-sm text-gray-600">
+                  Mostrando página {pagination.page} de {pagination.totalPages} ({pagination.total} resultados)
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                    disabled={pagination.page <= 1}
+                    className={`px-3 py-1 rounded-md text-sm font-medium ${
+                      pagination.page <= 1
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                    }`}
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                    disabled={pagination.page >= pagination.totalPages}
+                    className={`px-3 py-1 rounded-md text-sm font-medium ${
+                      pagination.page >= pagination.totalPages
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                    }`}
+                  >
+                    Siguiente
+                  </button>
+                </div>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
     </DashboardLayout>
