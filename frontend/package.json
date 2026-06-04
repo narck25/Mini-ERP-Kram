@@ -10,20 +10,21 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
+    "@hookform/resolvers": "^3.9.1",
+    "autoprefixer": "^10.4.20",
+    "axios": "^1.7.9",
+    "jwt-decode": "^4.0.0",
     "next": "14.2.21",
+    "postcss": "^8.4.49",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "axios": "^1.7.9",
     "react-hook-form": "^7.54.2",
-    "zod": "^3.24.1",
-    "@hookform/resolvers": "^3.9.1",
-    "jwt-decode": "^4.0.0",
     "react-hot-toast": "^2.4.1",
-    "xlsx": "^0.18.5",
     "sharp": "^0.33.5",
     "tailwindcss": "^3.4.17",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.49"
+    "xlsx": "^0.18.5",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -33,7 +34,13 @@
     "eslint-config-next": "14.2.21",
     "typescript": "^5"
   },
-  "keywords": ["erp", "kram", "nextjs", "react", "dashboard"],
+  "keywords": [
+    "erp",
+    "kram",
+    "nextjs",
+    "react",
+    "dashboard"
+  ],
   "author": "KRAM Team",
   "license": "MIT"
 }

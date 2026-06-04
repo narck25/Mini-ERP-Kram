@@ -33,11 +33,68 @@ const CANDIDATE_STATUS = {
 };
 
 // ============================================================
-// CREACIÓN DE VACANTES
+// HELPER: Obtener o crear solicitante (empleado asociado al usuario)
 // ============================================================
 
-// Crear nueva solicitud de vacante (para jefes de área y RH) - Flujo Estándar
-exports.createVacancyRequest = async (req, res) => {
+/**
+ * Obtiene el empleado asociado al usuario, o crea uno temporal de RH si no existe.
+ * @param {string} userId - ID del usuario
+ * @param {string} role - Rol del usuario (SISTEMAS, COMPRAS, PRODUCCION, RH, ADMIN)
+ * @returns {Promise<string>} ID del empleado (solicitante_id)
+ */
+async function getOrCreateSolicitante(userId, role) {
+  // Si es jefe de área, buscar el empleado asociado
+  if (['SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(role)) {
+    const employee = await prisma.employee.findUnique({
+      where: { userId }
+    });
+
+    if (!employee) {
+      throw Object.assign(new Error('Empleado no encontrado. Contacta a RH para asociar tu usuario.'), { statusCode: 404 });
+    }
+    return employee.id;
+  }
+
+  // Si es RH/ADMIN, buscar un empleado de RH para asociar como solicitante
+  const rhEmployee = await prisma.employee.findFirst({
+    where: {
+      departamento: {
+        nombre: 'RH'
+      }
+    }
+  });
+
+  if (rhEmployee) {
+    return rhEmployee.id;
+  }
+
+  // Si no hay empleado de RH, crear uno temporal
+  const rhDepartment = await prisma.department.findFirst({
+    where: { nombre: { equals: 'RH', mode: 'insensitive' } }
+  });
+
+  const newRhEmployee = await prisma.employee.create({
+    data: {
+      nombre: 'RH - Sistema',
+      rfc: 'RH000000000',
+      curp: 'RH00000000000000',
+      nss: '00000000000',
+      fecha_ingreso: new Date(),
+      estatus: 'Activo',
+      puesto: 'Recursos Humanos',
+      departamento_id: rhDepartment?.id || '3'
+    }
+  });
+
+  return newRhEmployee.id;
+}
+
+// ============================================================
+// CREACIÓN DE VACANTES (UNIFICADA)
+// ============================================================
+
+// Función unificada para crear vacantes (flujo estándar y directo)
+exports.createVacancy = async (req, res) => {
   try {
     const { 
       titulo, 
@@ -61,56 +118,20 @@ exports.createVacancyRequest = async (req, res) => {
       entrevistadorTecnico,
       entrevistadorRespaldo,
       conocimientosAdicionales,
-      requerimientos_tecnicos, 
+      requerimientos_tecnicos,
+      actividades,
       isDirect 
     } = req.body;
     
     const userId = req.user.id;
+    const role = req.user.role;
 
-    let solicitante_id = null;
-    
-    // Si es jefe de área, buscar el empleado asociado
-    if (['SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(req.user.role)) {
-      const employee = await prisma.employee.findUnique({
-        where: { userId }
-      });
-
-      if (!employee) {
-        return res.status(404).json({ error: 'Empleado no encontrado. Contacta a RH para asociar tu usuario.' });
-      }
-      solicitante_id = employee.id;
-    } else {
-      // Si es RH, buscar un empleado de RH para asociar como solicitante
-      const rhEmployee = await prisma.employee.findFirst({
-        where: {
-          departamento: {
-            nombre: 'RH'
-          }
-        }
-      });
-      
-      if (rhEmployee) {
-        solicitante_id = rhEmployee.id;
-      } else {
-        // Si no hay empleado de RH, crear uno temporal
-        const rhDepartment = await prisma.department.findFirst({
-          where: { nombre: { equals: 'RH', mode: 'insensitive' } }
-        });
-        
-        const newRhEmployee = await prisma.employee.create({
-          data: {
-            nombre: 'RH - Sistema',
-            rfc: 'RH000000000',
-            curp: 'RH00000000000000',
-            nss: '00000000000',
-            fecha_ingreso: new Date(),
-            estatus: 'Activo',
-            puesto: 'Recursos Humanos',
-            departamento_id: rhDepartment?.id || '3'
-          }
-        });
-        solicitante_id = newRhEmployee.id;
-      }
+    // Obtener o crear el solicitante usando el helper
+    let solicitante_id;
+    try {
+      solicitante_id = await getOrCreateSolicitante(userId, role);
+    } catch (err) {
+      return res.status(err.statusCode || 500).json({ error: err.message });
     }
 
     // Verificar que el departamento existe
@@ -138,47 +159,55 @@ exports.createVacancyRequest = async (req, res) => {
     let mensajeComentario = 'Solicitud de vacante creada.';
     
     // Si RH crea la vacante con flujo directo
-    if (['RH', 'ADMIN'].includes(req.user.role) && isDirect === true) {
+    if (['RH', 'ADMIN'].includes(role) && isDirect === true) {
       estatus = VACANCY_STATUS.APROBADA;
       mensajeComentario = `✅ Vacante creada y aprobada automáticamente por RH (Flujo Directo - Pre-aprobada por Dirección).`;
     } 
     // Si RH crea la vacante sin flujo directo
-    else if (['RH', 'ADMIN'].includes(req.user.role)) {
+    else if (['RH', 'ADMIN'].includes(role)) {
       estatus = VACANCY_STATUS.APROBADA;
       mensajeComentario = `✅ Vacante creada y aprobada automáticamente por RH.`;
     }
 
-    // Crear la solicitud de vacante con todos los campos
+    // Construir datos de creación
+    const createData = {
+      titulo,
+      departamento_id,
+      jobPositionId,
+      solicitanteId: solicitante_id,
+      numeroVacantes: numeroVacantes || 1,
+      motivoSolicitud: motivoSolicitud || 'NUEVA_CREACION',
+      personaAReemplazarNombre: personaAReemplazarNombre || null,
+      personaAReemplazarCargo: personaAReemplazarCargo || null,
+      noAceptanReingresos: noAceptanReingresos || false,
+      reqComputadoraEscritorio: reqComputadoraEscritorio || false,
+      reqLaptop: reqLaptop || false,
+      reqTelefonoMovil: reqTelefonoMovil || false,
+      reqExtensionTelefonica: reqExtensionTelefonica || false,
+      ubicacionFisica: ubicacionFisica || null,
+      otrosRequerimientosFisicos: otrosRequerimientosFisicos || null,
+      tipoContratacion: tipoContratacion || 'ADMINISTRATIVO',
+      consideraPromocionInterna: consideraPromocionInterna || false,
+      candidatosInternosPropuestos: candidatosInternosPropuestos || null,
+      observacionesPromocion: observacionesPromocion || null,
+      entrevistadorTecnico: entrevistadorTecnico || '',
+      entrevistadorRespaldo: entrevistadorRespaldo || null,
+      conocimientosAdicionales: conocimientosAdicionales || null,
+      requerimientos_tecnicos: requerimientos_tecnicos || [],
+      estatus,
+      reportaA: '',
+    };
+
+    // Campos específicos para flujo directo
+    if (isDirect === true) {
+      createData.fechaAutorizacion = new Date();
+      createData.autorizadoPorId = req.user.employeeId || null;
+      createData.voBoPorId = req.user.employeeId || null;
+    }
+
+    // Crear la solicitud de vacante
     const vacancy = await prisma.jobVacancy.create({
-      data: {
-        titulo,
-        departamento_id,
-        jobPositionId,
-        solicitanteId: solicitante_id,
-        numeroVacantes: numeroVacantes || 1,
-        motivoSolicitud: motivoSolicitud || 'NUEVA_CREACION',
-        personaAReemplazarNombre: personaAReemplazarNombre || null,
-        personaAReemplazarCargo: personaAReemplazarCargo || null,
-        noAceptanReingresos: noAceptanReingresos || false,
-        reqComputadoraEscritorio: reqComputadoraEscritorio || false,
-        reqLaptop: reqLaptop || false,
-        reqTelefonoMovil: reqTelefonoMovil || false,
-        reqExtensionTelefonica: reqExtensionTelefonica || false,
-        ubicacionFisica: ubicacionFisica || null,
-        otrosRequerimientosFisicos: otrosRequerimientosFisicos || null,
-        tipoContratacion: tipoContratacion || 'ADMINISTRATIVO',
-        consideraPromocionInterna: consideraPromocionInterna || false,
-        candidatosInternosPropuestos: candidatosInternosPropuestos || null,
-        observacionesPromocion: observacionesPromocion || null,
-        entrevistadorTecnico: entrevistadorTecnico || '',
-        entrevistadorRespaldo: entrevistadorRespaldo || null,
-        conocimientosAdicionales: conocimientosAdicionales || null,
-        requerimientos_tecnicos: requerimientos_tecnicos || [],
-        estatus,
-        fechaAutorizacion: isDirect === true ? new Date() : null,
-        autorizadoPorId: isDirect === true ? (req.user.employeeId || null) : null,
-        reportaA: '',
-      },
+      data: createData,
       include: {
         departamento: true,
         solicitante: {
@@ -196,7 +225,30 @@ exports.createVacancyRequest = async (req, res) => {
       }
     });
 
+    // Si se proporcionan actividades (flujo directo), crearlas
+    if (actividades && Array.isArray(actividades) && actividades.length > 0) {
+      for (const actividad of actividades) {
+        if (actividad.activityType && actividad.description) {
+          await prisma.jobActivity.create({
+            data: {
+              vacancyId: vacancy.id,
+              activityType: actividad.activityType,
+              description: actividad.description,
+              duration: actividad.duration || null,
+              priority: actividad.priority || 1
+            }
+          });
+        }
+      }
+    }
+
     // Crear comentario automático
+    const activityText = actividades && actividades.length > 0 ? 
+      `${actividades.length} actividades definidas. ` : '';
+    if (isDirect === true) {
+      mensajeComentario = `🚀 Vacante creada mediante Flujo Directo (Pre-aprobada por Dirección). ${activityText}Lista para búsqueda inmediata.`;
+    }
+    
     await prisma.vacancyComment.create({
       data: {
         vacancy_id: vacancy.id,
@@ -207,7 +259,7 @@ exports.createVacancyRequest = async (req, res) => {
 
     // Notificar por email según el flujo
     try {
-      if (['SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(req.user.role)) {
+      if (['SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(role)) {
         // Jefe de área creó solicitud → notificar a RH
         const rhUsers = await prisma.user.findMany({
           where: { role: { in: ['RH', 'ADMIN'] } },
@@ -235,12 +287,12 @@ exports.createVacancyRequest = async (req, res) => {
     }
 
     res.status(201).json({
-      message: 'Solicitud de vacante creada exitosamente',
+      message: isDirect === true ? 'Vacante directa creada exitosamente (Flujo Fast-Track)' : 'Solicitud de vacante creada exitosamente',
       vacancy,
       isDirect: isDirect === true
     });
   } catch (error) {
-    console.error('🔥 ERROR PRISMA createVacancyRequest:', error.message || error);
+    console.error('🔥 ERROR PRISMA createVacancy:', error.message || error);
     console.error('🔥 Error stack:', error.stack);
     console.error('🔥 Request body:', JSON.stringify(req.body, null, 2));
     console.error('🔥 User:', req.user ? { id: req.user.id, role: req.user.role } : 'No user');
@@ -248,131 +300,15 @@ exports.createVacancyRequest = async (req, res) => {
   }
 };
 
-// Crear vacante directa (Flujo Fast-Track exclusivo para RH)
+// Wrapper para compatibilidad: createVacancyRequest llama a createVacancy
+exports.createVacancyRequest = async (req, res) => {
+  return exports.createVacancy(req, res);
+};
+
+// Wrapper para compatibilidad: createDirectVacancy llama a createVacancy con isDirect=true
 exports.createDirectVacancy = async (req, res) => {
-  try {
-    const { 
-      titulo, 
-      departamento_id, 
-      requerimientos_tecnicos,
-      actividades,
-      perfil_tecnico_detallado 
-    } = req.body;
-    
-    const userId = req.user.id;
-
-    // Buscar un empleado de RH para asociar como solicitante
-    let solicitante_id = null;
-    const rhEmployee = await prisma.employee.findFirst({
-      where: {
-        departamento: {
-          nombre: 'RH'
-        }
-      }
-    });
-    
-    if (rhEmployee) {
-      solicitante_id = rhEmployee.id;
-    } else {
-      const rhDepartment = await prisma.department.findFirst({
-        where: { nombre: { equals: 'RH', mode: 'insensitive' } }
-      });
-      
-      const newRhEmployee = await prisma.employee.create({
-        data: {
-          nombre: 'RH - Sistema',
-          rfc: 'RH000000000',
-          curp: 'RH00000000000000',
-          nss: '00000000000',
-          fecha_ingreso: new Date(),
-          estatus: 'Activo',
-          puesto: 'Recursos Humanos',
-          departamento_id: rhDepartment?.id || '3'
-        }
-      });
-      solicitante_id = newRhEmployee.id;
-    }
-
-    // Verificar que el departamento existe
-    const department = await prisma.department.findUnique({
-      where: { id: departamento_id }
-    });
-
-    if (!department) {
-      return res.status(404).json({ error: 'Departamento no encontrado' });
-    }
-
-    // Crear la vacante directa (pre-aprobada por dirección)
-    const vacancy = await prisma.jobVacancy.create({
-      data: {
-        titulo,
-        departamento_id,
-        solicitanteId: solicitante_id,
-        reportaA: '',
-        numeroVacantes: 1,
-        motivoSolicitud: 'NUEVA_CREACION',
-        tipoContratacion: 'ADMINISTRATIVO',
-        entrevistadorTecnico: '',
-        requerimientos_tecnicos: requerimientos_tecnicos || [],
-        estatus: VACANCY_STATUS.APROBADA,
-        fechaAutorizacion: new Date(),
-        autorizadoPorId: req.user.employeeId || null,
-        voBoPorId: req.user.employeeId || null
-      },
-      include: {
-        departamento: true,
-        solicitante: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            }
-          }
-        }
-      }
-    });
-
-    // Si se proporcionan actividades, crearlas
-    if (actividades && Array.isArray(actividades) && actividades.length > 0) {
-      for (const actividad of actividades) {
-        if (actividad.activityType && actividad.description) {
-          await prisma.jobActivity.create({
-            data: {
-              vacancyId: vacancy.id,
-              activityType: actividad.activityType,
-              description: actividad.description,
-              duration: actividad.duration || null,
-              priority: actividad.priority || 1
-            }
-          });
-        }
-      }
-    }
-
-    // Crear comentario automático
-    const activityText = actividades && actividades.length > 0 ? 
-      `${actividades.length} actividades definidas. ` : '';
-    
-    await prisma.vacancyComment.create({
-      data: {
-        vacancy_id: vacancy.id,
-        user_id: userId,
-        mensaje: `🚀 Vacante creada mediante Flujo Directo (Pre-aprobada por Dirección). ${activityText}Lista para búsqueda inmediata.`
-      }
-    });
-
-    res.status(201).json({
-      message: 'Vacante directa creada exitosamente (Flujo Fast-Track)',
-      vacancy,
-      isDirect: true
-    });
-  } catch (error) {
-    console.error('Error creating direct vacancy:', error);
-    res.status(500).json({ error: 'Error al crear la vacante directa' });
-  }
+  req.body.isDirect = true;
+  return exports.createVacancy(req, res);
 };
 
 // ============================================================
@@ -1222,15 +1158,24 @@ exports.updateCandidateVote = async (req, res) => {
       return res.status(404).json({ error: 'Candidato no encontrado' });
     }
 
-    // Buscar el empleado asociado al usuario
-    const employee = await prisma.employee.findUnique({
-      where: { userId }
-    });
-
-    if (!employee || candidate.vacancy.solicitanteId !== employee.id) {
-      return res.status(403).json({ 
-        error: 'Solo el solicitante de la vacante puede votar por candidatos' 
+    // Si es reset, permitir a RH/ADMIN sin validar solicitante
+    if (vote === 'reset') {
+      if (!['RH', 'ADMIN'].includes(req.user.role)) {
+        return res.status(403).json({ 
+          error: 'Solo RH/ADMIN puede devolver candidatos a revisión' 
+        });
+      }
+    } else {
+      // Para like/dislike, validar que sea el solicitante
+      const employee = await prisma.employee.findUnique({
+        where: { userId }
       });
+
+      if (!employee || candidate.vacancy.solicitanteId !== employee.id) {
+        return res.status(403).json({ 
+          error: 'Solo el solicitante de la vacante puede votar por candidatos' 
+        });
+      }
     }
 
     // Actualizar el estatus basado en el voto
@@ -1239,6 +1184,8 @@ exports.updateCandidateVote = async (req, res) => {
       newStatus = CANDIDATE_STATUS.SELECCIONADO;
     } else if (vote === 'dislike') {
       newStatus = CANDIDATE_STATUS.DESCARTADO;
+    } else if (vote === 'reset') {
+      newStatus = CANDIDATE_STATUS.EN_REVISION;
     }
 
     const updatedCandidate = await prisma.candidateRH.update({
@@ -1249,36 +1196,45 @@ exports.updateCandidateVote = async (req, res) => {
     });
 
     // Crear comentario automático
-    const voteText = vote === 'like' ? '👍 Visto bueno' : '👎 No seleccionado';
+    let voteText = '';
+    if (vote === 'like') {
+      voteText = '👍 Visto bueno';
+    } else if (vote === 'dislike') {
+      voteText = '👎 No seleccionado';
+    } else if (vote === 'reset') {
+      voteText = '🔄 Devuelto a revisión';
+    }
     await prisma.vacancyComment.create({
       data: {
         vacancy_id: candidate.vacancy_id,
         user_id: userId,
-        mensaje: `${voteText} para el candidato "${candidate.nombre}" por el solicitante.`
+        mensaje: `${voteText} para el candidato "${candidate.nombre}" por ${vote === 'reset' ? 'RH' : 'el solicitante'}.`
       }
     });
 
-    // Notificar a RH del voto
-    try {
-      const rhUsers = await prisma.user.findMany({
-        where: { role: { in: ['RH', 'ADMIN'] } },
-        select: { email: true, name: true }
-      });
-      for (const rhUser of rhUsers) {
-        emailService.sendCandidateVoted(
-          rhUser.email,
-          rhUser.name,
-          candidate.vacancy,
-          candidate.nombre,
-          vote
-        );
+    // Notificar a RH del voto (solo si no es reset)
+    if (vote !== 'reset') {
+      try {
+        const rhUsers = await prisma.user.findMany({
+          where: { role: { in: ['RH', 'ADMIN'] } },
+          select: { email: true, name: true }
+        });
+        for (const rhUser of rhUsers) {
+          emailService.sendCandidateVoted(
+            rhUser.email,
+            rhUser.name,
+            candidate.vacancy,
+            candidate.nombre,
+            vote
+          );
+        }
+      } catch (emailErr) {
+        console.warn('⚠️ Error al enviar notificación de voto:', emailErr.message);
       }
-    } catch (emailErr) {
-      console.warn('⚠️ Error al enviar notificación de voto:', emailErr.message);
     }
 
     res.json({
-      message: 'Voto registrado exitosamente',
+      message: vote === 'reset' ? 'Candidato devuelto a revisión' : 'Voto registrado exitosamente',
       candidate: updatedCandidate
     });
   } catch (error) {
@@ -1462,5 +1418,83 @@ exports.getVacancyFormData = async (req, res) => {
   } catch (error) {
     console.error('Error getting vacancy form data:', error);
     res.status(500).json({ success: false, error: 'Error al obtener datos para el formulario de vacante' });
+  }
+};
+
+// Actualizar documentos de un candidato (CV y/o pruebas psicométricas) - Solo RH/ADMIN
+exports.updateCandidateDocuments = async (req, res) => {
+  try {
+    const { candidate_id } = req.params;
+    const cvFile = req.files?.cv?.[0];
+    const psychTestFile = req.files?.psychTest?.[0];
+
+    // Verificar que el candidato existe
+    const candidate = await prisma.candidateRH.findUnique({
+      where: { id: candidate_id }
+    });
+
+    if (!candidate) {
+      return res.status(404).json({ error: 'Candidato no encontrado' });
+    }
+
+    // Validar que al menos un archivo se haya subido
+    if (!cvFile && !psychTestFile) {
+      return res.status(400).json({ error: 'Debe subir al menos un archivo (CV o pruebas psicométricas)' });
+    }
+
+    // Validar que los archivos sean PDF
+    if (cvFile && cvFile.mimetype !== 'application/pdf') {
+      return res.status(400).json({ error: 'El CV debe ser un archivo PDF' });
+    }
+    if (psychTestFile && psychTestFile.mimetype !== 'application/pdf') {
+      return res.status(400).json({ error: 'Las pruebas psicométricas deben ser un archivo PDF' });
+    }
+
+    // Preparar datos de actualización
+    const updateData = {};
+
+    if (cvFile) {
+      // Eliminar CV anterior del disco
+      deleteFileFromDisk(candidate.cv_url);
+      updateData.cv_url = `/uploads/cvs/${cvFile.filename}`;
+    }
+
+    if (psychTestFile) {
+      // Eliminar prueba anterior del disco
+      deleteFileFromDisk(candidate.psych_test_url);
+      updateData.psych_test_url = `/uploads/psych-tests/${psychTestFile.filename}`;
+    }
+
+    // Actualizar el candidato
+    const updatedCandidate = await prisma.candidateRH.update({
+      where: { id: candidate_id },
+      data: updateData
+    });
+
+    // Crear comentario automático
+    let mensajeDocs = '📎 Documentos actualizados:';
+    if (cvFile) mensajeDocs += ' CV reemplazado';
+    if (cvFile && psychTestFile) mensajeDocs += ' y';
+    if (psychTestFile) mensajeDocs += ' pruebas psicométricas actualizadas';
+    mensajeDocs += `.`;
+
+    await prisma.vacancyComment.create({
+      data: {
+        vacancy_id: candidate.vacancy_id,
+        user_id: req.user.id,
+        mensaje: mensajeDocs
+      }
+    });
+
+    res.json({
+      message: 'Documentos del candidato actualizados exitosamente',
+      candidate: updatedCandidate
+    });
+  } catch (error) {
+    // Si falla, limpiar archivos recién subidos
+    if (cvFile) deleteFileFromDisk(`/uploads/cvs/${cvFile.filename}`);
+    if (psychTestFile) deleteFileFromDisk(`/uploads/psych-tests/${psychTestFile.filename}`);
+    console.error('Error updating candidate documents:', error);
+    res.status(500).json({ error: 'Error al actualizar los documentos del candidato' });
   }
 };

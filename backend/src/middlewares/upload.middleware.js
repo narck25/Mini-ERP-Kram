@@ -110,6 +110,13 @@ const uploadCV = multer({
   limits: { fileSize: 10 * 1024 * 1024, files: 1 }
 });
 
+// Upload para pruebas psicométricas
+const uploadPsychTest = multer({
+  storage: createStorage(PATHS.psychTests),
+  fileFilter: fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 }
+});
+
 // Upload para fotos de empleados
 const uploadPhoto = multer({
   storage: createStorage(PATHS.photos),
@@ -166,6 +173,7 @@ module.exports = {
   upload,
   uploadPurchaseQuotes,
   uploadCV,
+  uploadPsychTest,
   uploadPhoto,
   ensureUploadDirs,
   handleMulterError

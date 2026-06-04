@@ -1,8 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+
+// Columnas del Kanban
+const COLUMNS = [
+  { id: 'En_Revision', title: '📋 En Revisión', color: 'blue' },
+  { id: 'Seleccionado', title: '👍 Seleccionados', color: 'green' },
+  { id: 'Descartado', title: '👎 Descartados', color: 'red' }
+];
 
 export default function CandidatesTab({ vacancy, user, onRefresh }) {
   const [showAddCandidate, setShowAddCandidate] = useState(false);
@@ -27,6 +35,39 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
   // Verificar si el usuario es el solicitante
   const isSolicitante = vacancy.solicitante?.user?.id === user.id;
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+  // Agrupar candidatos por estatus para las columnas Kanban
+  const getCandidatesByStatus = () => {
+    const grouped = {
+      En_Revision: [],
+      Seleccionado: [],
+      Descartado: []
+    };
+    
+    if (vacancy.candidatesRH) {
+      vacancy.candidatesRH.forEach(candidate => {
+        if (grouped[candidate.estatus]) {
+          grouped[candidate.estatus].push(candidate);
+        } else {
+          grouped.En_Revision.push(candidate);
+        }
+      });
+    }
+    
+    return grouped;
+  };
+
+  const candidatesByStatus = getCandidatesByStatus();
+
+  const validateFileSize = (file, fieldName) => {
+    if (file && file.size > MAX_FILE_SIZE) {
+      toast.error(`El archivo "${fieldName}" excede el tamaño máximo permitido de 10MB`);
+      return false;
+    }
+    return true;
+  };
+
   const handleAddCandidate = async (e) => {
     e.preventDefault();
     if (!newCandidate.nombre.trim()) {
@@ -40,6 +81,9 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
       return;
     }
 
+    // Validar tamaño del CV
+    if (!validateFileSize(cvFile, 'CV')) return;
+
     // Validar que el CV sea PDF
     if (cvFile.type !== 'application/pdf') {
       toast.error('El CV debe ser un archivo PDF');
@@ -47,9 +91,14 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
     }
     
     // Validar pruebas psicométricas solo si se proporcionan
-    if (psychTestFile && psychTestFile.type !== 'application/pdf') {
-      toast.error('Las pruebas psicométricas deben ser un archivo PDF');
-      return;
+    if (psychTestFile) {
+      // Validar tamaño de pruebas psicométricas
+      if (!validateFileSize(psychTestFile, 'Pruebas Psicométricas')) return;
+      
+      if (psychTestFile.type !== 'application/pdf') {
+        toast.error('Las pruebas psicométricas deben ser un archivo PDF');
+        return;
+      }
     }
 
     try {
@@ -135,7 +184,6 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
       return;
     }
     
-    // El backend ya devuelve la URL completa, solo necesitamos asegurar encoding
     const encodedUrl = encodeURI(candidate.cv_url);
     setPdfUrl(encodedUrl);
     setPdfTitle(`CV - ${candidate.nombre}`);
@@ -148,28 +196,98 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
       return;
     }
     
-    // El backend ya devuelve la URL completa, solo necesitamos asegurar encoding
     const encodedUrl = encodeURI(candidate.psych_test_url);
     setPdfUrl(encodedUrl);
     setPdfTitle(`Pruebas Psicométricas - ${candidate.nombre}`);
     setShowPdfModal(true);
   };
 
+  // Manejar el drag & drop entre columnas
+  const onDragEnd = useCallback(async (result) => {
+    const { source, destination, draggableId } = result;
+
+    // Si se soltó fuera de cualquier columna, no hacer nada
+    if (!destination) return;
+
+    // Si se soltó en la misma posición, no hacer nada
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+
+    const targetStatus = destination.droppableId;
+    const sourceStatus = source.droppableId;
+
+    // Determinar qué acción tomar según el movimiento
+    if (targetStatus === 'Seleccionado' && sourceStatus !== 'Seleccionado') {
+      // Movido a Seleccionados = Visto bueno (like)
+      if (isSolicitante) {
+        await handleVote(draggableId, 'like');
+      } else {
+        toast.error('Solo el solicitante puede mover candidatos a Seleccionados');
+        onRefresh(); // Revertir el drag
+      }
+    } else if (targetStatus === 'Descartado' && sourceStatus !== 'Descartado') {
+      // Movido a Descartados = No seleccionar (dislike)
+      if (isSolicitante) {
+        await handleVote(draggableId, 'dislike');
+      } else {
+        toast.error('Solo el solicitante puede descartar candidatos');
+        onRefresh(); // Revertir el drag
+      }
+    } else if (targetStatus === 'En_Revision' && sourceStatus !== 'En_Revision') {
+      // Movido de vuelta a En Revisión - solo si es RH/ADMIN
+      if (isRH) {
+        try {
+          await api.put(`/recruitment/candidates/${draggableId}/vote`, { vote: 'reset' });
+          toast.success('Candidato devuelto a revisión');
+          onRefresh();
+        } catch (error) {
+          toast.error('Error al devolver el candidato a revisión');
+          onRefresh();
+        }
+      } else {
+        toast.error('Solo RH puede devolver candidatos a revisión');
+        onRefresh();
+      }
+    } else {
+      // Mismo destino, refrescar
+      onRefresh();
+    }
+  }, [isSolicitante, isRH, vacancy.id]);
+
   const getCandidateStatusColor = (estatus) => {
     switch (estatus) {
-      case 'En_Revision': return 'bg-blue-100 text-blue-800';
-      case 'Descartado': return 'bg-red-100 text-red-800';
-      case 'Seleccionado': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'En_Revision': return 'border-l-4 border-l-blue-500';
+      case 'Descartado': return 'border-l-4 border-l-red-500';
+      case 'Seleccionado': return 'border-l-4 border-l-green-500';
+      default: return 'border-l-4 border-l-gray-500';
     }
   };
 
-  const getCandidateStatusText = (estatus) => {
-    switch (estatus) {
-      case 'En_Revision': return 'En revisión';
-      case 'Descartado': return 'Descartado';
-      case 'Seleccionado': return 'Seleccionado';
-      default: return estatus;
+  const getColumnColor = (columnId) => {
+    switch (columnId) {
+      case 'En_Revision': return {
+        header: 'bg-blue-50 border-blue-200',
+        title: 'text-blue-800',
+        badge: 'bg-blue-100 text-blue-800',
+        body: 'bg-blue-50/30'
+      };
+      case 'Seleccionado': return {
+        header: 'bg-green-50 border-green-200',
+        title: 'text-green-800',
+        badge: 'bg-green-100 text-green-800',
+        body: 'bg-green-50/30'
+      };
+      case 'Descartado': return {
+        header: 'bg-red-50 border-red-200',
+        title: 'text-red-800',
+        badge: 'bg-red-100 text-red-800',
+        body: 'bg-red-50/30'
+      };
+      default: return {
+        header: 'bg-gray-50 border-gray-200',
+        title: 'text-gray-800',
+        badge: 'bg-gray-100 text-gray-800',
+        body: 'bg-gray-50/30'
+      };
     }
   };
 
@@ -177,7 +295,12 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
     <div className="space-y-6">
       {/* Encabezado con botón para RH */}
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-900">Candidatos</h3>
+        <h3 className="text-lg font-semibold text-gray-900">
+          Pipeline de Candidatos
+          <span className="text-sm font-normal text-gray-500 ml-2">
+            (Arrastra candidatos entre columnas para cambiar su estatus)
+          </span>
+        </h3>
         {isRH && vacancy.estatus === 'Buscando' && (
           <button
             onClick={() => setShowAddCandidate(true)}
@@ -281,137 +404,170 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
         </div>
       )}
 
-      {/* Lista de candidatos */}
+      {/* Pipeline Kanban con Drag & Drop */}
       {vacancy.candidatesRH && vacancy.candidatesRH.length > 0 ? (
-        <div className="space-y-4">
-          {vacancy.candidatesRH.map((candidate) => (
-            <div key={candidate.id} className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h4 className="font-medium text-gray-900 text-lg">{candidate.nombre}</h4>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getCandidateStatusColor(candidate.estatus)}`}>
-                      {getCandidateStatusText(candidate.estatus)}
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      Registrado: {new Date(candidate.createdAt).toLocaleDateString()}
-                    </span>
+        <DragDropContext onDragEnd={onDragEnd}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {COLUMNS.map(column => {
+              const colors = getColumnColor(column.id);
+              const candidates = candidatesByStatus[column.id] || [];
+              
+              return (
+                <div key={column.id} className="flex flex-col">
+                  {/* Encabezado de columna */}
+                  <div className={`rounded-t-lg px-4 py-3 border ${colors.header}`}>
+                    <div className="flex items-center justify-between">
+                      <h4 className={`font-semibold ${colors.title}`}>{column.title}</h4>
+                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${colors.badge}`}>
+                        {candidates.length}
+                      </span>
+                    </div>
                   </div>
-                </div>
-                
-                {/* Botones de acción según rol */}
-                <div className="flex gap-2">
-                  {/* RH: Editar observaciones */}
-                  {isRH && (
-                    <button
-                      onClick={() => {
-                        setEditingObservations(candidate.id);
-                        setObservationsText(candidate.comentarios_rh || '');
-                      }}
-                      className="px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md text-sm"
-                    >
-                      {candidate.comentarios_rh ? 'Editar Obs.' : 'Agregar Obs.'}
-                    </button>
-                  )}
 
-                  {/* Solicitante: Botones de visto bueno */}
-                  {isSolicitante && candidate.estatus === 'En_Revision' && (
-                    <>
-                      <button
-                        onClick={() => handleVote(candidate.id, 'like')}
-                        className="px-3 py-1 bg-green-50 hover:bg-green-100 text-green-700 rounded-md text-sm"
+                  {/* Lista dropeable */}
+                  <Droppable droppableId={column.id}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`flex-1 min-h-[200px] p-2 space-y-2 rounded-b-lg border border-t-0 ${
+                          colors.body
+                        } ${
+                          snapshot.isDraggingOver ? 'ring-2 ring-blue-400 ring-inset' : ''
+                        }`}
                       >
-                        👍 Visto Bueno
-                      </button>
-                      <button
-                        onClick={() => handleVote(candidate.id, 'dislike')}
-                        className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-md text-sm"
-                      >
-                        👎 No Seleccionar
-                      </button>
-                    </>
-                  )}
+                        {candidates.length === 0 && !snapshot.isDraggingOver && (
+                          <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
+                            <div className="text-center">
+                              <svg className="w-8 h-8 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                              </svg>
+                              <p>Arrastra candidatos aquí</p>
+                            </div>
+                          </div>
+                        )}
 
-                  {/* Solicitante: Botón de selección final */}
-                  {isSolicitante && candidate.estatus === 'Seleccionado' && (
-                    <button
-                      onClick={() => handleSelectCandidate(candidate.id)}
-                      className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm"
-                    >
-                      🎉 Seleccionar Candidato
-                    </button>
-                  )}
+                        {candidates.map((candidate, index) => (
+                          <Draggable
+                            key={candidate.id}
+                            draggableId={candidate.id}
+                            index={index}
+                            isDragDisabled={!isSolicitante && !isRH}
+                          >
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`bg-white rounded-lg shadow-sm p-3 ${
+                                  getCandidateStatusColor(candidate.estatus)
+                                } ${
+                                  snapshot.isDragging ? 'shadow-lg ring-2 ring-blue-400 rotate-2' : ''
+                                } ${
+                                  !isSolicitante && !isRH ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+                                }`}
+                              >
+                                {/* Nombre del candidato */}
+                                <div className="flex items-start justify-between mb-2">
+                                  <h5 className="font-medium text-gray-900 text-sm leading-tight">
+                                    {candidate.nombre}
+                                  </h5>
+                                  <span className="text-xs text-gray-400 ml-1 whitespace-nowrap">
+                                    {new Date(candidate.createdAt).toLocaleDateString()}
+                                  </span>
+                                </div>
 
-                  {/* Ver CV y Pruebas Psicométricas en modal */}
-                  {candidate.cv_url && (
-                    <button
-                      onClick={() => handleViewCV(candidate)}
-                      className="px-3 py-1 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-md text-sm"
-                    >
-                      📄 Ver CV
-                    </button>
-                  )}
-                  {candidate.psych_test_url && (
-                    <button
-                      onClick={() => handleViewPsychTest(candidate)}
-                      className="px-3 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-md text-sm"
-                    >
-                      📊 Ver Pruebas
-                    </button>
-                  )}
+                                {/* Observaciones de RH */}
+                                {candidate.comentarios_rh && (
+                                  <div className="mb-2">
+                                    <p className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
+                                      {candidate.comentarios_rh}
+                                    </p>
+                                  </div>
+                                )}
+
+                                {/* Documentos disponibles */}
+                                <div className="flex gap-1 mb-2">
+                                  {candidate.cv_url && (
+                                    <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+                                      📄 CV
+                                    </span>
+                                  )}
+                                  {candidate.psych_test_url && (
+                                    <span className="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded">
+                                      📊 Tests
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Botones de acción */}
+                                <div className="flex flex-wrap gap-1">
+                                  {/* RH: Editar observaciones */}
+                                  {isRH && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingObservations(candidate.id);
+                                        setObservationsText(candidate.comentarios_rh || '');
+                                      }}
+                                      className="text-xs px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded"
+                                    >
+                                      {candidate.comentarios_rh ? 'Editar Obs.' : '+ Obs.'}
+                                    </button>
+                                  )}
+
+                                  {/* Ver CV */}
+                                  {candidate.cv_url && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleViewCV(candidate);
+                                      }}
+                                      className="text-xs px-2 py-1 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded"
+                                    >
+                                      Ver CV
+                                    </button>
+                                  )}
+
+                                  {/* Ver Pruebas */}
+                                  {candidate.psych_test_url && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleViewPsychTest(candidate);
+                                      }}
+                                      className="text-xs px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded"
+                                    >
+                                      Ver Tests
+                                    </button>
+                                  )}
+
+                                  {/* Solicitante: Botón de selección final (solo en Seleccionados) */}
+                                  {isSolicitante && candidate.estatus === 'Seleccionado' && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSelectCandidate(candidate.id);
+                                      }}
+                                      className="text-xs px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded"
+                                    >
+                                      🎉 Contratar
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
                 </div>
-              </div>
-
-              {/* Observaciones de RH */}
-              {candidate.comentarios_rh && (
-                <div className="mb-4">
-                  <h5 className="text-sm font-medium text-gray-700 mb-1">Observaciones de RH:</h5>
-                  <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
-                    {candidate.comentarios_rh}
-                  </p>
-                </div>
-              )}
-
-              {/* Formulario para editar observaciones (solo RH) */}
-              {editingObservations === candidate.id && isRH && (
-                <div className="mb-4">
-                  <h5 className="text-sm font-medium text-gray-700 mb-1">Editar observaciones:</h5>
-                  <textarea
-                    value={observationsText}
-                    onChange={(e) => setObservationsText(e.target.value)}
-                    placeholder="Escribe tus observaciones post-filtro..."
-                    rows="3"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      onClick={() => handleUpdateObservations(candidate.id)}
-                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm"
-                    >
-                      Guardar
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingObservations(null);
-                        setObservationsText('');
-                      }}
-                      className="px-3 py-1 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Información adicional */}
-              <div className="text-sm text-gray-600">
-                <p>CV: {candidate.cv_url ? '✅ Disponible' : '❌ No disponible'}</p>
-                <p>Pruebas psicométricas: {candidate.psych_test_url ? '✅ Disponible' : '❌ No disponible'}</p>
-                <p>Última actualización: {new Date(candidate.updatedAt).toLocaleDateString()}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        </DragDropContext>
       ) : (
         <div className="bg-white rounded-lg shadow-md p-8 text-center">
           <div className="text-gray-400 mb-4">
@@ -428,6 +584,40 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
         </div>
       )}
 
+      {/* Formulario para editar observaciones (modal inline) */}
+      {editingObservations && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg mx-4">
+            <h4 className="text-lg font-semibold text-gray-900 mb-4">Editar Observaciones</h4>
+            <textarea
+              value={observationsText}
+              onChange={(e) => setObservationsText(e.target.value)}
+              placeholder="Escribe tus observaciones post-filtro..."
+              rows="4"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => {
+                  setEditingObservations(null);
+                  setObservationsText('');
+                }}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleUpdateObservations(editingObservations)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Instrucciones según rol */}
       <div className="bg-gray-50 rounded-lg p-4">
         <h4 className="font-medium text-gray-900 mb-2">Instrucciones:</h4>
@@ -436,14 +626,13 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
             <>
               <li>• <strong>RH:</strong> Registra candidatos, sube sus CVs (PDF obligatorio) y opcionalmente pruebas psicométricas.</li>
               <li>• <strong>RH:</strong> Agrega observaciones post-filtro para ayudar al solicitante en la evaluación.</li>
-              <li>• <strong>Solicitante:</strong> Revisa los candidatos, lee las observaciones de RH, revisa CV y pruebas psicométricas, y marca visto bueno.</li>
+              <li>• <strong>Solicitante:</strong> Arrastra candidatos entre columnas para marcarlos como seleccionados o descartados.</li>
             </>
           )}
           {isSolicitante && (
             <>
-              <li>• <strong>Visto Bueno (👍):</strong> Marca candidatos que consideras adecuados después de revisar CV y pruebas psicométricas.</li>
-              <li>• <strong>No Seleccionar (👎):</strong> Descarta candidatos que no cumplen con los requisitos.</li>
-              <li>• <strong>Seleccionar Candidato (🎉):</strong> Elige el candidato final para cerrar la vacante.</li>
+              <li>• <strong>Arrastra</strong> candidatos de "En Revisión" a "Seleccionados" (👍) o "Descartados" (👎).</li>
+              <li>• <strong>Seleccionar Candidato (🎉):</strong> En la columna de Seleccionados, haz clic en "Contratar" para cerrar la vacante.</li>
               <li>• <strong>Documentos:</strong> Puedes ver el CV (📄) y las pruebas psicométricas (📊) de cada candidato.</li>
             </>
           )}

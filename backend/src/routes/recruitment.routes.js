@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const recruitmentController = require('../controllers/recruitment.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
-const { upload, uploadCV, ensureUploadDirs, handleMulterError } = require('../middlewares/upload.middleware');
+const { upload, uploadCV, uploadPsychTest, ensureUploadDirs, handleMulterError } = require('../middlewares/upload.middleware');
 
 // Aplicar autenticación a todas las rutas
 router.use(authMiddleware.verifyToken);
@@ -66,10 +66,13 @@ router.post('/recruitment/vacancies/:id/comments',
 router.post('/recruitment/vacancies/:vacancy_id/candidates',
   authMiddleware.requireRHOrAdmin(),
   ensureUploadDirs,
-  uploadCV.fields([
-    { name: 'cv', maxCount: 1 },
-    { name: 'psychTest', maxCount: 1 }
-  ]),
+  (req, res, next) => {
+    // Usar uploadCV para CV y uploadPsychTest para pruebas psicométricas
+    uploadCV.fields([{ name: 'cv', maxCount: 1 }])(req, res, (err) => {
+      if (err) return next(err);
+      uploadPsychTest.fields([{ name: 'psychTest', maxCount: 1 }])(req, res, next);
+    });
+  },
   recruitmentController.createCandidate
 );
 
