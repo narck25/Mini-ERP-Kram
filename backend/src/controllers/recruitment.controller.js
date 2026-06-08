@@ -43,23 +43,20 @@ const CANDIDATE_STATUS = {
  * @returns {Promise<string>} ID del empleado (solicitante_id)
  */
 async function getOrCreateSolicitante(userId, role) {
-  // Si es jefe de área, buscar el empleado asociado
-  if (['SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(role)) {
-    const employee = await prisma.employee.findUnique({
-      where: { userId }
-    });
+  // Primero buscar si el usuario ya tiene un empleado asociado
+  const employee = await prisma.employee.findUnique({
+    where: { userId }
+  });
 
-    if (!employee) {
-      throw Object.assign(new Error('Empleado no encontrado. Contacta a RH para asociar tu usuario.'), { statusCode: 404 });
-    }
+  if (employee) {
     return employee.id;
   }
 
-  // Si es RH/ADMIN, buscar un empleado de RH para asociar como solicitante
+  // Si no tiene empleado asociado, buscar un empleado de RH para asociar como solicitante
   const rhEmployee = await prisma.employee.findFirst({
     where: {
       departamento: {
-        nombre: 'RH'
+        nombre: { in: ['RH', 'RECURSOS HUMANOS'] }
       }
     }
   });
@@ -70,8 +67,12 @@ async function getOrCreateSolicitante(userId, role) {
 
   // Si no hay empleado de RH, crear uno temporal
   const rhDepartment = await prisma.department.findFirst({
-    where: { nombre: { equals: 'RH', mode: 'insensitive' } }
+    where: { nombre: { in: ['RH', 'RECURSOS HUMANOS'] } }
   });
+
+  if (!rhDepartment) {
+    throw Object.assign(new Error('No se encontró el departamento de RH. Debe existir al menos un departamento RH en el sistema.'), { statusCode: 500 });
+  }
 
   const newRhEmployee = await prisma.employee.create({
     data: {
@@ -82,7 +83,7 @@ async function getOrCreateSolicitante(userId, role) {
       fecha_ingreso: new Date(),
       estatus: 'Activo',
       puesto: 'Recursos Humanos',
-      departamento_id: rhDepartment?.id || '3'
+      departamento_id: rhDepartment.id
     }
   });
 
@@ -576,7 +577,7 @@ const deleteFileFromDisk = (filePath) => {
   }
 };
 
-// Eliminar vacante completamente (solo RH/ADMIN)
+// Eliminar vacante completamente (solo usuarios con acceso a RECLUTAMIENTO)
 exports.deleteVacancy = async (req, res) => {
   try {
     const { id } = req.params;
@@ -991,15 +992,13 @@ exports.addComment = async (req, res) => {
       return res.status(404).json({ error: 'Solicitud de vacante no encontrada' });
     }
 
-    // Verificar permisos: jefes de área solo pueden comentar en sus propias solicitudes
-    if (['SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(req.user.role)) {
-      const employee = await prisma.employee.findUnique({
-        where: { userId }
-      });
+    // Verificar permisos: usuarios con empleado asociado solo pueden comentar en sus propias solicitudes
+    const employee = await prisma.employee.findUnique({
+      where: { userId }
+    });
 
-      if (!employee || vacancy.solicitanteId !== employee.id) {
-        return res.status(403).json({ error: 'Solo puedes comentar en tus propias solicitudes' });
-      }
+    if (employee && vacancy.solicitanteId !== employee.id) {
+      return res.status(403).json({ error: 'Solo puedes comentar en tus propias solicitudes' });
     }
 
     const comment = await prisma.vacancyComment.create({
@@ -1209,11 +1208,11 @@ exports.updateCandidateVote = async (req, res) => {
       return res.status(404).json({ error: 'Candidato no encontrado' });
     }
 
-    // Si es reset, permitir a RH/ADMIN sin validar solicitante
+    // Si es reset, permitir a usuarios con acceso a RECLUTAMIENTO sin validar solicitante
     if (vote === 'reset') {
-      if (!['RH', 'ADMIN'].includes(req.user.role)) {
+      if (!req.user.accessibleModules?.includes('RECLUTAMIENTO')) {
         return res.status(403).json({ 
-          error: 'Solo RH/ADMIN puede devolver candidatos a revisión' 
+          error: 'No tienes permiso para devolver candidatos a revisión' 
         });
       }
     } else {
@@ -1472,7 +1471,7 @@ exports.getVacancyFormData = async (req, res) => {
   }
 };
 
-// Actualizar documentos de un candidato (CV y/o pruebas psicométricas) - Solo RH/ADMIN
+// Actualizar documentos de un candidato (CV y/o pruebas psicométricas)
 exports.updateCandidateDocuments = async (req, res) => {
   try {
     const { candidate_id } = req.params;

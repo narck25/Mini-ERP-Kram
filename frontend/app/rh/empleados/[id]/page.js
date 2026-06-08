@@ -8,6 +8,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { exportEmployeeToPDF } from '@/lib/employeePdfExport';
 
 // ============================================================
 // MODAL REUTILIZABLE PARA EDITAR SECCIONES
@@ -83,6 +84,37 @@ function EmployeeProfilePage() {
   const [showBeneficiariosModal, setShowBeneficiariosModal] = useState(false);
   const [showFamiliaresModal, setShowFamiliaresModal] = useState(false);
 
+  // Función para calcular SD/SDI en frontend
+  const calcularSD_SDI = (salarioMensual, fechaIngreso) => {
+    if (!salarioMensual || !fechaIngreso) return { sd: '', sdi: '' };
+    const salario = parseFloat(salarioMensual);
+    if (isNaN(salario) || salario <= 0) return { sd: '', sdi: '' };
+    
+    const sd = (salario / 30).toFixed(2);
+    
+    const fechaIngresoDate = new Date(fechaIngreso);
+    const hoy = new Date();
+    let antiguedad = hoy.getFullYear() - fechaIngresoDate.getFullYear();
+    const mesDiff = hoy.getMonth() - fechaIngresoDate.getMonth();
+    if (mesDiff < 0 || (mesDiff === 0 && hoy.getDate() < fechaIngresoDate.getDate())) {
+      antiguedad--;
+    }
+    antiguedad = Math.max(1, Math.min(30, antiguedad || 1));
+    
+    const factores = {
+      1: 1.0493, 2: 1.0507, 3: 1.0521, 4: 1.0534, 5: 1.0548,
+      6: 1.0562, 7: 1.0562, 8: 1.0562, 9: 1.0562, 10: 1.0562,
+      11: 1.0575, 12: 1.0575, 13: 1.0575, 14: 1.0575, 15: 1.0575,
+      16: 1.0589, 17: 1.0589, 18: 1.0589, 19: 1.0589, 20: 1.0589,
+      21: 1.0603, 22: 1.0603, 23: 1.0603, 24: 1.0603, 25: 1.0603,
+      26: 1.0616, 27: 1.0616, 28: 1.0616, 29: 1.0616, 30: 1.0616
+    };
+    const factor = factores[antiguedad] || 1.0493;
+    const sdi = (sd * factor).toFixed(2);
+    
+    return { sd, sdi };
+  };
+
   // Formularios individuales por sección
   const [personalForm, setPersonalForm] = useState({});
   const [laboralForm, setLaboralForm] = useState({});
@@ -96,6 +128,11 @@ function EmployeeProfilePage() {
   // Foto de perfil
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Historial de sueldos
+  const [salaryHistory, setSalaryHistory] = useState([]);
+  const [showSalaryHistoryModal, setShowSalaryHistoryModal] = useState(false);
+  const [loadingSalaryHistory, setLoadingSalaryHistory] = useState(false);
 
   // Documentos
   const [documents, setDocuments] = useState([]);
@@ -192,7 +229,19 @@ function EmployeeProfilePage() {
 
   // Handlers específicos para cada sección
   const handlePersonalChange = handleFormChange(setPersonalForm);
-  const handleLaboralChange = handleFormChange(setLaboralForm);
+  const handleLaboralChange = (e) => {
+    const { name, value } = e.target;
+    setLaboralForm(prev => {
+      const updated = { ...prev, [name]: value };
+      // Recalcular SD/SDI automáticamente cuando cambia salario o fecha de ingreso
+      if (name === 'salary' || name === 'fecha_ingreso') {
+        const { sd, sdi } = calcularSD_SDI(updated.salary, updated.fecha_ingreso);
+        updated.sd = sd;
+        updated.sdi = sdi;
+      }
+      return updated;
+    });
+  };
   const handleContactoChange = handleFormChange(setContactoForm);
   const handleLegalChange = handleFormChange(setLegalForm);
   const handleFinancieroChange = handleFormChange(setFinancieroForm);
@@ -377,9 +426,20 @@ function EmployeeProfilePage() {
   // ============================================================
   // FUNCIONES AUXILIARES
   // ============================================================
+  // Helper para formatear fecha evitando el bug del día anterior
+  // Extrae la fecha como string YYYY-MM-DD antes de crear el objeto Date
+  const formatDateSafe = (fecha) => {
+    if (!fecha) return 'No especificada';
+    const dateStr = typeof fecha === 'string' ? fecha.split('T')[0] : fecha;
+    const [year, month, day] = dateStr.split('-');
+    return `${day}/${month}/${year}`;
+  };
+
   const calcularEdad = (fechaNacimiento) => {
     if (!fechaNacimiento) return 'No especificada';
-    const nacimiento = new Date(fechaNacimiento);
+    const dateStr = typeof fechaNacimiento === 'string' ? fechaNacimiento.split('T')[0] : fechaNacimiento;
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const nacimiento = new Date(year, month - 1, day);
     const hoy = new Date();
     let edad = hoy.getFullYear() - nacimiento.getFullYear();
     const mes = hoy.getMonth() - nacimiento.getMonth();
@@ -389,7 +449,9 @@ function EmployeeProfilePage() {
 
   const calcularAntiguedad = (fechaAlta) => {
     if (!fechaAlta) return 'No especificada';
-    const ingreso = new Date(fechaAlta);
+    const dateStr = typeof fechaAlta === 'string' ? fechaAlta.split('T')[0] : fechaAlta;
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const ingreso = new Date(year, month - 1, day);
     const hoy = new Date();
     let años = hoy.getFullYear() - ingreso.getFullYear();
     let meses = hoy.getMonth() - ingreso.getMonth();
@@ -410,7 +472,10 @@ function EmployeeProfilePage() {
 
   const fechaALetras = (fecha) => {
     if (!fecha) return 'No especificada';
-    return new Date(fecha).toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const dateStr = typeof fecha === 'string' ? fecha.split('T')[0] : fecha;
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const fechaSegura = new Date(year, month - 1, day);
+    return fechaSegura.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   };
 
   const numeroATexto = (numero) => {
@@ -557,6 +622,32 @@ function EmployeeProfilePage() {
                   )}
                 </div>
               )}
+              {/* Botón Exportar PDF (visible para ADMIN/RH) */}
+              {user && (user.role === 'ADMIN' || user.role === 'RH') && (
+                <button
+                  onClick={async () => {
+                    try {
+                      // Cargar salary history si no está cargado
+                      let history = salaryHistory;
+                      if (history.length === 0) {
+                        const response = await api.get(`/employees/${employee.id}/salary-history`);
+                        history = response.data.salaryHistory || [];
+                      }
+                      exportEmployeeToPDF(employee, history);
+                    } catch (error) {
+                      console.error('Error exporting PDF:', error);
+                      toast.error('Error al generar el PDF');
+                    }
+                  }}
+                  className="mt-2 px-3 py-1.5 text-xs bg-green-500 hover:bg-green-600 text-white rounded-md font-medium transition-all flex items-center gap-1"
+                  title="Exportar resumen del empleado a PDF"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Exportar PDF
+                </button>
+              )}
               {/* Input file oculto */}
               <input
                 ref={fileInputRef}
@@ -604,7 +695,7 @@ function EmployeeProfilePage() {
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Nombres:</span><span className="text-sm text-gray-900">{employee.nombres || employee.nombre || 'No especificado'}</span></div>
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Apellido Paterno:</span><span className="text-sm text-gray-900">{employee.apellidoPaterno || 'No especificado'}</span></div>
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Apellido Materno:</span><span className="text-sm text-gray-900">{employee.apellidoMaterno || 'No especificado'}</span></div>
-              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Fecha de Nacimiento:</span><span className="text-sm text-gray-900">{employee.fechaNacimiento ? new Date(employee.fechaNacimiento).toLocaleDateString('es-MX') : 'No especificada'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Fecha de Nacimiento:</span><span className="text-sm text-gray-900">{formatDateSafe(employee.fechaNacimiento)}</span></div>
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Edad:</span><span className="text-sm text-gray-900">{calcularEdad(employee.fechaNacimiento)}</span></div>
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Lugar de Nacimiento:</span><span className="text-sm text-gray-900">{employee.lugarNacimiento || 'No especificado'}</span></div>
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Estado Civil:</span><span className="text-sm text-gray-900">{employee.estadoCivil || 'No especificado'}</span></div>
@@ -625,7 +716,7 @@ function EmployeeProfilePage() {
             <div className="space-y-2">
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Puesto:</span><span className="text-sm text-gray-900">{employee.puesto?.nombre || 'Sin puesto asignado'}</span></div>
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Departamento:</span><span className="text-sm text-gray-900">{employee.departamento?.nombre || 'No asignado'}</span></div>
-              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Fecha de Ingreso:</span><span className="text-sm text-gray-900">{employee.fechaAlta ? new Date(employee.fechaAlta).toLocaleDateString('es-MX') : 'No especificada'}</span></div>
+              <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Fecha de Ingreso:</span><span className="text-sm text-gray-900">{formatDateSafe(employee.fechaAlta)}</span></div>
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Salario Mensual:</span><span className="text-sm text-gray-900">{employee.salarioMensual ? `$${employee.salarioMensual.toLocaleString('es-MX')}` : 'No especificado'}</span></div>
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Área:</span><span className="text-sm text-gray-900">{employee.area || 'No especificado'}</span></div>
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Región:</span><span className="text-sm text-gray-900">{employee.region || 'No especificado'}</span></div>
@@ -634,6 +725,57 @@ function EmployeeProfilePage() {
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Sucursal:</span><span className="text-sm text-gray-900">{employee.sucursal || 'No especificado'}</span></div>
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Jefe Directo:</span><span className="text-sm text-gray-900">{employee.reportaA?.nombre || employee.jefeDirecto || 'No especificado'}</span></div>
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">SD / SDI:</span><span className="text-sm text-gray-900">${employee.sd?.toLocaleString('es-MX') || '0'} / ${employee.sdi?.toLocaleString('es-MX') || '0'}</span></div>
+            </div>
+          </div>
+
+          {/* CARD: HISTORIAL DE SUELDOS */}
+          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <span className="text-blue-600">📊</span> Historial de Sueldos
+              </h3>
+              {user && (user.role === 'ADMIN' || user.role === 'RH') && (
+                <button
+                  onClick={async () => {
+                    setLoadingSalaryHistory(true);
+                    setShowSalaryHistoryModal(true);
+                    try {
+                      const response = await api.get(`/employees/${employee.id}/salary-history`);
+                      setSalaryHistory(response.data.salaryHistory || []);
+                    } catch (error) {
+                      console.error('Error fetching salary history:', error);
+                      toast.error('Error al cargar historial de sueldos');
+                      setSalaryHistory([]);
+                    } finally {
+                      setLoadingSalaryHistory(false);
+                    }
+                  }}
+                  className="ml-2 px-3 py-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md font-medium border border-blue-200 transition-colors"
+                >
+                  📋 Ver Historial
+                </button>
+              )}
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm font-medium text-gray-500">Salario Actual:</span>
+                <span className="text-sm text-gray-900 font-semibold">
+                  {employee.salarioMensual ? `$${employee.salarioMensual.toLocaleString('es-MX')}` : 'No especificado'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium text-gray-500">SD Actual:</span>
+                <span className="text-sm text-gray-900">${employee.sd?.toLocaleString('es-MX') || '0'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium text-gray-500">SDI Actual:</span>
+                <span className="text-sm text-gray-900">${employee.sdi?.toLocaleString('es-MX') || '0'}</span>
+              </div>
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <p className="text-xs text-gray-400">
+                  Los cambios salariales se registran automáticamente al modificar el salario en Datos Laborales.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -715,7 +857,7 @@ function EmployeeProfilePage() {
                 <h4 className="font-medium text-gray-900 mb-2">Beneficiario 1</h4>
                 <div className="space-y-1">
                   <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Nombre:</span><span className="text-sm text-gray-900">{employee.beneficiario1 || 'No especificado'}</span></div>
-                  <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Fecha Nac.:</span><span className="text-sm text-gray-900">{employee.fechaNacBeneficiario1 ? new Date(employee.fechaNacBeneficiario1).toLocaleDateString('es-MX') : 'No especificada'}</span></div>
+                  <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Fecha Nac.:</span><span className="text-sm text-gray-900">{formatDateSafe(employee.fechaNacBeneficiario1)}</span></div>
                   <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Porcentaje:</span><span className="text-sm text-gray-900">{employee.porcentaje1 ? `${employee.porcentaje1}%` : 'No especificado'}</span></div>
                 </div>
               </div>
@@ -723,7 +865,7 @@ function EmployeeProfilePage() {
                 <h4 className="font-medium text-gray-900 mb-2">Beneficiario 2</h4>
                 <div className="space-y-1">
                   <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Nombre:</span><span className="text-sm text-gray-900">{employee.beneficiario2 || 'No especificado'}</span></div>
-                  <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Fecha Nac.:</span><span className="text-sm text-gray-900">{employee.fechaNacBeneficiario2 ? new Date(employee.fechaNacBeneficiario2).toLocaleDateString('es-MX') : 'No especificada'}</span></div>
+                  <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Fecha Nac.:</span><span className="text-sm text-gray-900">{formatDateSafe(employee.fechaNacBeneficiario2)}</span></div>
                   <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Porcentaje:</span><span className="text-sm text-gray-900">{employee.porcentaje2 ? `${employee.porcentaje2}%` : 'No especificado'}</span></div>
                 </div>
               </div>
@@ -804,7 +946,7 @@ function EmployeeProfilePage() {
                       <tr key={doc.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{doc.tipo_documento}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{doc.nombre_archivo}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(doc.uploaded_at).toLocaleDateString('es-MX')}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDateSafe(doc.uploaded_at)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{doc.size_bytes ? `${Math.round(doc.size_bytes / 1024)} KB` : 'N/A'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button onClick={() => handleDownloadDocument(doc.id, doc.nombre_archivo)} className="text-blue-600 hover:text-blue-900 mr-3">Descargar</button>
@@ -927,11 +1069,11 @@ function EmployeeProfilePage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">SD (Sueldo Diario)</label>
-            <input type="number" step="0.01" name="sd" value={laboralForm.sd} onChange={handleLaboralChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input type="number" step="0.01" name="sd" value={laboralForm.sd} readOnly className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600 cursor-not-allowed" title="Se calcula automáticamente: Salario Mensual ÷ 30" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">SDI (Sueldo Diario Integrado)</label>
-            <input type="number" step="0.01" name="sdi" value={laboralForm.sdi} onChange={handleLaboralChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input type="number" step="0.01" name="sdi" value={laboralForm.sdi} readOnly className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600 cursor-not-allowed" title="Se calcula automáticamente: SD × Factor de Integración" />
           </div>
         </div>
       </EditSectionModal>
@@ -1067,6 +1209,111 @@ function EmployeeProfilePage() {
           </div>
         </div>
       </EditSectionModal>
+
+      {/* ============================================================ */}
+      {/* MODAL: HISTORIAL DE SUELDOS */}
+      {/* ============================================================ */}
+      {showSalaryHistoryModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  <span className="text-blue-600">📊</span> Historial de Sueldos
+                </h2>
+                <button onClick={() => setShowSalaryHistoryModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {loadingSalaryHistory ? (
+                <div className="text-center py-8">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <p className="mt-2 text-gray-600">Cargando historial...</p>
+                </div>
+              ) : salaryHistory.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No hay registros de cambios salariales para este empleado.</p>
+                  <p className="text-gray-400 text-sm mt-2">Los cambios se registran automáticamente al modificar el salario.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Salario Anterior</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Salario Nuevo</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">SD Anterior</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">SD Nuevo</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">SDI Anterior</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">SDI Nuevo</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Factor</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Motivo</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {salaryHistory.map((record) => (
+                        <tr key={record.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                            {formatDateSafe(record.fechaCambio)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              record.tipoCambio === 'ALTA' ? 'bg-green-100 text-green-800' :
+                              record.tipoCambio === 'INCREMENTO' ? 'bg-blue-100 text-blue-800' :
+                              record.tipoCambio === 'DECREMENTO' ? 'bg-red-100 text-red-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {record.tipoCambio}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right">
+                            {record.salarioAnterior ? `$${record.salarioAnterior.toLocaleString('es-MX')}` : '-'}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-semibold">
+                            ${record.salarioNuevo.toLocaleString('es-MX')}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right">
+                            {record.sdAnterior ? `$${record.sdAnterior.toLocaleString('es-MX')}` : '-'}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right">
+                            {record.sdNuevo ? `$${record.sdNuevo.toLocaleString('es-MX')}` : '-'}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right">
+                            {record.sdiAnterior ? `$${record.sdiAnterior.toLocaleString('es-MX')}` : '-'}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right">
+                            {record.sdiNuevo ? `$${record.sdiNuevo.toLocaleString('es-MX')}` : '-'}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                            {record.factorUsado || '-'}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 max-w-[150px] truncate" title={record.motivo || ''}>
+                            {record.motivo || '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-6 border-t border-gray-200 mt-6">
+                <button
+                  onClick={() => setShowSalaryHistoryModal(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md font-medium hover:bg-gray-50"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL: DATOS FAMILIARES */}
       <EditSectionModal isOpen={showFamiliaresModal} onClose={() => setShowFamiliaresModal(false)} title="Editar Datos Familiares" onSave={saveFamiliares} saving={saving}>

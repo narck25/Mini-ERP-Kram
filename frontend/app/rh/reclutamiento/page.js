@@ -323,7 +323,11 @@ function RHReclutamientoPageContent() {
                           {getStatusText(vacancy.estatus)}
                         </span>
                         <span className="text-sm text-gray-500">
-                          {new Date(vacancy.createdAt).toLocaleDateString()}
+                          {(() => {
+                            const dateStr = vacancy.createdAt.split('T')[0];
+                            const [y, m, d] = dateStr.split('-');
+                            return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString();
+                          })()}
                         </span>
                       </div>
                     </div>

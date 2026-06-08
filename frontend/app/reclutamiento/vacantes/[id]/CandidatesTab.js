@@ -29,6 +29,12 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
   const [pdfUrl, setPdfUrl] = useState('');
   const [pdfTitle, setPdfTitle] = useState('');
 
+  // Estado para editar documentos del candidato
+  const [editingDocuments, setEditingDocuments] = useState(null);
+  const [newCvFile, setNewCvFile] = useState(null);
+  const [newPsychTestFile, setNewPsychTestFile] = useState(null);
+  const [submittingDocs, setSubmittingDocs] = useState(false);
+
   // Verificar si el usuario tiene acceso al módulo de Reclutamiento y es RH/ADMIN
   const isRH = user.accessibleModules?.includes('RECLUTAMIENTO') && (user.role === 'RH' || user.role === 'ADMIN');
   
@@ -188,6 +194,55 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
     setPdfUrl(encodedUrl);
     setPdfTitle(`CV - ${candidate.nombre}`);
     setShowPdfModal(true);
+  };
+
+  const handleUpdateDocuments = async (candidateId) => {
+    if (!newCvFile && !newPsychTestFile) {
+      toast.error('Debe seleccionar al menos un archivo (CV o pruebas psicométricas)');
+      return;
+    }
+
+    // Validar CV si se seleccionó
+    if (newCvFile) {
+      if (!validateFileSize(newCvFile, 'CV')) return;
+      if (newCvFile.type !== 'application/pdf') {
+        toast.error('El CV debe ser un archivo PDF');
+        return;
+      }
+    }
+
+    // Validar pruebas psicométricas si se seleccionaron
+    if (newPsychTestFile) {
+      if (!validateFileSize(newPsychTestFile, 'Pruebas Psicométricas')) return;
+      if (newPsychTestFile.type !== 'application/pdf') {
+        toast.error('Las pruebas psicométricas deben ser un archivo PDF');
+        return;
+      }
+    }
+
+    try {
+      setSubmittingDocs(true);
+      const formData = new FormData();
+      if (newCvFile) formData.append('cv', newCvFile);
+      if (newPsychTestFile) formData.append('psychTest', newPsychTestFile);
+
+      await api.put(`/recruitment/candidates/${candidateId}/documents`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      toast.success('Documentos actualizados exitosamente');
+      setEditingDocuments(null);
+      setNewCvFile(null);
+      setNewPsychTestFile(null);
+      onRefresh();
+    } catch (error) {
+      console.error('Error updating documents:', error);
+      toast.error(error.response?.data?.error || 'Error al actualizar documentos');
+    } finally {
+      setSubmittingDocs(false);
+    }
   };
 
   const handleViewPsychTest = (candidate) => {
@@ -502,6 +557,21 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
 
                                 {/* Botones de acción */}
                                 <div className="flex flex-wrap gap-1">
+                                  {/* RH: Editar documentos (CV y pruebas) */}
+                                  {isRH && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingDocuments(candidate.id);
+                                        setNewCvFile(null);
+                                        setNewPsychTestFile(null);
+                                      }}
+                                      className="text-xs px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded"
+                                    >
+                                      📎 Editar Docs
+                                    </button>
+                                  )}
+
                                   {/* RH: Editar observaciones */}
                                   {isRH && (
                                     <button
@@ -639,6 +709,75 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
           <li>• Una vez seleccionado un candidato, la vacante se cerrará automáticamente.</li>
         </ul>
       </div>
+
+      {/* Modal para editar documentos del candidato */}
+      {editingDocuments && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg mx-4">
+            <h4 className="text-lg font-semibold text-gray-900 mb-4">📎 Editar Documentos del Candidato</h4>
+            <p className="text-sm text-gray-500 mb-4">
+              Puedes reemplazar el CV, agregar/actualizar las pruebas psicométricas, o ambos.
+              Los archivos anteriores se eliminarán automáticamente.
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  CV (PDF) - Dejar vacío para mantener el actual
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => setNewCvFile(e.target.files[0])}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {newCvFile && (
+                  <p className="text-sm text-green-600 mt-1">
+                    Nuevo archivo: {newCvFile.name}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Pruebas Psicométricas (PDF) - Dejar vacío para mantener las actuales
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => setNewPsychTestFile(e.target.files[0])}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {newPsychTestFile && (
+                  <p className="text-sm text-green-600 mt-1">
+                    Nuevo archivo: {newPsychTestFile.name}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+              <button
+                onClick={() => {
+                  setEditingDocuments(null);
+                  setNewCvFile(null);
+                  setNewPsychTestFile(null);
+                }}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleUpdateDocuments(editingDocuments)}
+                disabled={submittingDocs || (!newCvFile && !newPsychTestFile)}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submittingDocs ? 'Subiendo...' : 'Actualizar Documentos'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal para visualizar PDFs */}
       {showPdfModal && (

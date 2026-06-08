@@ -7,6 +7,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 export default function ComprasAdminPage() {
   const { user } = useAuth();
@@ -16,7 +17,7 @@ export default function ComprasAdminPage() {
   const [statusFilter, setStatusFilter] = useState('');
 
   useEffect(() => {
-    if (user && (user.role === 'ADMIN' || user.role === 'COMPRAS' || user.accessibleModules?.includes('COMPRAS'))) {
+    if (user && user.accessibleModules?.includes('COMPRAS')) {
       fetchAllRequests();
       fetchStats();
     }
@@ -226,7 +227,7 @@ export default function ComprasAdminPage() {
   };
 
   // Verificar permisos
-  const hasAccess = user && (user.role === 'ADMIN' || user.role === 'COMPRAS' || user.accessibleModules?.includes('COMPRAS'));
+  const hasAccess = user && user.accessibleModules?.includes('COMPRAS');
   
   if (!hasAccess) {
     return (
@@ -285,6 +286,40 @@ export default function ComprasAdminPage() {
               <h3 className="text-sm font-medium text-gray-700">Cancelado</h3>
               <p className="text-2xl font-bold text-gray-600 mt-1">{stats.cancelado}</p>
             </div>
+          </div>
+        )}
+
+        {/* Gráfica de tendencias */}
+        {stats && (
+          <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Solicitudes por Estado</h2>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={[
+                { name: 'Nuevo', value: stats.nuevo || 0, fill: '#EF4444' },
+                { name: 'Pendiente', value: stats.pendiente || 0, fill: '#F59E0B' },
+                { name: 'En Aut.', value: stats.enAutorizacion || 0, fill: '#3B82F6' },
+                { name: 'Aprobado', value: stats.aprobado || 0, fill: '#10B981' },
+                { name: 'Entregado', value: stats.entregado || 0, fill: '#059669' },
+                { name: 'Cancelado', value: stats.cancelado || 0, fill: '#6B7280' }
+              ]}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                  {[
+                    { name: 'Nuevo', value: stats.nuevo || 0, fill: '#EF4444' },
+                    { name: 'Pendiente', value: stats.pendiente || 0, fill: '#F59E0B' },
+                    { name: 'En Aut.', value: stats.enAutorizacion || 0, fill: '#3B82F6' },
+                    { name: 'Aprobado', value: stats.aprobado || 0, fill: '#10B981' },
+                    { name: 'Entregado', value: stats.entregado || 0, fill: '#059669' },
+                    { name: 'Cancelado', value: stats.cancelado || 0, fill: '#6B7280' }
+                  ].map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         )}
 

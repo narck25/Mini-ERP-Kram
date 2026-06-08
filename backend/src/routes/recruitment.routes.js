@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const recruitmentController = require('../controllers/recruitment.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
-const { upload, uploadCV, uploadPsychTest, ensureUploadDirs, handleMulterError } = require('../middlewares/upload.middleware');
+const { upload, uploadCV, uploadPsychTest, uploadCandidate, ensureUploadDirs, handleMulterError } = require('../middlewares/upload.middleware');
 
 // Aplicar autenticación a todas las rutas
 router.use(authMiddleware.verifyToken);
@@ -66,12 +66,27 @@ router.post('/recruitment/vacancies/:id/comments',
 router.post('/recruitment/vacancies/:vacancy_id/candidates',
   authMiddleware.requireRHOrAdmin(),
   ensureUploadDirs,
+  uploadCandidate.fields([
+    { name: 'cv', maxCount: 1 },
+    { name: 'psychTest', maxCount: 1 }
+  ]),
   (req, res, next) => {
-    // Usar uploadCV para CV y uploadPsychTest para pruebas psicométricas
-    uploadCV.fields([{ name: 'cv', maxCount: 1 }])(req, res, (err) => {
-      if (err) return next(err);
-      uploadPsychTest.fields([{ name: 'psychTest', maxCount: 1 }])(req, res, next);
-    });
+    // Mover psychTest a la carpeta psych-tests si existe
+    if (req.files?.psychTest?.[0]) {
+      const psychFile = req.files.psychTest[0];
+      const fs = require('fs');
+      const path = require('path');
+      const oldPath = psychFile.path;
+      const newPath = path.join(path.dirname(oldPath).replace('cvs', 'psych-tests'), psychFile.filename);
+      const newDir = path.dirname(newPath);
+      if (!fs.existsSync(newDir)) {
+        fs.mkdirSync(newDir, { recursive: true });
+      }
+      fs.renameSync(oldPath, newPath);
+      psychFile.path = newPath;
+      psychFile.destination = newDir;
+    }
+    next();
   },
   recruitmentController.createCandidate
 );
@@ -80,6 +95,35 @@ router.post('/recruitment/vacancies/:vacancy_id/candidates',
 router.put('/recruitment/candidates/:candidate_id/observations', 
   authMiddleware.requireRHOrAdmin(), 
   recruitmentController.updateCandidateObservations
+);
+
+// RH: Actualizar documentos de candidatos (CV y/o pruebas psicométricas) - Solo RH/ADMIN
+router.put('/recruitment/candidates/:candidate_id/documents',
+  authMiddleware.requireRHOrAdmin(),
+  ensureUploadDirs,
+  uploadCandidate.fields([
+    { name: 'cv', maxCount: 1 },
+    { name: 'psychTest', maxCount: 1 }
+  ]),
+  (req, res, next) => {
+    // Mover psychTest a la carpeta psych-tests si existe
+    if (req.files?.psychTest?.[0]) {
+      const psychFile = req.files.psychTest[0];
+      const fs = require('fs');
+      const path = require('path');
+      const oldPath = psychFile.path;
+      const newPath = path.join(path.dirname(oldPath).replace('cvs', 'psych-tests'), psychFile.filename);
+      const newDir = path.dirname(newPath);
+      if (!fs.existsSync(newDir)) {
+        fs.mkdirSync(newDir, { recursive: true });
+      }
+      fs.renameSync(oldPath, newPath);
+      psychFile.path = newPath;
+      psychFile.destination = newDir;
+    }
+    next();
+  },
+  recruitmentController.updateCandidateDocuments
 );
 
 // Solicitante: Votar por candidatos (like/dislike) - Solo jefes de área
@@ -104,6 +148,12 @@ router.get('/recruitment/candidates/:candidate_id/cv',
 router.delete('/recruitment/vacancies/:id', 
   authMiddleware.requireRHOrAdmin(), 
   recruitmentController.deleteVacancy
+);
+
+// Actualizar actividad (marcar como completada)
+router.put('/recruitment/activities/:activityId', 
+  authMiddleware.requireModule('RECLUTAMIENTO'), 
+  recruitmentController.updateActivity
 );
 
 // Cancelar vacante por el solicitante (cambia a estado Cerrada)

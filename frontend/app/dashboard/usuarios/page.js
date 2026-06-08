@@ -349,7 +349,7 @@ function UsersManagementPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(userItem.createdAt).toLocaleDateString('es-MX')}
+                      {(() => { const d = userItem.createdAt.split('T')[0].split('-'); return `${d[2]}/${d[1]}/${d[0]}`; })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button

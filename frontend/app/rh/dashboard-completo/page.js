@@ -7,6 +7,8 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import UpcomingEventsWidget from '@/components/UpcomingEventsWidget';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
 function RHDashboardCompletoPage() {
   const { user, loading: authLoading } = useAuth();
@@ -250,6 +252,74 @@ function RHDashboardCompletoPage() {
               </div>
             </div>
 
+            {/* Sección de Próximos Eventos (Cumpleaños y Aniversarios) */}
+            <UpcomingEventsWidget />
+
+            {/* Sección de Gráficas */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              {/* Gráfica de Vacantes por Estatus */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">Vacantes por Estatus</h2>
+                {dashboardData?.vacancies?.total > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={[
+                      { name: 'Abiertas', value: dashboardData.vacancies.open || 0 },
+                      { name: 'En Proceso', value: dashboardData.vacancies.inProgress || 0 },
+                      { name: 'Cerradas', value: dashboardData.vacancies.closed || 0 }
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="value" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>No hay datos de vacantes disponibles</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Gráfica de Distribución de Empleados */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">Distribución de Empleados</h2>
+                {dashboardData?.employees?.total > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Activos', value: dashboardData.employees.active || 0 },
+                          { name: 'Vacaciones', value: dashboardData.employees.onVacation || 0 },
+                          { name: 'Incapacidades', value: dashboardData.employees.onLeave || 0 }
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={true}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {[
+                          { name: 'Activos', value: dashboardData.employees.active || 0 }
+                        ].map((entry, index) => {
+                          const COLORS = ['#10B981', '#F59E0B', '#EF4444'];
+                          return <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />;
+                        })}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>No hay datos de empleados disponibles</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Sección de Contrataciones Recientes */}
             <div className="bg-white rounded-xl shadow-md p-6 mb-8">
               <div className="flex justify-between items-center mb-6">
@@ -315,7 +385,7 @@ function RHDashboardCompletoPage() {
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">
-                              {hire.fechaAlta ? new Date(hire.fechaAlta).toLocaleDateString('es-MX') : 'No especificada'}
+                              {hire.fechaAlta ? (() => { const d = hire.fechaAlta.split('T')[0].split('-'); return `${d[2]}/${d[1]}/${d[0]}`; })() : 'No especificada'}
                             </div>
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap">

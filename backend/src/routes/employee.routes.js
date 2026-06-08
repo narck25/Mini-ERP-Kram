@@ -81,4 +81,7 @@ router.post('/employees/:id/photo',
 // Ruta para obtener puestos por departamento
 router.get('/departments/:id/job-positions', employeeOrgController.getJobPositionsByDepartment);
 
+// Ruta para obtener historial de sueldos de un empleado
+router.get('/employees/:id/salary-history', AuthMiddleware.requireRHOrAdmin(), employeeCoreController.getSalaryHistory);
+
 module.exports = router;

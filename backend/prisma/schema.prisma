@@ -12,7 +12,7 @@ model User {
   email             String           @unique
   password          String
   name              String
-  role              RoleType
+  role              String           @default("EMPLEADO_BASICO")
   accessibleModules ModuleType[]     @default([DASHBOARD])
   isActive          Boolean          @default(true)
   createdAt         DateTime         @default(now())
@@ -26,9 +26,11 @@ model User {
 
 model Role {
   id          String   @id @default(cuid())
-  name        RoleType @unique
+  name        String   @unique
   description String?
-  permissions Json
+  color       String   @default("bg-gray-100 text-gray-800")
+  icon        String   @default("👤")
+  isCustom    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -116,6 +118,8 @@ model Employee {
   comprasSolicitadas    PurchaseRequest[]  @relation("ComprasSolicitante")
   comprasAutorizadas    PurchaseRequest[]  @relation("ComprasAutorizador")
   puesto                JobPosition?       @relation(fields: [puestoId], references: [id])
+  salaryHistory         SalaryHistory[]
+  notificationLogs      NotificationLog[]
 
   @@map("employees")
 }
@@ -326,11 +330,15 @@ enum VacancyStatus {
 }
 
 enum NivelJerarquico {
-  GERENTE
-  SUPERVISOR
-  OPERATIVO
-  COORDINADOR
+  PRESIDENTE
   DIRECTOR
+  GERENTE
+  JEFE
+  COORDINADOR
+  ANALISTA
+  SUPERVISOR
+  AUX_ADMINISTRATIVO
+  OPERATIVO
 }
 
 enum CandidateStatus {
@@ -418,4 +426,53 @@ model AttendanceRecord {
   @@index([numeroEmpleado])
   @@index([fechaHora])
   @@map("attendance_records")
+}
+
+model FactorIntegracion {
+  id              Int     @id @default(autoincrement())
+  anio            Int     @unique // Año de antigüedad (1-30)
+  diasAguinaldo   Int     // Días de aguinaldo (15 fijos)
+  diasVacaciones  Int     // Días de vacaciones según LFT
+  primaVacacional Float   // % prima vacacional (0.25 = 25%)
+  factor          Float   // Factor de integración precalculado
+
+  @@map("factores_integracion")
+}
+
+model SalaryHistory {
+  id              String   @id @default(cuid())
+  employeeId      String
+  salarioAnterior Float?
+  salarioNuevo    Float
+  sdAnterior      Float?
+  sdNuevo         Float
+  sdiAnterior     Float?
+  sdiNuevo        Float
+  factorUsado     Float?
+  tipoCambio      String   // 'ALTA' | 'INCREMENTO' | 'DECREMENTO' | 'AJUSTE'
+  motivo          String?
+  fechaCambio     DateTime @default(now())
+  usuarioId       String?
+  empleado        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([fechaCambio])
+  @@map("salary_history")
+}
+
+model NotificationLog {
+  id           String   @id @default(cuid())
+  tipo         String   // 'CUMPLEANOS' | 'ANIVERSARIO'
+  employeeId   String
+  employeeName String
+  email        String
+  enviadoA     DateTime @default(now())
+  estatus      String   // 'ENVIADO' | 'FALLIDO'
+  errorMsg     String?
+  employee     Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId])
+  @@index([tipo])
+  @@index([enviadoA])
+  @@map("notification_logs")
 }

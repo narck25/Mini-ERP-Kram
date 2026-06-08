@@ -10,19 +10,18 @@ export default function RHDashboardPage() {
   const { user } = useAuth();
 
   useEffect(() => {
-    // Redirigir al dashboard completo de RH
-    if (user && ['RH', 'ADMIN'].includes(user.role)) {
-      router.push('/rh/dashboard-completo');
+    if (user && user.accessibleModules?.includes('EMPLEADOS')) {
+      router.replace('/rh/dashboard-completo');
     }
   }, [user, router]);
 
-  if (!user || !['RH', 'ADMIN'].includes(user.role)) {
+  if (!user || !user.accessibleModules?.includes('EMPLEADOS')) {
     return (
       <DashboardLayout>
         <div className="p-6">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <h2 className="text-red-800 font-semibold">Acceso denegado</h2>
-            <p className="text-red-600 mt-1">Solo el personal de RH puede acceder a esta sección.</p>
+            <p className="text-red-600 mt-1">No tienes acceso al módulo de Empleados.</p>
           </div>
         </div>
       </DashboardLayout>

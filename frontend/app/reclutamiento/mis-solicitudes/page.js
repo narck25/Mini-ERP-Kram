@@ -21,7 +21,7 @@ export default function MisSolicitudesPage() {
   });
 
   useEffect(() => {
-    if (user && ['ADMIN', 'RH', 'SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(user.role)) {
+    if (user && user.accessibleModules?.includes('RECLUTAMIENTO')) {
       fetchMyVacancies();
     }
   }, [user, pagination.page]);
@@ -65,13 +65,13 @@ export default function MisSolicitudesPage() {
     }
   };
 
-  if (!user || !['ADMIN', 'RH', 'SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(user.role)) {
+  if (!user || !user.accessibleModules?.includes('RECLUTAMIENTO')) {
     return (
       <DashboardLayout>
         <div className="p-6">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <h2 className="text-red-800 font-semibold">Acceso denegado</h2>
-            <p className="text-red-600 mt-1">Solo usuarios autorizados (Administradores, RH, o jefes de área) pueden acceder a esta sección.</p>
+            <p className="text-red-600 mt-1">No tienes acceso al módulo de Reclutamiento. Contacta a un administrador si necesitas acceso.</p>
           </div>
         </div>
       </DashboardLayout>
@@ -149,7 +149,11 @@ export default function MisSolicitudesPage() {
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">{vacancy.titulo}</h3>
                         <p className="text-sm text-gray-600">
-                          {vacancy.departamento?.nombre} • Solicitado: {new Date(vacancy.createdAt).toLocaleDateString()}
+                          {vacancy.departamento?.nombre} • Solicitado: {(() => {
+                            const dateStr = vacancy.createdAt.split('T')[0];
+                            const [y, m, d] = dateStr.split('-');
+                            return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString();
+                          })()}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">

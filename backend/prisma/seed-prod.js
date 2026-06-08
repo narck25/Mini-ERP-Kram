@@ -12,21 +12,35 @@ async function main() {
   // ============================================================
   console.log('📋 Verificando roles del sistema...');
   const roles = [
-    { name: 'ADMIN', description: 'Administrador del sistema', permissions: ['*'] },
-    { name: 'RH', description: 'Recursos Humanos', permissions: ['users.read', 'users.write', 'vacancies.*'] },
-    { name: 'SISTEMAS', description: 'Departamento de Sistemas', permissions: ['system.*', 'vacancies.create'] },
-    { name: 'COMPRAS', description: 'Departamento de Compras', permissions: ['purchases.*', 'vacancies.create'] },
-    { name: 'PRODUCCION', description: 'Departamento de Producción', permissions: ['production.*', 'vacancies.create'] },
-    { name: 'EMPLEADO_BASICO', description: 'Empleado sin permisos administrativos', permissions: ['basic.access'] }
+    { name: 'ADMIN', description: 'Administrador del sistema', color: 'bg-purple-100 text-purple-800', icon: '👑', isCustom: false },
+    { name: 'RH', description: 'Recursos Humanos', color: 'bg-blue-100 text-blue-800', icon: '👥', isCustom: false },
+    { name: 'SISTEMAS', description: 'Departamento de Sistemas', color: 'bg-green-100 text-green-800', icon: '💻', isCustom: false },
+    { name: 'COMPRAS', description: 'Departamento de Compras', color: 'bg-yellow-100 text-yellow-800', icon: '🛒', isCustom: false },
+    { name: 'PRODUCCION', description: 'Departamento de Producción', color: 'bg-red-100 text-red-800', icon: '🏭', isCustom: false },
+    { name: 'EMPLEADO_BASICO', description: 'Empleado sin permisos administrativos', color: 'bg-gray-100 text-gray-800', icon: '👤', isCustom: false }
   ];
 
   for (const roleData of roles) {
-    const existing = await prisma.role.findUnique({ where: { name: roleData.name } });
-    if (!existing) {
-      await prisma.role.create({ data: roleData });
-      console.log(`   ✅ Rol creado: ${roleData.name}`);
-    } else {
-      console.log(`   ⏭️  Rol ya existe: ${roleData.name}`);
+    try {
+      const existing = await prisma.role.findUnique({ where: { name: roleData.name } });
+      if (!existing) {
+        await prisma.role.create({ data: roleData });
+        console.log(`   ✅ Rol creado: ${roleData.name}`);
+      } else {
+        console.log(`   ⏭️  Rol ya existe: ${roleData.name}`);
+      }
+    } catch (err) {
+      // Si falla con P2032 (incompatibilidad de tipos), intentar con SQL directo
+      if (err.code === 'P2032') {
+        console.log(`   ⚠️  Error con Prisma ORM para ${roleData.name}, intentando con SQL directo...`);
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO roles (name, description, color, icon, "isCustom") VALUES ($1, $2, $3, $4, $5) ON CONFLICT (name) DO NOTHING`,
+          roleData.name, roleData.description, roleData.color, roleData.icon, roleData.isCustom
+        );
+        console.log(`   ✅ Rol creado (SQL directo): ${roleData.name}`);
+      } else {
+        throw err;
+      }
     }
   }
   console.log('✅ Roles verificados');

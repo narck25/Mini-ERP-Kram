@@ -6,27 +6,21 @@ const authMiddleware = require('../middlewares/auth.middleware');
 // Aplicar autenticación a todas las rutas
 router.use(authMiddleware.verifyToken);
 
-// Estadísticas para RH (endpoint antiguo - mantener compatibilidad)
-router.get('/stats/rh',
-  authMiddleware.requireRole(['ADMIN', 'RH']),
-  statsController.getRHStats
-);
-
 // Dashboard de RH (nuevo endpoint optimizado)
 router.get('/stats/rh/dashboard',
   authMiddleware.requireModule('EMPLEADOS'),
   statsController.getRHDashboardStats
 );
 
-// Estadísticas para jefes de departamento
-router.get('/stats/department',
-  authMiddleware.requireRole(['SISTEMAS', 'COMPRAS', 'PRODUCCION']),
-  statsController.getDepartmentStats
+// Estadísticas para jefes de departamento (Mi Espacio)
+router.get('/stats/my-dashboard',
+  authMiddleware.requireModule('EMPLEADOS'),
+  statsController.getMyDashboardStats
 );
 
-// Estadísticas del sistema (solo ADMIN)
+// Estadísticas del sistema (solo ADMIN - Nivel C)
 router.get('/stats/system',
-  authMiddleware.requireRole(['ADMIN']),
+  authMiddleware.requireModule('CONFIGURACION'),
   statsController.getSystemStats
 );
 

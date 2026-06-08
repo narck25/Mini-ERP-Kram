@@ -108,9 +108,8 @@ class PermissionController {
         accessibleModules: modulesToSet
       };
 
-      // Si se proporciona un rol, actualizarlo también
-      const validRoles = ['ADMIN', 'RH', 'SISTEMAS', 'COMPRAS', 'PRODUCCION', 'EMPLEADO_BASICO'];
-      if (role && validRoles.includes(role)) {
+      // Si se proporciona un rol, actualizarlo (acepta cualquier string, incluidos roles personalizados)
+      if (role && role.trim().length > 0) {
         updateData.role = role;
       }
 

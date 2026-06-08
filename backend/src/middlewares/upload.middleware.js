@@ -117,6 +117,13 @@ const uploadPsychTest = multer({
   limits: { fileSize: 10 * 1024 * 1024, files: 1 }
 });
 
+// Upload para candidatos (CV + pruebas psicométricas en un solo middleware)
+const uploadCandidate = multer({
+  storage: createStorage(PATHS.cvs),
+  fileFilter: fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024, files: 2 }
+});
+
 // Upload para fotos de empleados
 const uploadPhoto = multer({
   storage: createStorage(PATHS.photos),
@@ -174,6 +181,7 @@ module.exports = {
   uploadPurchaseQuotes,
   uploadCV,
   uploadPsychTest,
+  uploadCandidate,
   uploadPhoto,
   ensureUploadDirs,
   handleMulterError

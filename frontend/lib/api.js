@@ -90,6 +90,9 @@ export const employeeApi = {
   
   // Empleado actual (para usuarios regulares)
   getCurrent: () => api.get('/employees/me'),
+  
+  // Historial de sueldos
+  getSalaryHistory: (id) => api.get(`/employees/${id}/salary-history`),
 }
 
 // Módulo de Vacantes Originales (Sistemas/Compras)
@@ -193,6 +196,24 @@ export const permissionApi = {
   
   // Obtener permisos del usuario actual
   getCurrentUserPermissions: () => api.get('/permissions/me'),
+}
+
+// Módulo de Roles y Módulos del Sistema (dinámicos)
+export const systemApi = {
+  // Obtener todos los roles disponibles
+  getRoles: () => api.get('/roles'),
+  
+  // Crear un nuevo rol personalizado
+  createRole: (roleData) => api.post('/roles', roleData),
+  
+  // Actualizar un rol personalizado
+  updateRole: (roleId, roleData) => api.put(`/roles/${roleId}`, roleData),
+  
+  // Eliminar un rol personalizado
+  deleteRole: (roleId) => api.delete(`/roles/${roleId}`),
+  
+  // Obtener todos los módulos disponibles
+  getModules: () => api.get('/modules'),
 }
 
 export default api

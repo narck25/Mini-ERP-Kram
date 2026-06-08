@@ -91,7 +91,7 @@ exports.getDepartments = async (req, res) => {
   }
 };
 
-// Obtener jefes directos (empleados con nivel jerárquico GERENTE, DIRECTOR, SUPERVISOR, COORDINADOR)
+// Obtener jefes directos (empleados con nivel jerárquico PRESIDENTE, DIRECTOR, GERENTE, JEFE, COORDINADOR, SUPERVISOR)
 exports.getManagers = async (req, res) => {
   try {
     // Verificar que el usuario esté autenticado
@@ -102,7 +102,7 @@ exports.getManagers = async (req, res) => {
     const managers = await prisma.employee.findMany({
       where: {
         nivelJerarquico: {
-          in: ['GERENTE', 'DIRECTOR', 'SUPERVISOR', 'COORDINADOR']
+          in: ['PRESIDENTE', 'DIRECTOR', 'GERENTE', 'JEFE', 'COORDINADOR', 'SUPERVISOR']
         },
         estatus: 'Activo'
       },

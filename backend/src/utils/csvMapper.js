@@ -20,7 +20,9 @@ const RECOMMENDED_HEADERS = [
   'JEFE DIRECTO', 'SD', 'SDI',
   'TALLA CAMISA', 'TALLA PLAYERA', 'TALLA PANTALON', 'TALLA ZAPATOS', 'NOMBRE CONYUGE',
   'BENEFICIARIO 1', 'FECHA NAC BENEFICIARIO 1', 'PORCENTAJE 1',
-  'BENEFICIARIO 2', 'FECHA NAC BENEFICIARIO 2', 'PORCENTAJE 2'
+  'BENEFICIARIO 2', 'FECHA NAC BENEFICIARIO 2', 'PORCENTAJE 2',
+  // Nuevas columnas para jerarquía
+  'NIVEL JERARQUICO', 'JEFE DIRECTO (CLAVE)'
 ];
 
 /**
@@ -145,6 +147,10 @@ function mapEmployeeFromCsv(row, prisma) {
     jefeDirecto: row['JEFE DIRECTO'] || row['JEFE_DIRECTO'] || row['jefeDirecto'] || null,
     sd: parseNumber(row['SD'] || row['sd'] || null),
     sdi: parseNumber(row['SDI'] || row['sdi'] || null),
+    
+    // Campos de jerarquía (NUEVOS)
+    nivelJerarquico: (row['NIVEL JERARQUICO'] || row['NIVEL_JERARQUICO'] || row['nivelJerarquico'] || 'OPERATIVO').toUpperCase().trim(),
+    jefeDirectoClave: row['JEFE DIRECTO (CLAVE)'] || row['JEFE_DIRECTO_CLAVE'] || row['jefeDirectoClave'] || null,
     
     // Uniformes y Extras
     tallaCamisa: row['TALLA CAMISA'] || row['TALLA_CAMISA'] || row['tallaCamisa'] || null,
@@ -371,6 +377,43 @@ async function prepareForPrisma(employeeData, prisma) {
     }
   }
 
+  // Calcular SD y SDI automáticamente si hay salario y fecha de alta
+  if (employeeData.salarioMensual && employeeData.fechaAlta) {
+    try {
+      const { calcularTodo } = require('./salaryCalculator');
+      const calculos = calcularTodo(employeeData.salarioMensual, employeeData.fechaAlta);
+      if (calculos.sd !== null) {
+        employeeData.sd = calculos.sd;
+        employeeData.sdi = calculos.sdi;
+        console.log(`✅ SD/SDI calculados automáticamente: SD=${calculos.sd}, SDI=${calculos.sdi} (factor=${calculos.factor})`);
+      }
+    } catch (error) {
+      console.warn('⚠️ No se pudieron calcular SD/SDI automáticamente:', error.message);
+    }
+  }
+
+  // Buscar jefe directo por clave (si se proporciona JEFE DIRECTO (CLAVE))
+  let reportaAId = null;
+  const jefeClave = employeeData.jefeDirectoClave;
+  
+  if (jefeClave && jefeClave.trim() !== '') {
+    try {
+      const jefe = await prisma.employee.findFirst({
+        where: { clave: jefeClave.trim() },
+        select: { id: true }
+      });
+      
+      if (jefe) {
+        reportaAId = jefe.id;
+        console.log(`✅ Jefe directo encontrado por clave "${jefeClave}": ID ${reportaAId}`);
+      } else {
+        console.warn(`⚠️ No se encontró empleado con clave "${jefeClave}" para asignar como jefe directo`);
+      }
+    } catch (error) {
+      console.error(`Error al buscar jefe directo por clave "${jefeClave}":`, error);
+    }
+  }
+
   return {
     clave: employeeData.clave,
     nombres: employeeData.nombres,
@@ -410,6 +453,9 @@ async function prepareForPrisma(employeeData, prisma) {
     jefeDirecto: employeeData.jefeDirecto,
     sd: employeeData.sd,
     sdi: employeeData.sdi,
+    // Campos de jerarquía
+    nivelJerarquico: employeeData.nivelJerarquico,
+    reportaAId: reportaAId,
     tallaCamisa: employeeData.tallaCamisa,
     tallaPlayera: employeeData.tallaPlayera,
     tallaPantalon: employeeData.tallaPantalon,

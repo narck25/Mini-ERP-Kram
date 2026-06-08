@@ -4,28 +4,28 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { getRoleName } from '@/lib/rolesConfig'
 
 // Sección 1: "Mi Portal" (Autoservicio y Equipo)
 const myPortalNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: '🏠', module: 'DASHBOARD' },
+  { name: 'Mi Espacio', href: '/dashboard/mi-espacio', icon: '🌟', module: 'EMPLEADOS' },
   { name: 'Mi Equipo', href: '/rh/empleados', icon: '👥', module: 'EMPLEADOS' },
   { name: 'Mis Vacantes', href: '/reclutamiento/mis-solicitudes', icon: '📝', module: 'RECLUTAMIENTO' },
   { name: 'Mis Compras', href: '/compras/mis-solicitudes', icon: '🛒', module: 'COMPRAS' },
 ]
 
 // Sección 2: "Administración Global" (Gestión Total)
+// Nota: Se usa module para control de acceso (Nivel A) y roles como filtro adicional (Nivel C)
 const adminNavigation = [
-  { name: 'RH - Dashboard', href: '/rh/dashboard-completo', icon: '📋', roles: ['ADMIN', 'RH'] },
-  { name: 'RH - Reclutamiento', href: '/rh/reclutamiento', icon: '📋', roles: ['ADMIN', 'RH'] },
-  { name: 'Crear Vacante HR', href: '/rh/reclutamiento/crear-vacante', icon: '➕', roles: ['ADMIN', 'RH'] },
-  { name: 'Dashboard Completo', href: '/rh/dashboard-completo', icon: '📊', roles: ['ADMIN', 'RH'] },
-  { name: 'Incidencias', href: '/rh/incidencias', icon: '⏰', roles: ['ADMIN', 'RH'] },
-  { name: 'Gestión Global de Compras', href: '/dashboard/compras', icon: '📊', roles: ['ADMIN', 'COMPRAS'] },
-  { name: 'Organización', href: '/dashboard/organizacion', icon: '🏢', roles: ['ADMIN'] },
-  { name: 'Gestión de Accesos', href: '/dashboard/accesos', icon: '🔐', roles: ['ADMIN'] },
-  { name: 'Gestión de Usuarios', href: '/dashboard/usuarios', icon: '👤', roles: ['ADMIN'] },
-  { name: 'Reportes', href: '/rh/dashboard-completo', icon: '📊', module: 'REPORTES' },
-  { name: 'Configuración', href: '/dashboard/accesos', icon: '⚙️', module: 'CONFIGURACION' },
+  { name: 'Dashboard RH', href: '/rh/dashboard-completo', icon: '📊', module: 'EMPLEADOS', roles: ['ADMIN', 'RH'] },
+  { name: 'Reclutamiento RH', href: '/rh/reclutamiento', icon: '📋', module: 'RECLUTAMIENTO', roles: ['ADMIN', 'RH'] },
+  { name: 'Crear Vacante HR', href: '/rh/reclutamiento/crear-vacante', icon: '➕', module: 'RECLUTAMIENTO', roles: ['ADMIN', 'RH'] },
+  { name: 'Incidencias', href: '/rh/incidencias', icon: '⏰', module: 'INCIDENCIAS', roles: ['ADMIN', 'RH'] },
+  { name: 'Gestión de Compras', href: '/dashboard/compras', icon: '📊', module: 'COMPRAS', roles: ['ADMIN', 'COMPRAS'] },
+  { name: 'Organización', href: '/dashboard/organizacion', icon: '🏢', module: 'EMPLEADOS', roles: ['ADMIN'] },
+  { name: 'Gestión de Accesos', href: '/dashboard/accesos', icon: '🔐', module: 'CONFIGURACION', roles: ['ADMIN'] },
+  { name: 'Gestión de Usuarios', href: '/dashboard/usuarios', icon: '👤', module: 'CONFIGURACION', roles: ['ADMIN'] },
 ]
 
 const userNavigation = [
@@ -60,28 +60,24 @@ export default function DashboardLayout({ children }) {
     return user?.accessibleModules?.includes(item.module)
   })
 
-  // Filtrar navegación de "Administración Global" basada en roles
+  // Filtrar navegación de "Administración Global"
+  // Nivel A: Verificar acceso al módulo
+  // Nivel C: Verificar rol si está especificado
   const filteredAdmin = adminNavigation.filter(item => {
-    if (item.module) {
-      // Si tiene módulo, verificar acceso
-      return user?.accessibleModules?.includes(item.module)
-    } else if (item.roles) {
-      // Si tiene roles, verificar si el usuario tiene alguno de esos roles
+    // Primero verificar acceso al módulo (Nivel A)
+    const hasModuleAccess = item.module 
+      ? user?.accessibleModules?.includes(item.module)
+      : true
+    
+    if (!hasModuleAccess) return false
+    
+    // Luego verificar rol si está especificado (Nivel C)
+    if (item.roles) {
       return item.roles.includes(user?.role)
     }
-    return false
+    
+    return true
   })
-
-  const getRoleName = (role) => {
-    const roles = {
-      ADMIN: 'Administrador',
-      RH: 'Recursos Humanos',
-      SISTEMAS: 'Sistemas',
-      COMPRAS: 'Compras',
-      PRODUCCION: 'Producción'
-    }
-    return roles[role] || role
-  }
 
   return (
     <div className="min-h-screen">

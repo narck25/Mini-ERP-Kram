@@ -1,4 +1,4 @@
-require('dotenv').config();
+ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -45,7 +45,7 @@ const loadRoute = (name, routePath) => {
 };
 
 const authRoutes = loadRoute('auth', './routes/auth.routes');
-const vacancyRoutes = loadRoute('vacancy', './routes/vacancy.routes');
+// NOTA: vacancy.routes.js fue eliminado. Usar recruitment.routes.js para funcionalidad de vacantes.
 const employeeRoutes = loadRoute('employee', './routes/employee.routes');
 const employeeDocumentRoutes = loadRoute('employeeDocument', './routes/employeeDocument.routes');
 const recruitmentRoutes = loadRoute('recruitment', './routes/recruitment.routes');
@@ -55,6 +55,8 @@ const userRoutes = loadRoute('user', './routes/user.routes');
 const organizationRoutes = loadRoute('organization', './routes/organization.routes');
 const purchaseRoutes = loadRoute('purchase', './routes/purchase.routes');
 const attendanceRoutes = loadRoute('attendance', './routes/attendance.routes');
+const rolesRoutes = loadRoute('roles', './routes/roles.routes');
+const notificationsRoutes = loadRoute('notifications', './routes/notifications.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -133,7 +135,6 @@ app.get('/api/health', (req, res) => {
 // Routes
 // ============================================================
 app.use('/api/auth', authRoutes);
-app.use('/api', vacancyRoutes);
 app.use('/api', employeeRoutes);
 app.use('/api', employeeDocumentRoutes);
 app.use('/api', recruitmentRoutes);
@@ -143,6 +144,8 @@ app.use('/api/users', userRoutes);
 app.use('/api', organizationRoutes);
 app.use('/api', purchaseRoutes);
 app.use('/api/incidencias', attendanceRoutes);
+app.use('/api', rolesRoutes);
+app.use('/api', notificationsRoutes);
 
 // ============================================================
 // 404 handler
@@ -204,6 +207,24 @@ app.use((err, req, res, next) => {
       : err.message 
   });
 });
+
+// ============================================================
+// Scheduler diario para notificaciones de cumpleaños y aniversarios
+// ============================================================
+const cron = require('node-cron');
+const { checkAndNotify } = require('./services/birthdayAnniversary.service');
+
+// Ejecutar todos los días a las 8:00 AM
+cron.schedule('0 8 * * *', async () => {
+  console.log('⏰ Ejecutando verificación diaria de cumpleaños y aniversarios...');
+  try {
+    await checkAndNotify();
+  } catch (err) {
+    console.error('❌ Error en scheduler diario:', err.message);
+  }
+});
+
+console.log('⏰ Scheduler diario configurado (8:00 AM)');
 
 // ============================================================
 // Inicio del servidor

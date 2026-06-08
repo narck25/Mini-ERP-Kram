@@ -243,7 +243,7 @@ function TechnicalProfilePageContent() {
             <div>
               <span className="text-sm font-medium text-gray-700">Fecha de aprobación:</span>
               <p className="text-sm text-gray-600">
-                {new Date(vacancy.updatedAt).toLocaleDateString('es-MX')}
+                {(() => { const d = vacancy.updatedAt.split('T')[0].split('-'); return `${d[2]}/${d[1]}/${d[0]}`; })()}
               </p>
             </div>
           </div>

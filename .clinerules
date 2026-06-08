@@ -1,15 +1,106 @@
 # REGLAS MAESTRAS DEL ERP KRAM (AI SYSTEM PROMPT)
 
-## 1. Sistema de Permisos (ACL)
+## 1. Sistema de Permisos (ACL) — Filosofía Escalable
 
-**NUNCA** uses validaciones rígidas de roles (`user.role === 'RH'`) para ocultar/mostrar módulos en el Frontend o bloquear rutas en el Backend.
+El ERP está diseñado para que los permisos de acceso sean **dinámicos y configurables por usuario**, no atados a un rol fijo. Esto permite agregar nuevos roles o reorganizar responsabilidades sin modificar código.
 
-**SIEMPRE** utiliza el array `user.accessibleModules`.
+### Regla de Oro
 
-- **En React**, usa el componente `<ProtectedRoute requiredModule='NOMBRE_MODULO'>`.
-- **En Express**, usa el middleware `requireModule('NOMBRE_MODULO')`.
+**NUNCA** uses validaciones rígidas de roles (`user.role === 'SISTEMAS'`) para ocultar/mostrar módulos en el Frontend o bloquear rutas en el Backend, **a menos que sea ADMIN o RH**.
 
-**Excepción**: Solo operaciones críticas del sistema (como modificar permisos de otros) deben validarse por rol (ADMIN).
+**SIEMPRE** utiliza el array `user.accessibleModules` para control de acceso a módulos de usuarios regulares.
+
+### Excepción: ADMIN y RH tienen bypass total
+
+Los roles **ADMIN** y **RH** son roles administrativos del sistema y tienen **acceso total a todos los módulos y datos**. Por lo tanto:
+
+- **ADMIN**: Puede ver y hacer TODO en el sistema (acceso completo a módulos + operaciones críticas)
+- **RH**: Puede ver y hacer TODO en los módulos que gestiona (acceso completo a módulos + scoping total de datos)
+
+Esto significa que en validaciones de acceso y scoping, SIEMPRE se debe verificar primero si el usuario es ADMIN o RH:
+
+```js
+// ✅ BIEN: Bypass para ADMIN/RH en acceso a módulos
+if (user.role === 'ADMIN' || user.role === 'RH') {
+  // Tiene acceso completo, no verificar módulos
+}
+if (user.accessibleModules?.includes('EMPLEADOS')) { ... }
+
+// ✅ BIEN: Bypass para ADMIN/RH en scoping de datos
+if (user.role === 'ADMIN' || user.role === 'RH') {
+  // Ve todos los datos, sin filtros de scoping
+}
+// Para otros roles, aplicar scoping por jerarquía/departamento
+```
+
+### Estrategia de 3 Niveles (Tiered Access Control)
+
+| Nivel | Mecanismo | Cuándo usarlo | Ejemplos |
+|-------|-----------|---------------|----------|
+| **A — Control de Acceso a Módulos** | `accessibleModules?.includes('MODULO')` + bypass ADMIN/RH | Ocultar/mostrar menús, proteger rutas, validar endpoints de lectura/escritura | "¿Este usuario puede ver el módulo de Empleados?" |
+| **B — Scoping de Datos / Visibilidad** | Lógica de negocio (empleado asociado, departamento, nivel jerárquico) + bypass ADMIN/RH | Determinar QUÉ datos ve el usuario dentro de un módulo | "¿Este jefe ve todos los empleados o solo los de su departamento?" |
+| **C — Operaciones Críticas del Sistema** | `requireRole(['ADMIN'])` o `req.user.role !== 'ADMIN'` | Modificar permisos de usuarios, eliminar usuarios, shell del sistema | Solo ADMIN puede cambiar roles/módulos de otros usuarios |
+
+### Guía Rápida por Tecnología
+
+**En React (Frontend):**
+- Usa `user.accessibleModules?.includes('MODULO')` para validar acceso a páginas/secciones
+- Usa `<ProtectedRoute requiredModule='NOMBRE_MODULO'>` para proteger rutas
+- Para scoping de datos en UI, usa atributos del empleado (`employeeNivelJerarquico`, `employeeDepartamentoId`)
+- **ADMIN y RH**: bypass total, no necesitan verificar módulos ni scoping
+- El rol (`user.role`) se consulta para bypass de ADMIN/RH y operaciones de nivel C
+
+**En Express (Backend):**
+- Usa `requireModule('NOMBRE_MODULO')` para proteger endpoints de cualquier tipo
+- Para scoping de datos, aplica filtros en `where` de Prisma según el empleado asociado al usuario
+- **ADMIN y RH**: bypass total en scoping de datos
+- Usa `requireRole(['ADMIN'])` o `req.user.role !== 'ADMIN'` **SOLO** para operaciones críticas del sistema (Nivel C)
+- Para notificaciones, es válido buscar usuarios por rol de negocio (`where: { role: { in: ['RH'] } }`) como destinatarios
+
+### Lo que NUNCA debes hacer
+
+```js
+// ❌ MAL: Hardcodear roles NO administrativos para acceso a módulos
+if (user.role === 'SISTEMAS') { ... }
+if (['SISTEMAS', 'COMPRAS'].includes(user.role)) { ... }
+
+// ❌ MAL: Hardcodear roles en el frontend para redirigir
+if (['SISTEMAS', 'COMPRAS'].includes(user.role)) {
+  router.push('/rh/dashboard-completo');
+}
+
+// ✅ BIEN: Bypass ADMIN/RH + accessibleModules para acceso a módulos
+if (user.role === 'ADMIN' || user.role === 'RH') {
+  // Acceso completo
+} else if (user.accessibleModules?.includes('EMPLEADOS')) {
+  // Acceso condicional
+}
+
+// ✅ BIEN: Scoping de datos con bypass ADMIN/RH
+const employee = await prisma.employee.findUnique({ where: { userId } });
+if (user.role === 'ADMIN' || user.role === 'RH') {
+  // Sin filtros, ve todo
+} else if (employee && employee.nivelJerarquico === 'GERENTE') {
+  where.departamento_id = employee.departamento_id;
+}
+
+// ✅ BIEN: Solo ADMIN para operaciones críticas del sistema
+if (req.user.role !== 'ADMIN') {
+  return res.status(403).json({ error: 'Solo ADMIN puede modificar permisos' });
+}
+```
+
+### Notificaciones por Email
+
+Para envío de notificaciones, se permite buscar usuarios por rol (ej. `where: { role: { in: ['RH', 'ADMIN'] } }`) para determinar destinatarios. Esto es **lógica de negocio**, no control de acceso.
+
+```js
+// ✅ BIEN: Buscar destinatarios RH para notificar
+const rhUsers = await prisma.user.findMany({
+  where: { role: { in: ['RH', 'ADMIN'] } },
+  select: { email: true, name: true }
+});
+```
 
 ## 2. Base de Datos (Prisma)
 
@@ -44,51 +135,133 @@ Los módulos disponibles son:
 
 ## 6. Roles del Sistema
 
-Los roles disponibles son:
+Los roles definen la identidad organizacional del usuario. **No definen qué módulos puede ver** (eso lo hacen los `accessibleModules`).
 
-| Rol | Descripción |
-|-----|-------------|
-| `ADMIN` | Administrador del sistema |
-| `RH` | Recursos Humanos |
-| `SISTEMAS` | Jefe de Sistemas |
-| `COMPRAS` | Jefe de Compras |
-| `PRODUCCION` | Jefe de Producción |
+| Rol | Descripción | Uso principal |
+|-----|-------------|---------------|
+| `ADMIN` | Administrador del sistema | Operaciones críticas (Nivel C), asignación de permisos |
+| `RH` | Recursos Humanos | Scoping: ve todos los empleados. Destinatario de notificaciones |
+| `SISTEMAS` | Jefe de Sistemas | Scoping: ve empleados de su departamento |
+| `COMPRAS` | Jefe de Compras | Scoping: ve empleados de su departamento |
+| `PRODUCCION` | Jefe de Producción | Scoping: ve empleados de su departamento |
+
+**Principio**: El rol es un atributo del usuario, no un mecanismo de control de acceso a módulos.
 
 ## 7. Reglas de Validación
 
-### Frontend:
+### Nivel A: Control de Acceso a Módulos
+
+**Frontend:**
 - Usar `user.accessibleModules?.includes('MODULO')` para validar acceso
 - Usar `<ProtectedRoute requiredModule="MODULO">` para proteger rutas
-- Para operaciones administrativas, usar `user.role === 'ADMIN' || user.role === 'RH'`
 
-### Backend:
-- Usar `requireModule('MODULO')` para rutas de lectura
-- Usar `requireRHOrAdmin()` para operaciones administrativas
-- Usar `requireRole(['ADMIN'])` solo para operaciones críticas del sistema
+**Backend:**
+- Usar `requireModule('MODULO')` para proteger endpoints de cualquier tipo
+- Validación inline: `if (!req.user.accessibleModules?.includes('MODULO')) return 403`
+
+### Nivel B: Scoping de Datos / Visibilidad
+
+**Frontend y Backend:**
+- Usar atributos del empleado asociado (`employeeId`, `nivelJerarquico`, `departamento_id`) para filtrar datos
+- Verificar propiedad: `if (vacancy.solicitanteId !== employee.id)` en lugar de `if (!['RH','ADMIN'].includes(user.role))`
+- `getOrCreateSolicitante(userId)`: buscar empleado por `userId`, no por rol
+
+### Nivel C: Operaciones Críticas del Sistema
+
+- Usar `req.user.role !== 'ADMIN'` **SOLO** para: modificar permisos de usuarios, eliminar usuarios, estadísticas del sistema
 
 ## 8. Convenciones de Código
 
-- **Frontend**: Usar `useClient` para componentes interactivos
-- **Backend**: Usar controladores con métodos estáticos
-- **API**: Respuestas consistentes con `{ data: ..., message: ... }`
+- **Frontend**: Usar `'use client'` para componentes interactivos con hooks
+- **Backend**: Usar controladores con métodos estáticos (`exports.methodName`)
+- **API**: Respuestas consistentes con `{ data: ..., message: ... }` o `{ vacancy: ..., candidates: ... }`
 - **Errores**: Mensajes de error claros y localizados (español)
+- **Imports**: Usar `@/` para rutas absolutas en Frontend
 
 ## 9. Seguridad
 
-- **Tokens JWT**: Incluir `accessibleModules` en el payload
-- **Middleware**: Validar permisos en cada ruta protegida
+- **Tokens JWT**: Incluir `accessibleModules` y `role` en el payload
+- **Middleware**: Validar permisos en cada ruta protegida con `requireModule()`
 - **Contraseñas**: Hash con bcrypt (salt rounds: 10)
-- **Sesiones**: Invalidar tokens al cambiar contraseña
+- **Sesiones**: Invalidar tokens al cambiar contraseña o modificar permisos
 
-## 10. Mantenimiento
+## 10. Mantenimiento y Escalabilidad
 
-- **Auditoría**: Registrar cambios en permisos de usuarios
-- **Backup**: Mantener backups de la base de datos
-- **Logs**: Registrar intentos de acceso fallidos
-- **Documentación**: Mantener actualizados los archivos README
+- **Auditoría**: Registrar cambios en permisos de usuarios (quién asignó/quitó qué módulo)
+- **Backup**: Mantener backups de la base de datos antes de migraciones
+- **Logs**: Registrar intentos de acceso fallidos y operaciones críticas
+- **Documentación**: Mantener actualizado este `.clinerules` al agregar nuevos módulos o roles
+- **Nuevos Roles**: Al crear un nuevo rol, solo se necesita:
+  1. Agregarlo a la tabla de roles en este archivo
+  2. Configurar sus `accessibleModules` en la UI de administración
+  3. **No se requiere modificar código** de validación de acceso
+- **Nuevos Módulos**: Al agregar un módulo, solo se necesita:
+  1. Agregarlo a la tabla de módulos en este archivo
+  2. Crear las rutas protegidas con `requireModule('NUEVO_MODULO')`
+  3. Asignarlo desde la UI a los usuarios que corresponda
 
 ---
 
-**Última actualización**: 28/02/2026  
-**Versión**: 1.0  
-**Propósito**: Guía para desarrollo consistente y mantenible del ERP KRAM
+## 11. Sistema de Roles Escalable (v3.0)
+
+### Arquitectura de Roles
+
+El sistema ahora soporta roles **semidinámicos** con un archivo de configuración centralizado:
+
+| Componente | Propósito | Archivo |
+|------------|-----------|---------|
+| `frontend/lib/rolesConfig.js` | Configuración estática de roles (nombre, color, ícono, descripción) | Frontend |
+| `GET /api/roles` | Endpoint dinámico que devuelve roles desde la BD o enum | Backend |
+| `GET /api/modules` | Endpoint dinámico que devuelve módulos disponibles | Backend |
+| `frontend/lib/api.js` → `systemApi` | Cliente API para consumir roles/módulos | Frontend |
+
+### Cómo agregar un nuevo rol
+
+1. **Agregar al enum `RoleType`** en `backend/prisma/schema.prisma`
+2. **Agregar configuración** en `frontend/lib/rolesConfig.js` con:
+   - `name`: Nombre legible
+   - `color`: Clases Tailwind (bg-* text-*)
+   - `description`: Descripción del rol
+   - `icon`: Emoji representativo
+   - `order`: Orden de visualización
+3. **Configurar `accessibleModules`** desde la UI de Gestión de Accesos
+4. **No se requiere modificar código** de validación de acceso
+
+### Cómo agregar un nuevo módulo
+
+1. **Agregar al enum `ModuleType`** en `backend/prisma/schema.prisma`
+2. **Agregar al endpoint** `GET /api/modules` en `backend/src/routes/roles.routes.js`
+3. **Crear rutas protegidas** con `requireModule('NUEVO_MODULO')`
+4. **Asignar desde la UI** a los usuarios que corresponda
+
+### Uso en Frontend
+
+```jsx
+// Importar funciones de rolesConfig
+import { getRoleName, getRoleColor, getRoleIcon } from '@/lib/rolesConfig'
+
+// Uso simple
+<span className={getRoleColor(user.role)}>{getRoleName(user.role)}</span>
+
+// Obtener roles desde la API (dinámico)
+import { getRolesFromApi, getModulesFromApi } from '@/lib/rolesConfig'
+const roles = await getRolesFromApi()
+const modules = await getModulesFromApi()
+```
+
+### Uso en Backend
+
+```js
+// Consumir endpoint de roles
+const response = await fetch(`${API_URL}/api/roles`, {
+  headers: { 'Authorization': `Bearer ${token}` }
+});
+const { roles } = await response.json();
+```
+
+---
+
+**Última actualización**: 04/06/2026  
+**Versión**: 3.0 — Sistema de Roles Escalable  
+**Cambios en v3.0**: Archivo centralizado `rolesConfig.js`, endpoints dinámicos `GET /api/roles` y `GET /api/modules`, guía de escalabilidad para nuevos roles y módulos, integración con `systemApi`  
+**Propósito**: Guía para desarrollo consistente, mantenible y escalable del ERP KRAM

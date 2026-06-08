@@ -4,9 +4,9 @@ const prisma = new PrismaClient();
 // Obtener estadísticas para RH (endpoint antiguo - mantener compatibilidad)
 exports.getRHStats = async (req, res) => {
   try {
-    // Verificar que el usuario sea RH o ADMIN
-    if (!['RH', 'ADMIN'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Acceso denegado. Solo RH y ADMIN pueden ver estas estadísticas.' });
+    // Verificar que el usuario tenga acceso al módulo EMPLEADOS
+    if (!req.user.accessibleModules?.includes('EMPLEADOS')) {
+      return res.status(403).json({ error: 'Acceso denegado. No tienes acceso al módulo de Empleados.' });
     }
 
     // Estadísticas de empleados
@@ -64,7 +64,7 @@ exports.getRHStats = async (req, res) => {
 exports.getRHDashboardStats = async (req, res) => {
   try {
     // Verificar que el usuario tenga acceso al módulo EMPLEADOS
-    if (!req.user.accessibleModules?.includes('EMPLEADOS') && !['RH', 'ADMIN'].includes(req.user.role)) {
+    if (!req.user.accessibleModules?.includes('EMPLEADOS')) {
       return res.status(403).json({ error: 'Acceso denegado. No tienes acceso al módulo de Empleados.' });
     }
 
@@ -184,15 +184,121 @@ exports.getRHDashboardStats = async (req, res) => {
   }
 };
 
-// Obtener estadísticas para jefes de departamento
+// Obtener estadísticas para el dashboard "Mi Espacio" (jefes de área)
+exports.getMyDashboardStats = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Verificar que el usuario tenga acceso al módulo EMPLEADOS
+    if (!req.user.accessibleModules?.includes('EMPLEADOS')) {
+      return res.status(403).json({ error: 'Acceso denegado. No tienes acceso al módulo de Empleados.' });
+    }
+
+    // Buscar el empleado asociado al usuario
+    const employee = await prisma.employee.findUnique({
+      where: { userId: userId }
+    });
+
+    if (!employee) {
+      return res.json({
+        myVacancies: { total: 0, active: 0, latest: [] },
+        myPurchases: { total: 0, active: 0, latest: [] },
+        pendingActivities: { total: 0, activities: [] },
+        candidates: { total: 0, enRevision: 0 },
+        lastUpdated: new Date().toISOString()
+      });
+    }
+
+    // 1. Mis vacantes
+    const myJobVacancies = await prisma.jobVacancy.findMany({
+      where: { solicitanteId: employee.id },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        departamento: { select: { nombre: true } }
+      }
+    });
+
+    const activeVacancies = myJobVacancies.filter(v => v.estatus !== 'Cerrada');
+
+    // 2. Mis solicitudes de compra (si existe el modelo)
+    let myPurchases = { total: 0, active: 0, latest: [] };
+    try {
+      if (prisma.purchaseRequest) {
+        const purchaseRequests = await prisma.purchaseRequest.findMany({
+          where: { solicitanteId: employee.id },
+          orderBy: { createdAt: 'desc' },
+          take: 5
+        });
+        myPurchases = {
+          total: purchaseRequests.length,
+          active: purchaseRequests.filter(p => !['ENTREGADO', 'CANCELADO'].includes(p.estatus)).length,
+          latest: purchaseRequests.slice(0, 3)
+        };
+      }
+    } catch (e) {
+      // Modelo no existe, ignorar
+    }
+
+    // 3. Actividades pendientes
+    const pendingActivities = await prisma.jobActivity.findMany({
+      where: {
+        vacancyId: { in: myJobVacancies.map(v => v.id) }
+      },
+      include: {
+        vacancy: { select: { titulo: true } }
+      }
+    });
+
+    // 4. Candidatos en revisión
+    const myCandidates = await prisma.candidateRH.findMany({
+      where: {
+        vacancy_id: { in: myJobVacancies.map(v => v.id) }
+      }
+    });
+
+    res.json({
+      myVacancies: {
+        total: myJobVacancies.length,
+        active: activeVacancies.length,
+        latest: myJobVacancies.slice(0, 3).map(v => ({
+          id: v.id,
+          titulo: v.titulo,
+          estatus: v.estatus,
+          departamento: v.departamento?.nombre,
+          createdAt: v.createdAt
+        }))
+      },
+      myPurchases,
+      pendingActivities: {
+        total: pendingActivities.length,
+        activities: pendingActivities.slice(0, 5).map(a => ({
+          id: a.id,
+          description: a.description,
+          vacancyTitle: a.vacancy?.titulo || 'Sin título',
+          activityType: a.activityType
+        }))
+      },
+      candidates: {
+        total: myCandidates.length,
+        enRevision: myCandidates.filter(c => c.estatus === 'En_Revision').length
+      },
+      lastUpdated: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error getting my dashboard stats:', error);
+    res.status(500).json({ error: 'Error al obtener estadísticas de Mi Espacio', details: error.message });
+  }
+};
+
+// Obtener estadísticas para jefes de departamento (legacy)
 exports.getDepartmentStats = async (req, res) => {
   try {
     const userId = req.user.id;
     const userRole = req.user.role;
 
-    // Verificar que el usuario sea jefe de área
-    if (!['SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(userRole)) {
-      return res.status(403).json({ error: 'Acceso denegado. Solo jefes de área pueden ver estas estadísticas.' });
+    // Verificar que el usuario tenga acceso al módulo RECLUTAMIENTO
+    if (!req.user.accessibleModules?.includes('RECLUTAMIENTO')) {
+      return res.status(403).json({ error: 'Acceso denegado. No tienes acceso al módulo de Reclutamiento.' });
     }
 
     // Buscar el empleado asociado al usuario
@@ -296,7 +402,7 @@ exports.getDepartmentStats = async (req, res) => {
 // Obtener estadísticas generales del sistema
 exports.getSystemStats = async (req, res) => {
   try {
-    // Verificar que el usuario sea ADMIN
+    // Verificar que el usuario sea ADMIN (operación crítica del sistema)
     if (req.user.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Acceso denegado. Solo ADMIN puede ver estas estadísticas.' });
     }

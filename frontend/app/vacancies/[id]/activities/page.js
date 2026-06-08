@@ -30,7 +30,7 @@ export default function VacancyActivitiesPage() {
 
   const fetchVacancy = async () => {
     try {
-      const response = await api.get(`/vacancies/${id}`);
+      const response = await api.get(`/recruitment/vacancies/${id}`);
       setVacancy(response.data.vacancy);
     } catch (error) {
       console.error('Error fetching vacancy:', error);
@@ -41,8 +41,8 @@ export default function VacancyActivitiesPage() {
 
   const fetchActivities = async () => {
     try {
-      const response = await api.get(`/vacancies/${id}`);
-      setActivities(response.data.vacancy.activities || []);
+      const response = await api.get(`/recruitment/vacancies/${id}`);
+      setActivities(response.data.vacancy.JobActivity || []);
     } catch (error) {
       console.error('Error fetching activities:', error);
     } finally {
@@ -58,7 +58,7 @@ export default function VacancyActivitiesPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api.post(`/vacancies/${id}/activities`, formData);
+      await api.post(`/recruitment/vacancies/${id}/activities`, formData);
       toast.success('Actividad agregada exitosamente');
       setFormData({
         activityType: '',
@@ -75,7 +75,7 @@ export default function VacancyActivitiesPage() {
 
   const handleCompleteActivity = async (activityId) => {
     try {
-      await api.put(`/activities/${activityId}`, { isCompleted: true });
+      await api.put(`/recruitment/activities/${activityId}`, { isCompleted: true });
       toast.success('Actividad marcada como completada');
       fetchActivities();
     } catch (error) {
@@ -102,13 +102,13 @@ export default function VacancyActivitiesPage() {
     }
   };
 
-  if (!user || !['RH', 'ADMIN'].includes(user.role)) {
+  if (!user || !user.accessibleModules?.includes('RECLUTAMIENTO')) {
     return (
       <DashboardLayout>
         <div className="p-6">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <h2 className="text-red-800 font-semibold">Acceso denegado</h2>
-            <p className="text-red-600 mt-1">Solo el personal de RH puede acceder a esta sección.</p>
+            <p className="text-red-600 mt-1">No tienes acceso al módulo de Reclutamiento.</p>
           </div>
         </div>
       </DashboardLayout>
@@ -281,7 +281,11 @@ export default function VacancyActivitiesPage() {
                           </div>
                         </div>
                         <span className="text-xs text-gray-500">
-                          {new Date(activity.createdAt).toLocaleDateString()}
+                          {(() => {
+                            const dateStr = activity.createdAt.split('T')[0];
+                            const [y, m, d] = dateStr.split('-');
+                            return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString();
+                          })()}
                         </span>
                       </div>
                       

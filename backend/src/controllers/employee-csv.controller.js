@@ -354,8 +354,10 @@ exports.downloadImportTemplate = async (req, res) => {
       'NUMERO CUENTA',
       'BANCO',
       
-      // Nuevos campos: Jefe Directo, SD, SDI
+      // Nuevos campos: Nivel Jerárquico, Jefe Directo, SD, SDI
+      'NIVEL JERARQUICO',
       'JEFE DIRECTO',
+      'JEFE DIRECTO (CLAVE)',
       'SD',
       'SDI',
       
@@ -421,8 +423,10 @@ exports.downloadImportTemplate = async (req, res) => {
       '1234567890',
       'Banco Ejemplo',
       
-      // Nuevos campos: Jefe Directo, SD, SDI
+      // Nuevos campos: Nivel Jerárquico, Jefe Directo, SD, SDI
+      'ANALISTA',
       'María Rodríguez',
+      'EMP001',
       '833.33',
       '900.00',
       
@@ -535,6 +539,12 @@ exports.exportEmployees = async (req, res) => {
             nombre: true
           }
         },
+        reportaA: {
+          select: {
+            clave: true,
+            nombre: true
+          }
+        },
         user: {
           select: {
             email: true,
@@ -591,8 +601,10 @@ exports.exportEmployees = async (req, res) => {
       'NUMERO CUENTA',
       'BANCO',
       
-      // Jefe Directo, SD, SDI
+      // Nivel Jerárquico, Jefe Directo, SD, SDI
+      'NIVEL JERARQUICO',
       'JEFE DIRECTO',
+      'JEFE DIRECTO (CLAVE)',
       'SD',
       'SDI',
       
@@ -669,8 +681,10 @@ exports.exportEmployees = async (req, res) => {
       employee.numeroCuenta || '',
       employee.banco || '',
       
-      // Jefe Directo, SD, SDI
-      employee.jefeDirecto || '',
+      // Nivel Jerárquico, Jefe Directo, SD, SDI
+      employee.nivelJerarquico || '',
+      employee.reportaA?.nombre || employee.jefeDirecto || '',
+      employee.reportaA?.clave || '',
       employee.sd || '',
       employee.sdi || '',
       

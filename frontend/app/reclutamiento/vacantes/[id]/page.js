@@ -154,10 +154,13 @@ function VacancyDetailPageContent() {
     return value ? '✅ Sí' : '❌ No';
   };
 
-  // Función para formatear fecha
+  // Función para formatear fecha (segura contra bug del día anterior)
   const formatDate = (date) => {
     if (!date) return 'No especificada';
-    return new Date(date).toLocaleDateString('es-MX', {
+    const dateStr = typeof date === 'string' ? date.split('T')[0] : date;
+    const [year, month, day] = dateStr.split('-');
+    const fechaSegura = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    return fechaSegura.toLocaleDateString('es-MX', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',

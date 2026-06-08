@@ -1,12 +1,17 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const bcrypt = require('bcryptjs');
+const { calcularTodo } = require('../utils/salaryCalculator');
 
 // Obtener todos los empleados con reglas de visibilidad basadas en jerarquía
 exports.getAllEmployees = async (req, res) => {
   try {
-    const { estatus, departamento_id, search } = req.query;
+    const { estatus, departamento_id, search, page = '1', limit = '20' } = req.query;
     const user = req.user;
+    
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
+    const skip = (pageNum - 1) * limitNum;
     
     // Inicializar objeto where
     const where = {};
@@ -21,17 +26,18 @@ exports.getAllEmployees = async (req, res) => {
       const employeeId = user.employeeId;
       const departamentoId = user.employeeDepartamentoId;
       
-      if (nivelJerarquico === 'GERENTE' || nivelJerarquico === 'DIRECTOR' || 
-          nivelJerarquico === 'VICEPRESIDENTE' || nivelJerarquico === 'PRESIDENTE') {
-        // GERENTE / DIRECTOR o superior: Ver empleados de su mismo departamento
+      if (nivelJerarquico === 'PRESIDENTE' || nivelJerarquico === 'DIRECTOR' || 
+          nivelJerarquico === 'GERENTE' || nivelJerarquico === 'JEFE') {
+        // PRESIDENTE / DIRECTOR / GERENTE / JEFE: Ver empleados de su mismo departamento
         if (departamentoId) {
           where.departamento_id = departamentoId;
         } else {
           // Si no tiene departamento asignado, solo ver su propio registro
           where.id = employeeId;
         }
-      } else if (nivelJerarquico === 'SUPERVISOR') {
-        // SUPERVISOR: Ver su propio registro y empleados que le reportan directamente
+      } else if (nivelJerarquico === 'COORDINADOR' || nivelJerarquico === 'ANALISTA' ||
+                 nivelJerarquico === 'SUPERVISOR' || nivelJerarquico === 'AUX_ADMINISTRATIVO') {
+        // COORDINADOR / ANALISTA / SUPERVISOR / AUX_ADMINISTRATIVO: Ver su propio registro y empleados que le reportan directamente
         where.OR = [
           { id: employeeId }, // Su propio registro
           { reportaAId: employeeId } // Empleados que le reportan
@@ -63,52 +69,65 @@ exports.getAllEmployees = async (req, res) => {
       ];
     }
 
-    const employees = await prisma.employee.findMany({
-      where,
-      include: {
-        departamento: {
-          select: {
-            id: true,
-            nombre: true,
-            descripcion: true
+    const [employees, totalCount] = await Promise.all([
+      prisma.employee.findMany({
+        where,
+        skip,
+        take: limitNum,
+        include: {
+          departamento: {
+            select: {
+              id: true,
+              nombre: true,
+              descripcion: true
+            }
+          },
+          puesto: {
+            select: {
+              id: true,
+              nombre: true,
+              descripcion: true,
+              nivelJerarquico: true
+            }
+          },
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              role: true,
+              isActive: true
+            }
+          },
+          documents: {
+            select: {
+              id: true,
+              tipo_documento: true,
+              url_archivo: true,
+              createdAt: true
+            }
+          },
+          _count: {
+            select: {
+              documents: true,
+              jobVacancies: true
+            }
           }
         },
-        puesto: {
-          select: {
-            id: true,
-            nombre: true,
-            descripcion: true,
-            nivelJerarquico: true
-          }
-        },
-        user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-            isActive: true
-          }
-        },
-        documents: {
-          select: {
-            id: true,
-            tipo_documento: true,
-            url_archivo: true,
-            createdAt: true
-          }
-        },
-        _count: {
-          select: {
-            documents: true,
-            jobVacancies: true
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.employee.count({ where })
+    ]);
 
-    res.json({ employees });
+    res.json({ 
+      employees, 
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limitNum)
+      }
+    });
   } catch (error) {
     console.error('Error getting employees:', error.message);
     res.status(500).json({ error: 'Error al obtener los empleados' });
@@ -507,6 +526,16 @@ exports.createEmployee = async (req, res) => {
       };
     }
 
+    // Calcular SD y SDI automáticamente si hay salario y fecha de ingreso
+    const salaryValue = salary && salary !== '' ? parseFloat(salary) : null;
+    if (salaryValue && fecha_ingreso) {
+      const calculos = calcularTodo(salaryValue, fecha_ingreso);
+      if (calculos.sd !== null) {
+        employeeData.sd = calculos.sd;
+        employeeData.sdi = calculos.sdi;
+      }
+    }
+
     const employee = await prisma.employee.create({
       data: employeeData,
       include: {
@@ -528,7 +557,28 @@ exports.createEmployee = async (req, res) => {
       }
     });
 
+    // Crear registro en SalaryHistory (ALTA)
+    if (employee.salarioMensual) {
+      const calculos = calcularTodo(employee.salarioMensual, employee.fechaAlta);
+      await prisma.salaryHistory.create({
+        data: {
+          employeeId: employee.id,
+          salarioAnterior: null,
+          salarioNuevo: employee.salarioMensual,
+          sdAnterior: null,
+          sdNuevo: employee.sd,
+          sdiAnterior: null,
+          sdiNuevo: employee.sdi,
+          factorUsado: calculos.factor,
+          tipoCambio: 'ALTA',
+          motivo: 'Creación de empleado',
+          usuarioId: req.user?.id || null
+        }
+      });
+    }
+
     // Crear usuario automáticamente si se solicita
+
     let createdUser = null;
     const createUser = req.body.createUser === 'true' || req.body.createUser === true;
 
@@ -795,7 +845,10 @@ exports.updateEmployee = async (req, res) => {
       
       // Campos de jerarquía (NUEVOS)
       nivelJerarquico: nivelJerarquico !== undefined ? nivelJerarquico : existingEmployee.nivelJerarquico,
-      reportaAId: reportaAId !== undefined ? reportaAId : existingEmployee.reportaAId,
+      reportaA: reportaAId !== undefined ? {
+        connect: reportaAId ? { id: reportaAId } : undefined,
+        disconnect: !reportaAId && existingEmployee.reportaAId ? true : undefined
+      } : undefined,
       
       // Uniformes y Extras
       tallaCamisa: tallaCamisa !== undefined ? tallaCamisa : existingEmployee.tallaCamisa,
@@ -826,6 +879,18 @@ exports.updateEmployee = async (req, res) => {
       } : undefined
     };
 
+    // Calcular SD y SDI automáticamente si cambió el salario o la fecha de ingreso
+    const nuevoSalario = salary !== undefined ? (salary && salary !== '' ? parseFloat(salary) : null) : existingEmployee.salarioMensual;
+    const nuevaFecha = fecha_ingreso !== undefined ? (fecha_ingreso ? new Date(fecha_ingreso) : existingEmployee.fechaAlta) : existingEmployee.fechaAlta;
+    
+    if (nuevoSalario && nuevaFecha) {
+      const calculos = calcularTodo(nuevoSalario, nuevaFecha);
+      if (calculos.sd !== null) {
+        updateData.sd = calculos.sd;
+        updateData.sdi = calculos.sdi;
+      }
+    }
+
     const employee = await prisma.employee.update({
       where: { id },
       data: updateData,
@@ -848,15 +913,82 @@ exports.updateEmployee = async (req, res) => {
       }
     });
 
+    // Crear registro en SalaryHistory si cambió el salario
+    const salarioFinal = employee.salarioMensual;
+    const salarioAnterior = existingEmployee.salarioMensual;
+    
+    if (salarioFinal !== salarioAnterior && salarioFinal) {
+      const calculos = calcularTodo(salarioFinal, employee.fechaAlta);
+      let tipoCambio = 'AJUSTE';
+      if (!salarioAnterior) {
+        tipoCambio = 'ALTA';
+      } else if (salarioFinal > salarioAnterior) {
+        tipoCambio = 'INCREMENTO';
+      } else if (salarioFinal < salarioAnterior) {
+        tipoCambio = 'DECREMENTO';
+      }
+      
+      await prisma.salaryHistory.create({
+        data: {
+          employeeId: employee.id,
+          salarioAnterior: salarioAnterior,
+          salarioNuevo: salarioFinal,
+          sdAnterior: existingEmployee.sd,
+          sdNuevo: employee.sd,
+          sdiAnterior: existingEmployee.sdi,
+          sdiNuevo: employee.sdi,
+          factorUsado: calculos.factor,
+          tipoCambio,
+          motivo: req.body.motivoCambioSalarial || null,
+          usuarioId: req.user?.id || null
+        }
+      });
+    }
+
     res.json({
       message: 'Empleado actualizado exitosamente',
       employee
     });
+
   } catch (error) {
     console.error('Error updating employee:', error);
     console.error('Error details:', error.message);
     console.error('Error stack:', error.stack);
     res.status(500).json({ error: 'Error al actualizar el empleado', details: error.message });
+  }
+};
+
+// Obtener historial de sueldos de un empleado
+exports.getSalaryHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Verificar que el empleado existe
+    const employee = await prisma.employee.findUnique({
+      where: { id },
+      select: { id: true, nombre: true }
+    });
+    
+    if (!employee) {
+      return res.status(404).json({ error: 'Empleado no encontrado' });
+    }
+    
+    const salaryHistory = await prisma.salaryHistory.findMany({
+      where: { employeeId: id },
+      orderBy: { fechaCambio: 'desc' },
+      include: {
+        empleado: {
+          select: {
+            nombre: true
+          }
+        }
+      }
+    });
+    
+    res.json({ salaryHistory, employee });
+  } catch (error) {
+    console.error('Error fetching salary history:', error);
+    res.status(500).json({ error: 'Error al obtener el historial de sueldos' });
   }
 };
 

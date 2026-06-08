@@ -408,4 +408,124 @@ exports.sendCandidateVoted = async (email, nombreRH, vacancy, candidateName, vot
   return sendEmail(email, title, emailLayout(title, content));
 };
 
+/**
+ * Enviar felicitación de cumpleaños al empleado
+ */
+exports.sendBirthdayWish = async (email, employeeName) => {
+  const title = '🎂 ¡Feliz Cumpleaños!';
+  const content = `
+    <p>Hola <strong>${employeeName}</strong>,</p>
+    <p>En nombre de todo el equipo de <strong>KRAM</strong>, queremos desearte un <strong>¡Feliz Cumpleaños!</strong></p>
+    
+    <div style="text-align: center; font-size: 48px; margin: 20px 0;">🎉🎂🎉</div>
+
+    <p>Esperamos que tengas un día maravilloso lleno de alegría y bendiciones. Agradecemos tu dedicación y esfuerzo día con día.</p>
+    
+    <p style="text-align: center; font-style: italic; color: #1e40af; font-size: 16px;">
+      "El éxito es la suma de pequeños esfuerzos repetidos día tras día"
+    </p>
+
+    <p>¡Que este nuevo año de vida esté lleno de éxitos y momentos inolvidables!</p>
+    
+    <p style="text-align: center; font-weight: bold; color: #1e40af;">Atentamente,<br>Dirección de RH - KRAM</p>
+  `;
+
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
+/**
+ * Enviar felicitación de aniversario laboral al empleado
+ */
+exports.sendAnniversaryWish = async (email, employeeName, antiguedad) => {
+  const title = `🎊 ¡${antiguedad} Aniversario en KRAM!`;
+  const content = `
+    <p>Hola <strong>${employeeName}</strong>,</p>
+    <p>Hoy celebras <strong>${antiguedad} años</strong> de formar parte de la familia <strong>KRAM</strong>. ¡Felicidades!</p>
+    
+    <div style="text-align: center; font-size: 48px; margin: 20px 0;">🎊🏆🎊</div>
+
+    <p>Queremos agradecerte por tu compromiso, lealtad y dedicación durante todos estos años. Tu esfuerzo y profesionalismo han sido fundamentales para el crecimiento de nuestra empresa.</p>
+    
+    <p>Es un orgullo contar con personas como tú en nuestro equipo. ¡Esperamos seguir compartiendo muchos éxitos más juntos!</p>
+    
+    <div class="info-box">
+      <strong>Fecha de Ingreso:</strong> ${new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })}<br>
+      <strong>Antigüedad:</strong> ${antiguedad} años
+    </div>
+
+    <p style="text-align: center; font-weight: bold; color: #1e40af;">¡Gracias por ser parte de esta gran familia!</p>
+    
+    <p style="text-align: center; font-weight: bold; color: #1e40af;">Atentamente,<br>Dirección de RH - KRAM</p>
+  `;
+
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
+/**
+ * Enviar resumen diario a RH con cumpleaños y aniversarios del día
+ */
+exports.sendDailySummaryToRH = async (email, rhName, birthdayList, anniversaryList) => {
+  const hasBirthdays = birthdayList.length > 0;
+  const hasAnniversaries = anniversaryList.length > 0;
+
+  if (!hasBirthdays && !hasAnniversaries) return false;
+
+  const title = '📅 Resumen Diario - Cumpleaños y Aniversarios';
+  
+  let birthdaySection = '';
+  if (hasBirthdays) {
+    birthdaySection = `
+      <h3 style="color: #1e40af; margin-bottom: 8px;">🎂 Cumpleaños del Día</h3>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+        <tr style="background: #dbeafe;">
+          <th style="padding: 8px; text-align: left; border: 1px solid #e5e7eb;">Nombre</th>
+          <th style="padding: 8px; text-align: left; border: 1px solid #e5e7eb;">Departamento</th>
+          <th style="padding: 8px; text-align: left; border: 1px solid #e5e7eb;">Puesto</th>
+        </tr>
+        ${birthdayList.map(emp => `
+          <tr>
+            <td style="padding: 8px; border: 1px solid #e5e7eb;">${emp.nombreCompleto}</td>
+            <td style="padding: 8px; border: 1px solid #e5e7eb;">${emp.departamento || '—'}</td>
+            <td style="padding: 8px; border: 1px solid #e5e7eb;">${emp.puesto || '—'}</td>
+          </tr>
+        `).join('')}
+      </table>
+    `;
+  }
+
+  let anniversarySection = '';
+  if (hasAnniversaries) {
+    anniversarySection = `
+      <h3 style="color: #1e40af; margin-bottom: 8px;">🎊 Aniversarios del Día</h3>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+        <tr style="background: #d1fae5;">
+          <th style="padding: 8px; text-align: left; border: 1px solid #e5e7eb;">Nombre</th>
+          <th style="padding: 8px; text-align: left; border: 1px solid #e5e7eb;">Departamento</th>
+          <th style="padding: 8px; text-align: left; border: 1px solid #e5e7eb;">Años</th>
+        </tr>
+        ${anniversaryList.map(emp => `
+          <tr>
+            <td style="padding: 8px; border: 1px solid #e5e7eb;">${emp.nombreCompleto}</td>
+            <td style="padding: 8px; border: 1px solid #e5e7eb;">${emp.departamento || '—'}</td>
+            <td style="padding: 8px; border: 1px solid #e5e7eb;">${emp.antiguedad} años</td>
+          </tr>
+        `).join('')}
+      </table>
+    `;
+  }
+
+  const content = `
+    <p>Hola <strong>${rhName}</strong>,</p>
+    <p>A continuación se muestran los eventos del día de hoy:</p>
+    ${birthdaySection}
+    ${anniversarySection}
+    <hr>
+    <p style="color: #71717a; font-size: 13px;">
+      Puedes consultar más detalles en el módulo de Empleados del sistema ERP.
+    </p>
+  `;
+
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
 module.exports = exports;

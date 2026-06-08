@@ -328,7 +328,7 @@ function ProfilePageContent() {
                           <div>
                             <p className="text-sm font-medium text-gray-900">{doc.tipo_documento}</p>
                             <p className="text-xs text-gray-500">
-                              {new Date(doc.createdAt).toLocaleDateString('es-MX')}
+                              {(() => { const d = doc.createdAt.split('T')[0].split('-'); return `${d[2]}/${d[1]}/${d[0]}`; })()}
                             </p>
                           </div>
                           <a
@@ -363,7 +363,7 @@ function ProfilePageContent() {
                         <div key={vacancy.id} className="p-2 hover:bg-gray-50 rounded">
                           <p className="text-sm font-medium text-gray-900">{vacancy.nombrePuesto}</p>
                           <p className="text-xs text-gray-500">
-                            {new Date(vacancy.createdAt).toLocaleDateString('es-MX')}
+                            {(() => { const d = vacancy.createdAt.split('T')[0].split('-'); return `${d[2]}/${d[1]}/${d[0]}`; })()}
                           </p>
                         </div>
                       ))}
