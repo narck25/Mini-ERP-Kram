@@ -154,7 +154,7 @@ async function checkAndNotify() {
 
     // Cumpleaños
     for (const emp of cumpleañeros) {
-      const email = emp.correo_electronico || emp.correo_empresa;
+      const email = emp.correoElectronico || emp.correoEmpresa;
       if (!email) {
         console.warn(`   ⚠️ ${getNombreCompleto(emp)} no tiene email registrado`);
         continue;
@@ -183,7 +183,7 @@ async function checkAndNotify() {
 
     // Aniversarios
     for (const emp of aniversarios) {
-      const email = emp.correo_electronico || emp.correo_empresa;
+      const email = emp.correoElectronico || emp.correoEmpresa;
       if (!email) {
         console.warn(`   ⚠️ ${getNombreCompleto(emp)} no tiene email registrado`);
         continue;
