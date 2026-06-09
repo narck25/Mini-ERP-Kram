@@ -2,8 +2,13 @@
 # STAGE 1: Builder - Instalar dependencias y generar Prisma
 # ============================================================
 # ARG BUILD_DATE para invalidar caché de Docker en Coolify
+# Coolify debe pasar BUILD_DATE con un valor único en cada deploy
+# para forzar la reconstrucción de la imagen
 ARG BUILD_DATE
 FROM node:20-slim AS builder
+
+# Invalidar caché con BUILD_DATE - si cambia, todo lo siguiente se reconstruye
+RUN echo "Build date: ${BUILD_DATE:-unknown}"
 
 # Instalar OpenSSL para Prisma PostgreSQL connection
 RUN apt-get update -qq && \

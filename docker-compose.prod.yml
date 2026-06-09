@@ -29,6 +29,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        BUILD_DATE: ${BUILD_DATE:-unknown}
     container_name: kram-backend
     restart: unless-stopped
     depends_on:
