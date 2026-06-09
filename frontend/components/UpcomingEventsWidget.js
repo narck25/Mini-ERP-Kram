@@ -2,14 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
+import { toast } from 'react-hot-toast';
 
 /**
  * Widget de Próximos Cumpleaños y Aniversarios
  * Muestra los eventos de los próximos 30 días
+ * Incluye botón para enviar correos manualmente
  */
 export default function UpcomingEventsWidget() {
   const [events, setEvents] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('cumpleaños');
 
@@ -28,6 +31,27 @@ export default function UpcomingEventsWidget() {
       setError('No se pudieron cargar los eventos');
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * Envía correos de cumpleaños y aniversarios manualmente
+   */
+  const handleSendNow = async () => {
+    if (sending) return;
+    setSending(true);
+    try {
+      const response = await api.post('/notifications/check-now');
+      const data = response.data.data;
+      const msg = `✅ Correos enviados: ${data.cumpleaños.enviados} cumpleaños, ${data.aniversarios.enviados} aniversarios`;
+      toast.success(msg);
+      // Recargar eventos
+      await fetchUpcomingEvents();
+    } catch (err) {
+      console.error('Error al enviar correos:', err);
+      toast.error('Error al enviar correos. Revisa la consola para más detalles.');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -63,7 +87,28 @@ export default function UpcomingEventsWidget() {
           <h2 className="text-xl font-bold text-gray-900">🎉 Próximos Eventos</h2>
           <p className="text-sm text-gray-600">Cumpleaños y aniversarios de los próximos 30 días</p>
         </div>
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSendNow}
+            disabled={sending}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+              sending
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200'
+            }`}
+          >
+            {sending ? (
+              <>
+                <span className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-green-600"></span>
+                Enviando...
+              </>
+            ) : (
+              <>
+                📧 Enviar correos ahora
+              </>
+            )}
+          </button>
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
           <button
             onClick={() => setActiveTab('cumpleaños')}
             className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
@@ -84,6 +129,7 @@ export default function UpcomingEventsWidget() {
           >
             🎊 Aniversarios ({aniversarios.length})
           </button>
+          </div>
         </div>
       </div>
 

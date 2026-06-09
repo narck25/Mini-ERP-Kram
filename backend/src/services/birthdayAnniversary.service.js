@@ -119,31 +119,32 @@ async function checkAndNotify() {
     // ============================================================
     // 1. Buscar empleados que cumplen años hoy
     // ============================================================
-    // PostgreSQL: EXTRACT(MONTH FROM fecha_nacimiento) = mes AND EXTRACT(DAY FROM fecha_nacimiento) = dia
-    const cumpleañeros = await prisma.$queryRaw`
-      SELECT e.*, d.nombre as departamento_nombre, jp.nombre as puesto_nombre
-      FROM employees e
-      LEFT JOIN departments d ON d.id = e.departamento_id
-      LEFT JOIN job_positions jp ON jp.id = e."puestoId"
-      WHERE e.estatus = 'Activo'
-        AND EXTRACT(MONTH FROM e.fecha_nacimiento) = ${hoyMes}
-        AND EXTRACT(DAY FROM e.fecha_nacimiento) = ${hoyDia}
-    `;
+    // Usamos Prisma Client en vez de SQL raw para evitar problemas
+    // de nomenclatura de columnas entre camelCase y snake_case
+    const todosEmpleados = await prisma.employee.findMany({
+      where: { estatus: 'Activo' },
+      include: {
+        departamento: { select: { nombre: true } },
+        puesto: { select: { nombre: true } }
+      }
+    });
+
+    const cumpleañeros = todosEmpleados.filter(emp => {
+      if (!emp.fechaNacimiento) return false;
+      const nac = new Date(emp.fechaNacimiento);
+      return (nac.getUTCMonth() + 1) === hoyMes && nac.getUTCDate() === hoyDia;
+    });
 
     console.log(`   🎂 Cumpleañeros encontrados: ${cumpleañeros.length}`);
 
     // ============================================================
     // 2. Buscar empleados que cumplen aniversario hoy
     // ============================================================
-    const aniversarios = await prisma.$queryRaw`
-      SELECT e.*, d.nombre as departamento_nombre, jp.nombre as puesto_nombre
-      FROM employees e
-      LEFT JOIN departments d ON d.id = e.departamento_id
-      LEFT JOIN job_positions jp ON jp.id = e."puestoId"
-      WHERE e.estatus = 'Activo'
-        AND EXTRACT(MONTH FROM e.fecha_ingreso) = ${hoyMes}
-        AND EXTRACT(DAY FROM e.fecha_ingreso) = ${hoyDia}
-    `;
+    const aniversarios = todosEmpleados.filter(emp => {
+      if (!emp.fechaAlta) return false;
+      const alta = new Date(emp.fechaAlta);
+      return (alta.getUTCMonth() + 1) === hoyMes && alta.getUTCDate() === hoyDia;
+    });
 
     console.log(`   🎊 Aniversarios encontrados: ${aniversarios.length}`);
 
@@ -194,7 +195,7 @@ async function checkAndNotify() {
         continue;
       }
 
-      const antiguedad = calcularAntiguedad(emp.fecha_ingreso);
+      const antiguedad = calcularAntiguedad(emp.fechaAlta);
       const enviado = await emailService.sendAnniversaryWish(email, getNombreCompleto(emp), antiguedad);
       await registrarLog(
         'ANIVERSARIO', emp.id, getNombreCompleto(emp), email,
@@ -218,14 +219,14 @@ async function checkAndNotify() {
     if (destinatariosRH.length > 0 && (cumpleañeros.length > 0 || aniversarios.length > 0)) {
       const birthdayList = cumpleañeros.map(emp => ({
         nombreCompleto: getNombreCompleto(emp),
-        departamento: emp.departamento_nombre || '—',
-        puesto: emp.puesto_nombre || '—'
+        departamento: emp.departamento?.nombre || '—',
+        puesto: emp.puesto?.nombre || '—'
       }));
 
       const anniversaryList = aniversarios.map(emp => ({
         nombreCompleto: getNombreCompleto(emp),
-        departamento: emp.departamento_nombre || '—',
-        antiguedad: calcularAntiguedad(emp.fecha_ingreso)
+        departamento: emp.departamento?.nombre || '—',
+        antiguedad: calcularAntiguedad(emp.fechaAlta)
       }));
 
       for (const rh of destinatariosRH) {
