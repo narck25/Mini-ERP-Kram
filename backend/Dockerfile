@@ -80,10 +80,18 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 
 # Comando de inicio: resolver migraciones fallidas, migraciones, seed de producción y servidor
 # Si SEED_RESET=true, el seed limpiará toda la BD antes de recrear roles y admin
+# Si el archivo /app/.force-reset existe, también ejecuta seed con --reset
+# (Crea /app/.force-reset manualmente si necesitas resetear en el próximo reinicio)
 CMD echo "🔧 SEED_RESET=${SEED_RESET:-false}" && \
     node scripts/resolve-migrations.js && \
     npx prisma migrate deploy && \
-    echo "🌱 Ejecutando seed de producción..." && \
-    node prisma/seed-prod.js && \
+    if [ "${SEED_RESET}" = "true" ] || [ -f /app/.force-reset ]; then \
+      echo "⚠️  SEED_RESET activado - limpiando BD..."; \
+      rm -f /app/.force-reset; \
+      node prisma/seed-prod.js --reset; \
+    else \
+      echo "🌱 Ejecutando seed de producción (idempotente)..."; \
+      node prisma/seed-prod.js; \
+    fi && \
     echo "🚀 Iniciando servidor..." && \
     node src/index.js
