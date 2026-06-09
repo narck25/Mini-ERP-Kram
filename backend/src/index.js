@@ -57,6 +57,7 @@ const purchaseRoutes = loadRoute('purchase', './routes/purchase.routes');
 const attendanceRoutes = loadRoute('attendance', './routes/attendance.routes');
 const rolesRoutes = loadRoute('roles', './routes/roles.routes');
 const notificationsRoutes = loadRoute('notifications', './routes/notifications.routes');
+const seedRoutes = loadRoute('seed', './routes/seed.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -146,6 +147,7 @@ app.use('/api', purchaseRoutes);
 app.use('/api/incidencias', attendanceRoutes);
 app.use('/api', rolesRoutes);
 app.use('/api', notificationsRoutes);
+app.use('/api', seedRoutes);
 
 // ============================================================
 // 404 handler
