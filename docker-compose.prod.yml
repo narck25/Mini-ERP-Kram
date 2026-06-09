@@ -45,6 +45,8 @@ services:
       BASE_URL: ${BASE_URL:-https://apierp.kramhub.site}
       SERVICE_FQDN_FRONTEND: ${SERVICE_FQDN_FRONTEND:-erp.kramhub.site}
       SERVICE_FQDN_BACKEND: ${SERVICE_FQDN_BACKEND:-apierp.kramhub.site}
+      # Seed: SEED_RESET=true para limpiar BD desde cero (solo en deploy inicial)
+      SEED_RESET: ${SEED_RESET:-false}
     volumes:
       - backend_uploads:/app/uploads
     networks:

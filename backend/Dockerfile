@@ -74,4 +74,11 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:3001/api/health || exit 1
 
 # Comando de inicio: resolver migraciones fallidas, migraciones, seed de producción y servidor
-CMD node scripts/resolve-migrations.js && npx prisma migrate deploy && node prisma/seed-prod.js && node src/index.js
+# Si SEED_RESET=true, el seed limpiará toda la BD antes de recrear roles y admin
+CMD echo "🔧 SEED_RESET=${SEED_RESET:-false}" && \
+    node scripts/resolve-migrations.js && \
+    npx prisma migrate deploy && \
+    echo "🌱 Ejecutando seed de producción..." && \
+    node prisma/seed-prod.js && \
+    echo "🚀 Iniciando servidor..." && \
+    node src/index.js
