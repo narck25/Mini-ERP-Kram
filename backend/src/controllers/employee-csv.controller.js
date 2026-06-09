@@ -18,6 +18,9 @@ exports.importEmployees = async (req, res) => {
 
     // Determinar si se deben crear usuarios automáticamente
     const createUsers = req.body.createUsers === 'true' || req.body.createUsers === true;
+    
+    // Modo de manejo de duplicados: 'error' | 'skip' | 'update'
+    const duplicateMode = req.body.duplicateMode || 'error';
 
     let fileContent;
     
@@ -132,6 +135,8 @@ exports.importEmployees = async (req, res) => {
     // Iniciar transacción para importación atómica
     transaction = await prisma.$transaction(async (tx) => {
       const importedEmployees = [];
+      const updatedEmployees = [];
+      const skippedEmployees = [];
       const createdUsers = [];
       const batchErrors = [];
       
@@ -149,12 +154,101 @@ exports.importEmployees = async (req, res) => {
                 { curp: employeeData.curp },
                 { nss: employeeData.nss }
               ]
+            },
+            include: {
+              user: { select: { id: true, email: true } }
             }
           });
 
           if (existingEmployee) {
-            batchErrors.push(`Fila ${rowNumber}: Ya existe un empleado en la base de datos con el mismo RFC, CURP o NSS`);
-            continue;
+            if (duplicateMode === 'error') {
+              // Modo ERROR: falla toda la importación
+              batchErrors.push(`Fila ${rowNumber}: Ya existe un empleado con el mismo RFC, CURP o NSS (${existingEmployee.nombre})`);
+              continue;
+            } else if (duplicateMode === 'skip') {
+              // Modo SKIP: saltar el duplicado, continuar con los demás
+              skippedEmployees.push({
+                id: existingEmployee.id,
+                nombre: existingEmployee.nombre,
+                rfc: existingEmployee.rfc,
+                motivo: 'Ya existente en BD'
+              });
+              console.log(`⏭️ Empleado omitido (ya existe): ${existingEmployee.nombre} (RFC: ${existingEmployee.rfc})`);
+              continue;
+            } else if (duplicateMode === 'update') {
+              // Modo UPDATE: actualizar datos del empleado existente
+              const dataToUpdate = await prepareForPrisma(employeeData, tx);
+              
+              // No cambiar el ID ni el userId
+              delete dataToUpdate.id;
+              delete dataToUpdate.userId;
+              
+              const updated = await tx.employee.update({
+                where: { id: existingEmployee.id },
+                data: dataToUpdate
+              });
+
+              updatedEmployees.push({
+                id: updated.id,
+                nombre: updated.nombre,
+                rfc: updated.rfc,
+                curp: updated.curp,
+                nss: updated.nss
+              });
+
+              console.log(`🔄 Empleado actualizado: ${updated.nombre} (RFC: ${updated.rfc})`);
+
+              // Si se solicita crear usuarios y el empleado no tiene usuario vinculado
+              if (createUsers && !existingEmployee.user) {
+                const email = updated.correoEmpresa || updated.correoElectronico;
+                const nombreCompleto = updated.nombres || updated.nombre || '';
+
+                if (email) {
+                  const existingUser = await tx.user.findUnique({
+                    where: { email }
+                  });
+
+                  if (!existingUser) {
+                    const tempPassword = updated.rfc ? updated.rfc.substring(0, 10).toLowerCase() : 'kram2026';
+                    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+                    const newUser = await tx.user.create({
+                      data: {
+                        email,
+                        password: hashedPassword,
+                        name: nombreCompleto,
+                        role: 'EMPLEADO_BASICO',
+                        accessibleModules: ['DASHBOARD'],
+                        isActive: true,
+                        employee: {
+                          connect: { id: updated.id }
+                        }
+                      },
+                      select: { id: true, email: true, name: true, role: true }
+                    });
+
+                    createdUsers.push({
+                      id: newUser.id,
+                      email: newUser.email,
+                      name: newUser.name,
+                      employeeId: updated.id,
+                      tempPassword
+                    });
+                  } else {
+                    await tx.user.update({
+                      where: { id: existingUser.id },
+                      data: {
+                        employee: {
+                          connect: { id: updated.id }
+                        }
+                      }
+                    });
+                  }
+                }
+              }
+
+              continue;
+            }
           }
 
           // Preparar datos para inserción usando nuestro helper
@@ -236,30 +330,47 @@ exports.importEmployees = async (req, res) => {
 
           importedEmployees.push(employeeResult);
         } catch (error) {
-          batchErrors.push(`Fila ${rowNumber}: Error al crear empleado - ${error.message}`);
+          batchErrors.push(`Fila ${rowNumber}: Error al procesar empleado - ${error.message}`);
         }
       }
 
-      // Si hay errores durante la transacción, lanzar excepción para rollback
-      if (batchErrors.length > 0) {
+      // Si hay errores en modo 'error', lanzar excepción para rollback total
+      if (batchErrors.length > 0 && duplicateMode === 'error') {
         throw new Error(`Errores durante la importación: ${batchErrors.join('; ')}`);
       }
 
-      return { importedEmployees, createdUsers };
+      return { importedEmployees, updatedEmployees, skippedEmployees, createdUsers, batchErrors };
     });
 
     const responseData = {
-      message: `Importación completada exitosamente. ${transaction.importedEmployees.length} empleados importados.`,
+      message: '',
       imported: transaction.importedEmployees.length,
-      errors: 0,
+      updated: transaction.updatedEmployees.length,
+      skipped: transaction.skippedEmployees.length,
+      errors: transaction.batchErrors.length,
       importedEmployees: transaction.importedEmployees,
+      updatedEmployees: transaction.updatedEmployees,
+      skippedEmployees: transaction.skippedEmployees,
+      errorDetails: transaction.batchErrors,
       summary: {
         totalRows: results.length,
-        successful: transaction.importedEmployees.length,
-        failed: 0,
-        successRate: results.length > 0 ? ((transaction.importedEmployees.length / results.length) * 100).toFixed(2) + '%' : '0%'
+        created: transaction.importedEmployees.length,
+        updated: transaction.updatedEmployees.length,
+        skipped: transaction.skippedEmployees.length,
+        failed: transaction.batchErrors.length,
+        successRate: results.length > 0 
+          ? (((transaction.importedEmployees.length + transaction.updatedEmployees.length) / results.length) * 100).toFixed(2) + '%'
+          : '0%'
       }
     };
+
+    // Construir mensaje según modo
+    const parts = [];
+    if (transaction.importedEmployees.length > 0) parts.push(`${transaction.importedEmployees.length} empleados creados`);
+    if (transaction.updatedEmployees.length > 0) parts.push(`${transaction.updatedEmployees.length} empleados actualizados`);
+    if (transaction.skippedEmployees.length > 0) parts.push(`${transaction.skippedEmployees.length} empleados omitidos (ya existían)`);
+    if (transaction.batchErrors.length > 0) parts.push(`${transaction.batchErrors.length} errores`);
+    responseData.message = `Importación completada. ${parts.join(', ')}.`;
 
     // Agregar información de usuarios creados si aplica
     if (createUsers) {
