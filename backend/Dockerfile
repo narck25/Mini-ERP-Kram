@@ -79,19 +79,15 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:3001/api/health || exit 1
 
 # Comando de inicio: resolver migraciones fallidas, migraciones, seed de producción y servidor
-# Si SEED_RESET=true, el seed limpiará toda la BD antes de recrear roles y admin
-# Si el archivo /app/.force-reset existe, también ejecuta seed con --reset
-# (Crea /app/.force-reset manualmente si necesitas resetear en el próximo reinicio)
-CMD echo "🔧 SEED_RESET=${SEED_RESET:-false}" && \
+# NOTA: Coolify NO pasa las variables de entorno del servicio al docker-compose.yml
+# por lo que SEED_RESET siempre llega como false. Para forzar el reset:
+#   Opción 1: Usar el endpoint POST /api/seed/reset (recomendado)
+#   Opción 2: Ejecutar manualmente en el contenedor: node prisma/seed-prod.js --reset
+#   Opción 3: Usar el endpoint desde el navegador con el token de admin
+CMD echo "🔧 Inicializando backend..." && \
     node scripts/resolve-migrations.js && \
     npx prisma migrate deploy && \
-    if [ "${SEED_RESET}" = "true" ] || [ -f /app/.force-reset ]; then \
-      echo "⚠️  SEED_RESET activado - limpiando BD..."; \
-      rm -f /app/.force-reset; \
-      node prisma/seed-prod.js --reset; \
-    else \
-      echo "🌱 Ejecutando seed de producción (idempotente)..."; \
-      node prisma/seed-prod.js; \
-    fi && \
+    echo "🌱 Ejecutando seed de producción (idempotente)..." && \
+    node prisma/seed-prod.js && \
     echo "🚀 Iniciando servidor..." && \
     node src/index.js
