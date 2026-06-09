@@ -4,7 +4,8 @@ const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
-  const shouldReset = process.argv.includes('--reset');
+  // Activar reset con --reset (CLI) o con variable de entorno SEED_RESET=true
+  const shouldReset = process.argv.includes('--reset') || process.env.SEED_RESET === 'true';
   
   console.log('🏭 Iniciando seed de PRODUCCIÓN (idempotente)...');
   console.log('');
