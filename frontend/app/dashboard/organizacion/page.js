@@ -6,7 +6,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import DashboardLayout from '@/components/DashboardLayout';
 import api from '@/lib/api';
 
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 12;
 
 const NIVELES_JERARQUICOS = [
   'PRESIDENTE', 'DIRECTOR', 'GERENTE', 'JEFE',
