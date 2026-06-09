@@ -42,8 +42,17 @@ router.put('/employees/:id', AuthMiddleware.requireRHOrAdmin(), employeeCoreCont
 router.delete('/employees/:id', AuthMiddleware.requireRHOrAdmin(), employeeCoreController.deleteEmployee);
 router.delete('/employees/:id/permanent', AuthMiddleware.requireRHOrAdmin(), employeeCoreController.deleteEmployeePermanently);
 
-// Ruta para obtener departamentos (accesible para todos los usuarios autenticados)
+// ===== CRUD Departamentos =====
 router.get('/departments', employeeOrgController.getDepartments);
+router.post('/departments', AuthMiddleware.requireRHOrAdmin(), employeeOrgController.createDepartment);
+router.put('/departments/:id', AuthMiddleware.requireRHOrAdmin(), employeeOrgController.updateDepartment);
+router.delete('/departments/:id', AuthMiddleware.requireRHOrAdmin(), employeeOrgController.deleteDepartment);
+
+// ===== CRUD Puestos de Trabajo =====
+router.get('/job-positions', employeeOrgController.getAllJobPositions);
+router.post('/job-positions', AuthMiddleware.requireRHOrAdmin(), employeeOrgController.createJobPosition);
+router.put('/job-positions/:id', AuthMiddleware.requireRHOrAdmin(), employeeOrgController.updateJobPosition);
+router.delete('/job-positions/:id', AuthMiddleware.requireRHOrAdmin(), employeeOrgController.deleteJobPosition);
 
 // Ruta para obtener jefes directos (accesible para todos los usuarios autenticados que pueden crear vacantes)
 router.get('/managers', employeeOrgController.getManagers);
