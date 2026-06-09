@@ -4,8 +4,63 @@ const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
+  const shouldReset = process.argv.includes('--reset');
+  
   console.log('🏭 Iniciando seed de PRODUCCIÓN (idempotente)...');
   console.log('');
+
+  // ============================================================
+  // PASO 0: Resetear base de datos (si se pasa --reset)
+  // ============================================================
+  if (shouldReset) {
+    console.log('⚠️  ═══════════════════════════════════════════');
+    console.log('⚠️  RESETEANDO BASE DE DATOS COMPLETAMENTE');
+    console.log('⚠️  ═══════════════════════════════════════════');
+    console.log('');
+    
+    // Eliminar en orden inverso de dependencias
+    console.log('🗑️  Eliminando datos existentes...');
+    
+    // Tablas con dependencias (hijas primero)
+    await prisma.notificationLog.deleteMany();
+    console.log('   ✅ NotificationLog eliminados');
+    await prisma.vacancyComment.deleteMany();
+    console.log('   ✅ Comentarios de vacantes eliminados');
+    await prisma.jobActivity.deleteMany();
+    console.log('   ✅ Actividades de vacantes eliminadas');
+    await prisma.candidateRH.deleteMany();
+    console.log('   ✅ Candidatos eliminados');
+    await prisma.jobVacancy.deleteMany();
+    console.log('   ✅ Vacantes eliminadas');
+    await prisma.purchaseQuote.deleteMany();
+    console.log('   ✅ Cotizaciones eliminadas');
+    await prisma.purchaseItem.deleteMany();
+    console.log('   ✅ Items de compra eliminados');
+    await prisma.purchaseRequest.deleteMany();
+    console.log('   ✅ Solicitudes de compra eliminadas');
+    await prisma.attendanceRecord.deleteMany();
+    console.log('   ✅ Asistencias eliminadas');
+    await prisma.salaryHistory.deleteMany();
+    console.log('   ✅ Historial de sueldos eliminado');
+    await prisma.employeeDocument.deleteMany();
+    console.log('   ✅ Documentos eliminados');
+    await prisma.employee.deleteMany();
+    console.log('   ✅ Empleados eliminados');
+    await prisma.jobPosition.deleteMany();
+    console.log('   ✅ Puestos eliminados');
+    await prisma.department.deleteMany();
+    console.log('   ✅ Departamentos eliminados');
+    await prisma.session.deleteMany();
+    console.log('   ✅ Sesiones eliminadas');
+    await prisma.user.deleteMany();
+    console.log('   ✅ Usuarios eliminados');
+    await prisma.role.deleteMany();
+    console.log('   ✅ Roles eliminados');
+    
+    console.log('');
+    console.log('✅ Base de datos limpiada completamente');
+    console.log('');
+  }
 
   // ============================================================
   // PASO 1: Crear roles del sistema (si no existen)
