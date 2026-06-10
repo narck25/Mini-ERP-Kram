@@ -36,8 +36,9 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build de producción
-# Usar npx next build directamente con verbose para debug en Coolify
-RUN npx next build --debug 2>&1
+# Limitar memoria para evitar OOM en Coolify
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+RUN npx next build 2>&1
 
 # ============================================================
 # STAGE 2: Runner - Solo lo necesario para producción
