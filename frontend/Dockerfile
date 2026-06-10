@@ -36,7 +36,7 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build de producción
-RUN npm run build
+RUN npm run build 2>&1 || (echo "❌ BUILD FAILED - see logs above" && exit 1)
 
 # ============================================================
 # STAGE 2: Runner - Solo lo necesario para producción
