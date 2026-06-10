@@ -8,6 +8,8 @@ import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import QuoteSelectionModal from '@/components/QuoteSelectionModal';
+import SendAuthorizationModal from '@/components/SendAuthorizationModal';
 
 export default function ComprasAdminPage() {
   const { user } = useAuth();
@@ -15,6 +17,8 @@ export default function ComprasAdminPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [selectedRequestForAuth, setSelectedRequestForAuth] = useState(null);
 
   useEffect(() => {
     if (user && user.accessibleModules?.includes('COMPRAS')) {
@@ -459,6 +463,17 @@ export default function ComprasAdminPage() {
                           >
                             Gestionar
                           </Link>
+                          {(request.estatus === 'PENDIENTE' || request.estatus === 'EN_AUTORIZACION') && (
+                            <button
+                              onClick={() => {
+                                setSelectedRequestForAuth(request);
+                                setShowAuthModal(true);
+                              }}
+                              className="text-purple-600 hover:text-purple-900 mr-3"
+                            >
+                              {request.estatus === 'EN_AUTORIZACION' ? 'Reenviar' : 'Autorizar'}
+                            </button>
+                          )}
                           {request.estatus === 'APROBADO' && (
                             <button
                               onClick={() => handleMarkAsDelivered(request.id)}
@@ -477,6 +492,21 @@ export default function ComprasAdminPage() {
           </div>
         )}
 
+        {/* Modal de Enviar a Autorización */}
+        {showAuthModal && selectedRequestForAuth && (
+          <SendAuthorizationModal
+            request={selectedRequestForAuth}
+            onClose={() => {
+              setShowAuthModal(false);
+              setSelectedRequestForAuth(null);
+            }}
+            onSuccess={() => {
+              fetchAllRequests();
+              fetchStats();
+            }}
+          />
+        )}
+
         {/* Información */}
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex">
@@ -489,9 +519,9 @@ export default function ComprasAdminPage() {
               <h3 className="text-sm font-medium text-blue-800">Funciones del administrador de compras</h3>
               <div className="mt-2 text-sm text-blue-700">
                 <ul className="list-disc list-inside space-y-1">
-                  <li><strong>Estado NUEVO:</strong> Subir hasta 3 cotizaciones para que el solicitante elija</li>
-                  <li><strong>Estado PENDIENTE:</strong> Esperando que el solicitante seleccione una cotización</li>
-                  <li><strong>Estado EN_AUTORIZACION:</strong> Solicitudes mayores a $28,000 MXN requieren autorización adicional</li>
+                  <li><strong>Estado NUEVO:</strong> Subir cotizaciones (1 a 3, no es forzoso tener 3)</li>
+                  <li><strong>Estado PENDIENTE:</strong> Admin/Compras debe seleccionar la cotización más conveniente</li>
+                  <li><strong>Estado EN_AUTORIZACION:</strong> Solicitudes mayores a $50,000 MXN requieren autorización adicional</li>
                   <li><strong>Estado APROBADO:</strong> Puedes marcar como entregado cuando se complete la compra</li>
                   <li><strong>Estado ENTREGADO:</strong> Solicitud completada</li>
                 </ul>

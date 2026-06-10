@@ -149,6 +149,23 @@ class PurchaseController {
               id: true,
               nombre: true
             }
+          },
+          approvers: {
+            include: {
+              employee: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  nombres: true,
+                  apellidoPaterno: true,
+                  apellidoMaterno: true,
+                  nivelJerarquico: true,
+                  departamento: {
+                    select: { nombre: true }
+                  }
+                }
+              }
+            }
           }
         },
         orderBy: { createdAt: 'desc' }
@@ -222,6 +239,23 @@ class PurchaseController {
             select: {
               id: true,
               nombre: true
+            }
+          },
+          approvers: {
+            include: {
+              employee: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  nombres: true,
+                  apellidoPaterno: true,
+                  apellidoMaterno: true,
+                  nivelJerarquico: true,
+                  departamento: {
+                    select: { nombre: true }
+                  }
+                }
+              }
             }
           }
         }
@@ -407,14 +441,10 @@ class PurchaseController {
           )
         );
 
-        // Calcular total de cotizaciones (existentes + nuevas)
-        const totalQuotes = existingQuotes.length + purchaseQuotes.length;
-        
-        // Solo cambiar a PENDIENTE si ya hay 3 cotizaciones
-        let estatusUpdate = {};
-        if (totalQuotes >= 3) {
-          estatusUpdate.estatus = 'PENDIENTE';
-        }
+        // Cambiar a PENDIENTE automáticamente al subir cotizaciones
+        let estatusUpdate = {
+          estatus: 'PENDIENTE'
+        };
 
         // Actualizar estado de la solicitud si es necesario
         const updatedRequest = await tx.purchaseRequest.update({
@@ -448,16 +478,18 @@ class PurchaseController {
   }
 
   /**
-   * Seleccionar una cotización (El solicitante)
+   * Seleccionar una cotización (Solo Admin/Compras)
    * Lógica de negocio clave: 
-   * - Si el monto de la cotización seleccionada es > 28000, 
+   * - Si el monto de la cotización seleccionada es > 50000, 
    *   cambia estatus a EN_AUTORIZACION y marca requiereAutorizacion: true
-   * - Si es <= 28000, pasa directo a APROBADO
+   *   Además envía correo a ADMIN/RH para autorización
+   * - Si es <= 50000, pasa directo a APROBADO
+   * - Guarda comentarios y fecha estimada de entrega
    */
   static async selectQuote(req, res) {
     try {
       const { id } = req.params;
-      const { quoteId } = req.body;
+      const { quoteId, comentarios, fechaEstimadaEntrega } = req.body;
       const userId = req.user.id;
 
       // Buscar el empleado asociado al usuario
@@ -472,23 +504,29 @@ class PurchaseController {
         });
       }
 
-      // Validar que la solicitud exista y pertenezca al solicitante
+      // Validar que la solicitud exista
       const request = await prisma.purchaseRequest.findUnique({
         where: { id },
-        include: { quotes: true }
+        include: { 
+          quotes: true,
+          solicitante: {
+            select: {
+              id: true,
+              nombre: true,
+              correoElectronico: true,
+              user: { select: { email: true } }
+            }
+          },
+          departamento: {
+            select: { nombre: true }
+          }
+        }
       });
 
       if (!request) {
         return res.status(404).json({ 
           error: 'Solicitud no encontrada',
           message: 'La solicitud de compra no existe'
-        });
-      }
-
-      if (request.solicitanteId !== employee.id) {
-        return res.status(403).json({ 
-          error: 'Acceso denegado',
-          message: 'Solo el solicitante puede seleccionar una cotización'
         });
       }
 
@@ -508,18 +546,10 @@ class PurchaseController {
         });
       }
 
-      // Determinar el nuevo estado basado en el monto
+      // Determinar si requiere autorización basado en el monto
       const monto = selectedQuote.monto;
-      let nuevoEstatus;
-      let requiereAutorizacion = false;
-
-      if (monto > 28000) {
-        nuevoEstatus = 'EN_AUTORIZACION';
-        requiereAutorizacion = true;
-      } else {
-        nuevoEstatus = 'APROBADO';
-        requiereAutorizacion = false;
-      }
+      const UMBRAL_AUTORIZACION = 50000;
+      const requiereAutorizacion = monto > UMBRAL_AUTORIZACION;
 
       // Usar transacción para actualizar la cotización y la solicitud
       const result = await prisma.$transaction(async (tx) => {
@@ -529,17 +559,23 @@ class PurchaseController {
           data: { isSelected: false }
         });
 
-        // Marcar la cotización seleccionada
+        // Marcar la cotización seleccionada con comentarios y fecha estimada
         const updatedQuote = await tx.purchaseQuote.update({
           where: { id: quoteId },
-          data: { isSelected: true }
+          data: { 
+            isSelected: true,
+            comentarios: comentarios || null,
+            fechaEstimadaEntrega: fechaEstimadaEntrega ? new Date(fechaEstimadaEntrega) : null
+          }
         });
 
-        // Actualizar la solicitud
+        // Actualizar la solicitud - ya no cambia automáticamente a EN_AUTORIZACION
+        // Si requiere autorización, se queda en PENDIENTE hasta que se asignen aprobadores
+        // Si no requiere autorización, pasa directo a APROBADO
         const updatedRequest = await tx.purchaseRequest.update({
           where: { id },
           data: {
-            estatus: nuevoEstatus,
+            estatus: requiereAutorizacion ? 'PENDIENTE' : 'APROBADO',
             requiereAutorizacion
           }
         });
@@ -548,8 +584,13 @@ class PurchaseController {
       });
 
       res.json({
-        message: `Cotización seleccionada exitosamente. Solicitud ${nuevoEstatus.toLowerCase()}.`,
-        data: result
+        message: requiereAutorizacion 
+          ? 'Cotización seleccionada. Esta solicitud supera los $50,000 MXN y requiere asignar aprobadores.'
+          : 'Cotización seleccionada exitosamente. Solicitud aprobada.',
+        data: {
+          ...result,
+          requiereAutorizacion
+        }
       });
     } catch (error) {
       console.error("🔥 ERROR PRISMA:", error);
@@ -744,6 +785,106 @@ class PurchaseController {
   }
 
   /**
+   * Subir cotización con archivo en una sola llamada (multipart)
+   * Recibe: proveedor, monto, file (opcional)
+   * Crea la cotización y cambia estado a PENDIENTE
+   */
+  static async uploadQuoteWithFile(req, res) {
+    try {
+      const { id } = req.params;
+      const { proveedor, monto, archivoUrl: bodyArchivoUrl } = req.body;
+
+      // Validar que la solicitud exista
+      const request = await prisma.purchaseRequest.findUnique({
+        where: { id }
+      });
+
+      if (!request) {
+        return res.status(404).json({ 
+          error: 'Solicitud no encontrada',
+          message: 'La solicitud de compra no existe'
+        });
+      }
+
+      // Permitir subir cotizaciones solo en estado NUEVO o PENDIENTE
+      if (request.estatus !== 'NUEVO' && request.estatus !== 'PENDIENTE') {
+        return res.status(400).json({ 
+          error: 'Estado inválido',
+          message: 'Solo se pueden subir cotizaciones a solicitudes en estado NUEVO o PENDIENTE'
+        });
+      }
+
+      // Validar datos requeridos
+      if (!proveedor || !monto) {
+        return res.status(400).json({ 
+          error: 'Datos inválidos',
+          message: 'Debe proporcionar proveedor y monto'
+        });
+      }
+
+      const montoNum = parseFloat(monto);
+      if (isNaN(montoNum) || montoNum <= 0) {
+        return res.status(400).json({ 
+          error: 'Monto inválido',
+          message: 'El monto debe ser un número mayor a 0'
+        });
+      }
+
+      // Construir URL del archivo si se subió uno
+      let archivoUrl = null;
+      if (req.file) {
+        archivoUrl = `/uploads/purchase-quotes/${req.file.filename}`;
+      } else if (bodyArchivoUrl) {
+        // Si no hay archivo nuevo pero se envió una URL (archivo subido previamente)
+        archivoUrl = bodyArchivoUrl;
+      }
+
+      // Usar transacción para crear la cotización y actualizar estado
+      const result = await prisma.$transaction(async (tx) => {
+        // Crear la cotización
+        const purchaseQuote = await tx.purchaseQuote.create({
+          data: {
+            requestId: id,
+            proveedor: proveedor.trim(),
+            monto: montoNum,
+            archivoUrl: archivoUrl,
+            fechaCotizacion: new Date(),
+            isSelected: false
+          }
+        });
+
+        // Cambiar a PENDIENTE automáticamente
+        const updatedRequest = await tx.purchaseRequest.update({
+          where: { id },
+          data: { estatus: 'PENDIENTE' }
+        });
+
+        return { request: updatedRequest, quotes: [purchaseQuote] };
+      });
+
+      // Transformar URLs
+      const transformedQuotes = result.quotes.map(quote => ({
+        ...quote,
+        archivoUrl: buildFileUrl(req, quote.archivoUrl)
+      }));
+
+      res.json({
+        message: 'Cotización subida exitosamente',
+        data: {
+          request: result.request,
+          quotes: transformedQuotes
+        }
+      });
+    } catch (error) {
+      console.error("🔥 ERROR PRISMA:", error);
+      res.status(500).json({ 
+        error: 'Error interno del servidor',
+        message: 'No se pudo subir la cotización'
+      });
+    }
+  }
+
+  /**
    * Subir archivo para una nueva cotización (antes de crear la cotización)
    * Solo Admin/Compras pueden subir archivos
    */
@@ -759,7 +900,7 @@ class PurchaseController {
         });
       }
 
-      // Validar que la solicitud exista y esté en estado NUEVO
+      // Validar que la solicitud exista y esté en estado NUEVO o PENDIENTE
       const request = await prisma.purchaseRequest.findUnique({
         where: { id }
       });
@@ -771,10 +912,10 @@ class PurchaseController {
         });
       }
 
-      if (request.estatus !== 'NUEVO') {
+      if (request.estatus !== 'NUEVO' && request.estatus !== 'PENDIENTE') {
         return res.status(400).json({ 
           error: 'Estado inválido',
-          message: 'Solo se pueden subir archivos para cotizaciones en solicitudes NUEVO'
+          message: 'Solo se pueden subir archivos para cotizaciones en solicitudes NUEVO o PENDIENTE'
         });
       }
 
@@ -874,13 +1015,13 @@ class PurchaseController {
         let nuevoEstatus = request.estatus;
         let requiereAutorizacion = request.requiereAutorizacion;
 
-        // Si el monto cambia de <= 28000 a > 28000, cambiar a EN_AUTORIZACION
-        if (nuevoMonto > 28000 && request.estatus === 'APROBADO') {
+        // Si el monto cambia de <= 50000 a > 50000, cambiar a EN_AUTORIZACION
+        if (nuevoMonto > 50000 && request.estatus === 'APROBADO') {
           nuevoEstatus = 'EN_AUTORIZACION';
           requiereAutorizacion = true;
         }
-        // Si el monto cambia de > 28000 a <= 28000, cambiar a APROBADO
-        else if (nuevoMonto <= 28000 && request.estatus === 'EN_AUTORIZACION') {
+        // Si el monto cambia de > 50000 a <= 50000, cambiar a APROBADO
+        else if (nuevoMonto <= 50000 && request.estatus === 'EN_AUTORIZACION') {
           nuevoEstatus = 'APROBADO';
           requiereAutorizacion = false;
         }
@@ -911,7 +1052,281 @@ class PurchaseController {
   }
 
   /**
-   * Cancelar una solicitud
+   * Obtener comparativa de cotizaciones para una solicitud
+   * Devuelve las cotizaciones ordenadas por monto ascendente,
+   * destacando la mejor opción y calculando diferencias
+   */
+  static async getQuoteComparison(req, res) {
+    try {
+      const { id } = req.params;
+
+      const request = await prisma.purchaseRequest.findUnique({
+        where: { id },
+        include: {
+          items: true,
+          quotes: {
+            orderBy: { monto: 'asc' }
+          },
+          solicitante: {
+            select: { nombre: true }
+          },
+          departamento: {
+            select: { nombre: true }
+          }
+        }
+      });
+
+      if (!request) {
+        return res.status(404).json({ 
+          error: 'Solicitud no encontrada',
+          message: 'La solicitud de compra no existe'
+        });
+      }
+
+      if (request.quotes.length === 0) {
+        return res.json({
+          comparison: null,
+          message: 'No hay cotizaciones para comparar'
+        });
+      }
+
+      // Calcular estadísticas de comparativa
+      const quotes = request.quotes.map((q, index) => ({
+        ...q,
+        archivoUrl: buildFileUrl(req, q.archivoUrl),
+        rank: index + 1,
+        esMejorOpcion: index === 0,
+        diferenciaVsMejor: index === 0 ? 0 : q.monto - request.quotes[0].monto,
+        diferenciaPorcentual: index === 0 ? 0 : 
+          ((q.monto - request.quotes[0].monto) / request.quotes[0].monto * 100).toFixed(2)
+      }));
+
+      const totalCotizaciones = quotes.length;
+      const montoMinimo = request.quotes[0].monto;
+      const montoMaximo = request.quotes[request.quotes.length - 1].monto;
+      const montoPromedio = request.quotes.reduce((sum, q) => sum + q.monto, 0) / totalCotizaciones;
+      const ahorroPotencial = totalCotizaciones > 1 ? montoMaximo - montoMinimo : 0;
+
+      res.json({
+        comparison: {
+          request: {
+            id: request.id,
+            folio: request.folio,
+            estatus: request.estatus,
+            justificacion: request.justificacion,
+            solicitante: request.solicitante?.nombre || 'N/A',
+            departamento: request.departamento?.nombre || 'N/A',
+            items: request.items
+          },
+          quotes,
+          resumen: {
+            totalCotizaciones,
+            montoMinimo,
+            montoMaximo,
+            montoPromedio: Math.round(montoPromedio * 100) / 100,
+            ahorroPotencial: Math.round(ahorroPotencial * 100) / 100,
+            requiereAutorizacion: montoMinimo > 50000
+          }
+        }
+      });
+    } catch (error) {
+      console.error("🔥 ERROR PRISMA:", error);
+      res.status(500).json({ 
+        error: 'Error interno del servidor',
+        message: 'No se pudo obtener la comparativa'
+      });
+    }
+  }
+
+  /**
+   * Obtener empleados con roles gerenciales (posibles aprobadores)
+   * Busca empleados con nivel jerárquico GERENTE, DIRECTOR, PRESIDENTE
+   * o que tengan usuarios con rol ADMIN o RH
+   */
+  static async getPotentialApprovers(req, res) {
+    try {
+      const { id } = req.params;
+
+      // Obtener la solicitud para conocer el departamento
+      const request = await prisma.purchaseRequest.findUnique({
+        where: { id },
+        select: { departamentoId: true }
+      });
+
+      if (!request) {
+        return res.status(404).json({ error: 'Solicitud no encontrada' });
+      }
+
+      // Buscar empleados con nivel jerárquico gerencial
+      const gerentes = await prisma.employee.findMany({
+        where: {
+          nivelJerarquico: {
+            in: ['GERENTE', 'DIRECTOR', 'PRESIDENTE']
+          },
+          estatus: 'Activo'
+        },
+        select: {
+          id: true,
+          nombres: true,
+          apellidoPaterno: true,
+          apellidoMaterno: true,
+          nombre: true,
+          nivelJerarquico: true,
+          departamento_id: true,
+          departamento: {
+            select: { nombre: true }
+          },
+          user: {
+            select: {
+              id: true,
+              email: true,
+              role: true
+            }
+          }
+        },
+        orderBy: [
+          { nivelJerarquico: 'asc' },
+          { nombre: 'asc' }
+        ]
+      });
+
+      // También buscar usuarios con rol ADMIN o RH que no estén en la lista anterior
+      const adminRHUsers = await prisma.user.findMany({
+        where: {
+          role: { in: ['ADMIN', 'RH'] },
+          employee: { isNot: null }
+        },
+        select: {
+          employee: {
+            select: {
+              id: true,
+              nombres: true,
+              apellidoPaterno: true,
+              apellidoMaterno: true,
+              nombre: true,
+              nivelJerarquico: true,
+              departamento_id: true,
+              departamento: {
+                select: { nombre: true }
+              }
+            }
+          }
+        }
+      });
+
+      // Combinar y deduplicar
+      const gerentesMap = new Map();
+      gerentes.forEach(g => gerentesMap.set(g.id, g));
+      adminRHUsers.forEach(u => {
+        if (u.employee && !gerentesMap.has(u.employee.id)) {
+          gerentesMap.set(u.employee.id, u.employee);
+        }
+      });
+
+      const potentialApprovers = Array.from(gerentesMap.values()).map(e => ({
+        id: e.id,
+        nombre: e.nombre || `${e.nombres || ''} ${e.apellidoPaterno || ''} ${e.apellidoMaterno || ''}`.trim(),
+        nivelJerarquico: e.nivelJerarquico,
+        departamento: e.departamento?.nombre || '',
+        departamento_id: e.departamento_id,
+        email: e.user?.email || ''
+      }));
+
+      res.json({ data: potentialApprovers });
+    } catch (error) {
+      console.error("🔥 ERROR al obtener aprobadores potenciales:", error);
+      res.status(500).json({ 
+        error: 'Error interno del servidor',
+        message: 'No se pudieron obtener los aprobadores'
+      });
+    }
+  }
+
+  /**
+   * Asignar aprobadores a una solicitud de compra
+   */
+  static async assignApprovers(req, res) {
+    try {
+      const { id } = req.params;
+      const { approverIds } = req.body;
+
+      if (!approverIds || !Array.isArray(approverIds) || approverIds.length === 0) {
+        return res.status(400).json({
+          error: 'Datos inválidos',
+          message: 'Debe seleccionar al menos un aprobador'
+        });
+      }
+
+      // Validar que la solicitud exista
+      const request = await prisma.purchaseRequest.findUnique({
+        where: { id },
+        select: { id: true, estatus: true }
+      });
+
+      if (!request) {
+        return res.status(404).json({ error: 'Solicitud no encontrada' });
+      }
+
+      // Eliminar aprobadores anteriores y crear los nuevos
+      await prisma.$transaction([
+        prisma.purchaseApprover.deleteMany({
+          where: { requestId: id }
+        }),
+        ...approverIds.map(employeeId =>
+          prisma.purchaseApprover.create({
+            data: {
+              requestId: id,
+              employeeId,
+              estatus: 'PENDIENTE'
+            }
+          })
+        )
+      ]);
+
+      // Cambiar estatus a EN_AUTORIZACION
+      await prisma.purchaseRequest.update({
+        where: { id },
+        data: {
+          estatus: 'EN_AUTORIZACION',
+          requiereAutorizacion: true
+        }
+      });
+
+      // Obtener los aprobadores asignados con sus datos
+      const approvers = await prisma.purchaseApprover.findMany({
+        where: { requestId: id },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              nombre: true,
+              nombres: true,
+              apellidoPaterno: true,
+              apellidoMaterno: true,
+              nivelJerarquico: true,
+              departamento: {
+                select: { nombre: true }
+              }
+            }
+          }
+        }
+      });
+
+      res.json({
+        message: 'Aprobadores asignados exitosamente',
+        data: { approvers }
+      });
+    } catch (error) {
+      console.error("🔥 ERROR al asignar aprobadores:", error);
+      res.status(500).json({ 
+        error: 'Error interno del servidor',
+        message: 'No se pudieron asignar los aprobadores'
+      });
+    }
+  }
+
+  /**
+   * Cancelar una solicitud de compra
    */
   static async cancelRequest(req, res) {
     try {
@@ -983,6 +1398,108 @@ class PurchaseController {
       res.status(500).json({ 
         error: 'Error interno del servidor',
         message: 'No se pudo cancelar la solicitud'
+      });
+    }
+  }
+
+  /**
+   * Enviar autorización manual a aprobadores seleccionados
+   * Cambia el estado a EN_AUTORIZACION y envía correos
+   */
+  static async sendAuthorization(req, res) {
+    try {
+      const { id } = req.params;
+      const { approverEmails } = req.body;
+
+      if (!approverEmails || !Array.isArray(approverEmails) || approverEmails.length === 0) {
+        return res.status(400).json({
+          error: 'Datos inválidos',
+          message: 'Debe seleccionar al menos un aprobador'
+        });
+      }
+
+      // Buscar la solicitud
+      const request = await prisma.purchaseRequest.findUnique({
+        where: { id },
+        include: {
+          quotes: {
+            where: { isSelected: true }
+          },
+          solicitante: {
+            select: {
+              nombre: true,
+              correoElectronico: true,
+              user: { select: { email: true } }
+            }
+          },
+          departamento: {
+            select: { nombre: true }
+          }
+        }
+      });
+
+      if (!request) {
+        return res.status(404).json({
+          error: 'Solicitud no encontrada',
+          message: 'La solicitud de compra no existe'
+        });
+      }
+
+      if (request.estatus !== 'PENDIENTE' && request.estatus !== 'EN_AUTORIZACION') {
+        return res.status(400).json({
+          error: 'Estado inválido',
+          message: 'Solo se puede enviar autorización en solicitudes PENDIENTE o EN_AUTORIZACION'
+        });
+      }
+
+      const selectedQuote = request.quotes.find(q => q.isSelected);
+      if (!selectedQuote) {
+        return res.status(400).json({
+          error: 'Sin cotización seleccionada',
+          message: 'Debe seleccionar una cotización antes de enviar a autorización'
+        });
+      }
+
+      // Cambiar estado a EN_AUTORIZACION
+      await prisma.purchaseRequest.update({
+        where: { id },
+        data: { estatus: 'EN_AUTORIZACION' }
+      });
+
+      // Enviar correos a los aprobadores
+      const emailService = require('../services/email.service');
+      const results = await Promise.allSettled(
+        approverEmails.map(email =>
+          emailService.sendPurchaseAuthorizationRequired(
+            email,
+            email.split('@')[0] || 'Usuario',
+            {
+              folio: request.folio,
+              solicitante: request.solicitante?.nombre || 'N/A',
+              departamento: request.departamento?.nombre || 'N/A',
+              justificacion: request.justificacion || ''
+            },
+            selectedQuote
+          )
+        )
+      );
+
+      const sentCount = results.filter(r => r.status === 'fulfilled' && r.value).length;
+      const failedCount = results.filter(r => r.status === 'rejected' || !r.value).length;
+
+      res.json({
+        message: `Autorización enviada a ${sentCount} aprobador(es)${failedCount > 0 ? `. ${failedCount} fallaron.` : ''}`,
+        data: {
+          sent: sentCount,
+          failed: failedCount,
+          total: approverEmails.length
+        }
+      });
+    } catch (error) {
+      console.error("🔥 ERROR PRISMA:", error);
+      res.status(500).json({
+        error: 'Error interno del servidor',
+        message: 'No se pudo enviar la autorización'
       });
     }
   }

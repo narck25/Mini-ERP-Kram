@@ -87,7 +87,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 CMD echo "🔧 Inicializando backend..." && \
     node scripts/resolve-migrations.js && \
     npx prisma migrate deploy && \
-    echo "🌱 Ejecutando seed de producción (idempotente)..." && \
-    node prisma/seed-prod.js && \
+    # echo "🌱 Ejecutando seed de producción (idempotente)..." && \
+    # node prisma/seed-prod.js && \
     echo "🚀 Iniciando servidor..." && \
     node src/index.js
