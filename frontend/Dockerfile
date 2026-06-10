@@ -36,7 +36,21 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build de producción
-RUN npm run build
+# Capturar todo el output para debug en Coolify
+RUN npm run build > /tmp/build-out.log 2>&1; \
+    exit_code=$?; \
+    if [ $exit_code -ne 0 ]; then \
+        echo ""; \
+        echo "============================================"; \
+        echo "  BUILD FAILED (exit code: $exit_code)"; \
+        echo "============================================"; \
+        cat /tmp/build-out.log; \
+        echo ""; \
+        echo "============================================"; \
+        echo "  END OF BUILD LOG"; \
+        echo "============================================"; \
+        exit $exit_code; \
+    fi
 
 # ============================================================
 # STAGE 2: Runner - Solo lo necesario para producción
