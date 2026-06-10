@@ -36,8 +36,13 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build de producción
-# NOTA: No usar 2>&1 porque BuildKit en Coolify no captura bien el stderr
-RUN npm run build
+# Capturar stderr en un archivo para debug en Coolify
+RUN npm run build > /tmp/build.log 2>&1; \
+    if [ $? -ne 0 ]; then \
+        echo "=== BUILD FAILED ==="; \
+        cat /tmp/build.log; \
+        exit 1; \
+    fi
 
 # ============================================================
 # STAGE 2: Runner - Solo lo necesario para producción
