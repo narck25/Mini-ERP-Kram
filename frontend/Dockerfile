@@ -36,9 +36,7 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build de producción
-# Limitar memoria drásticamente para evitar OOM en Coolify (solo 1GB)
-ENV NODE_OPTIONS="--max-old-space-size=1024"
-RUN npx next build 2>&1
+RUN npm run build
 
 # ============================================================
 # STAGE 2: Runner - Solo lo necesario para producción
