@@ -20,6 +20,7 @@ model User {
   employee          Employee?
   sessions          Session[]
   VacancyComment    VacancyComment[]
+  purchaseComments  PurchaseComment[]
 
   @@map("users")
 }
@@ -117,6 +118,7 @@ model Employee {
   voBoVacancies         JobVacancy[]       @relation("VoBoPor")
   comprasSolicitadas    PurchaseRequest[]  @relation("ComprasSolicitante")
   comprasAutorizadas    PurchaseRequest[]  @relation("ComprasAutorizador")
+  purchaseApprovals     PurchaseApprover[]
   puesto                JobPosition?       @relation(fields: [puestoId], references: [id])
   salaryHistory         SalaryHistory[]
   notificationLogs      NotificationLog[]
@@ -383,6 +385,8 @@ model PurchaseRequest {
   autorizadoPorId      String?
   autorizadoPor        Employee? @relation("ComprasAutorizador", fields: [autorizadoPorId], references: [id])
   fechaAutorizacion    DateTime?
+  comments        PurchaseComment[]
+  approvers       PurchaseApprover[]
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
@@ -408,9 +412,23 @@ model PurchaseQuote {
   fechaCotizacion   DateTime        @default(now())
   archivoUrl        String?
   isSelected        Boolean         @default(false)
+  comentarios       String?
+  fechaEstimadaEntrega DateTime?
   request           PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   @@map("purchase_quotes")
+}
+
+model PurchaseComment {
+  id          String         @id @default(cuid())
+  requestId   String
+  userId      String
+  mensaje     String
+  createdAt   DateTime       @default(now())
+  request     PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user        User           @relation(fields: [userId], references: [id])
+
+  @@map("purchase_comments")
 }
 
 model AttendanceRecord {
@@ -475,4 +493,18 @@ model NotificationLog {
   @@index([tipo])
   @@index([enviadoA])
   @@map("notification_logs")
+}
+
+model PurchaseApprover {
+  id              String         @id @default(cuid())
+  requestId       String
+  employeeId      String
+  estatus         String         @default("PENDIENTE") // PENDIENTE | APROBADO | RECHAZADO
+  fechaRespuesta  DateTime?
+  comentarios     String?
+  request         PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  employee        Employee       @relation(fields: [employeeId], references: [id])
+
+  @@unique([requestId, employeeId])
+  @@map("purchase_approvers")
 }

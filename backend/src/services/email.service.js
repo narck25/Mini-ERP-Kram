@@ -528,4 +528,36 @@ exports.sendDailySummaryToRH = async (email, rhName, birthdayList, anniversaryLi
   return sendEmail(email, title, emailLayout(title, content));
 };
 
+/**
+ * Notificar que se requiere autorización para una compra > $50,000
+ */
+exports.sendPurchaseAuthorizationRequired = async (email, nombreAdmin, request, quote) => {
+  const title = '💰 Autorización de Compra Requerida';
+  const content = `
+    <p>Hola <strong>${nombreAdmin}</strong>,</p>
+    <p>Se requiere tu autorización para la siguiente solicitud de compra:</p>
+    
+    <div class="info-box">
+      <strong>Folio:</strong> #${request.folio}<br>
+      <strong>Solicitante:</strong> ${request.solicitante}<br>
+      <strong>Departamento:</strong> ${request.departamento}<br>
+      <strong>Justificación:</strong> ${request.justificacion || 'Sin justificación'}<br>
+      <strong>Proveedor seleccionado:</strong> ${quote.proveedor}<br>
+      <strong>Monto:</strong> $${Number(quote.monto).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN<br>
+      <strong>Comentarios:</strong> ${quote.comentarios}<br>
+      <strong>Estatus:</strong> <span class="status-badge status-solicitada">Pendiente de Autorización</span>
+    </div>
+
+    <p>Esta compra supera el límite de $50,000 MXN y requiere autorización de Dirección o RH.</p>
+    
+    <center>
+      <a href="${FRONTEND_URL}/dashboard/compras" class="button">
+        Ir al Dashboard de Compras
+      </a>
+    </center>
+  `;
+
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
 module.exports = exports;

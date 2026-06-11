@@ -1,10 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   
   // ============================================================
   // Configuración de Server Actions para producción detrás de proxy
+  // NOTA: En Next.js 14.2.21, serverActions aún está en experimental
   // ============================================================
   experimental: {
     serverActions: {

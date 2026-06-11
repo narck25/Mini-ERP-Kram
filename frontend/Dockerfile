@@ -3,27 +3,27 @@
 # ============================================================
 # ARG BUILD_DATE para invalidar caché de Docker en Coolify
 ARG BUILD_DATE
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
-# Instalar herramientas necesarias para sharp en Alpine
-RUN apk add --no-cache --virtual .gyp \
-  python3 \
-  make \
-  g++ \
-  vips-dev \
-  && rm -rf /var/cache/apk/*
+# Instalar herramientas necesarias para compilación nativa (sharp, etc.)
+RUN apt-get update -qq && \
+    apt-get install -y -qq \
+      python3 \
+      make \
+      g++ \
+      && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 # Copiar solo package.json y package-lock.json primero (caching)
 COPY package*.json ./
 
+# Actualizar npm a la versión 11 para compatibilidad con lockfileVersion 3
+# (el lockfile fue generado con npm 11 y npm 10.x de node:20-slim no lo resuelve bien)
+RUN npm install -g npm@11
+
 # Instalar TODAS las dependencias (incluyendo devDependencies para build)
-# NOTA: Usamos npm install en vez de npm ci porque el lockfile
-# fue generado con npm 11 (lockfileVersion 3) y en Docker
-# puede haber incompatibilidades menores de versión.
-RUN npm cache clean --force && \
-    npm install --include=dev --no-audit --no-fund
+RUN npm install --include=dev --no-audit --no-fund
 
 # Copiar el resto del código fuente
 COPY . .
@@ -36,9 +36,8 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build de producción
-# NOTA: BuildKit en Coolify no muestra el output de comandos internos
-# Por eso usamos un shell script inline que escribe a stderr directamente
-RUN sh -c 'npm run build > /tmp/build.log 2>&1; exit_code=$?; if [ $exit_code -ne 0 ]; then echo "=== BUILD FAILED ===" >&2; cat /tmp/build.log >&2; exit $exit_code; fi'
+# NOTA: Se ejecuta directamente para que Coolify/BuildKit capture el error real
+RUN npm run build
 
 # ============================================================
 # STAGE 2: Runner - Solo lo necesario para producción

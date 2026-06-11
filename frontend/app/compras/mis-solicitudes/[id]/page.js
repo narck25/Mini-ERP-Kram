@@ -7,6 +7,7 @@ import api from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
+import PurchaseComments from '@/components/PurchaseComments';
 
 export default function MisSolicitudesDetallePage() {
   const { user } = useAuth();
@@ -37,7 +38,7 @@ export default function MisSolicitudesDetallePage() {
   const fetchRequestDetails = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/purchases/${requestId}`);
+      const response = await api.get(`/purchases/details/${requestId}`);
       setRequest(response.data.request);
     } catch (error) {
       console.error('Error fetching request details:', error);
@@ -54,12 +55,12 @@ export default function MisSolicitudesDetallePage() {
       setSelectingQuote(true);
       await api.post(`/purchases/${requestId}/select-quote`, { quoteId });
       
-      // Verificar si la cotización seleccionada es mayor a $28,000
+      // Verificar si la cotización seleccionada es mayor a $50,000
       const selectedQuote = request?.quotes?.find(q => q.id === quoteId);
-      const isOver28000 = selectedQuote?.monto > 28000;
+      const isOver50000 = selectedQuote?.monto > 50000;
       
-      if (isOver28000) {
-        toast.success('Cotización seleccionada. Por superar los $28,000 MXN, la solicitud pasó a Autorización Gerencial.');
+      if (isOver50000) {
+        toast.success('Cotización seleccionada. Por superar los $50,000 MXN, la solicitud pasó a Autorización Gerencial.');
       } else {
         toast.success('Cotización aprobada correctamente.');
       }
@@ -196,7 +197,7 @@ export default function MisSolicitudesDetallePage() {
   }
 
   const selectedQuote = request?.quotes?.find(q => q.isSelected);
-  const isOver28000 = selectedQuote?.monto > 28000;
+  const isOver50000 = selectedQuote?.monto > 50000;
   
   // Encontrar la cotización con el monto más bajo (mejor opción)
   const findBestQuote = () => {
@@ -288,8 +289,8 @@ export default function MisSolicitudesDetallePage() {
               </div>
             </div>
 
-            {/* Botón para abrir modal de cotizaciones (solo para estado PENDIENTE) */}
-            {request.estatus === 'PENDIENTE' && request.quotes && request.quotes.length > 0 && (
+            {/* Botón para abrir modal de cotizaciones (solo Admin/Compras y estado PENDIENTE) */}
+            {request.estatus === 'PENDIENTE' && request.quotes && request.quotes.length > 0 && (user.role === 'ADMIN' || user.role === 'COMPRAS') && (
               <div className="bg-white border border-gray-200 rounded-lg p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Cotizaciones disponibles</h2>
                 <p className="text-sm text-gray-600 mb-4">
@@ -306,7 +307,7 @@ export default function MisSolicitudesDetallePage() {
                   Ver y Seleccionar Cotizaciones
                 </button>
                 
-                {/* Mensaje informativo sobre la regla de $28,000 */}
+                {/* Mensaje informativo sobre la regla de $50,000 */}
                 <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <div className="flex">
                     <div className="flex-shrink-0">
@@ -318,10 +319,10 @@ export default function MisSolicitudesDetallePage() {
                       <h3 className="text-sm font-medium text-yellow-800">Regla de autorización</h3>
                       <div className="mt-2 text-sm text-yellow-700">
                         <p>
-                          Si seleccionas una cotización <strong>mayor a $28,000 MXN</strong>, la solicitud pasará a <strong>Autorización Gerencial</strong> y requerirá aprobación adicional.
+                          Si seleccionas una cotización <strong>mayor a $50,000 MXN</strong>, la solicitud pasará a <strong>Autorización Gerencial</strong> y requerirá aprobación adicional.
                         </p>
                         <p className="mt-1">
-                          Si la cotización es menor o igual a $28,000 MXN, la solicitud será <strong>aprobada automáticamente</strong>.
+                          Si la cotización es menor o igual a $50,000 MXN, la solicitud será <strong>aprobada automáticamente</strong>.
                         </p>
                       </div>
                     </div>
@@ -345,7 +346,7 @@ export default function MisSolicitudesDetallePage() {
                       <h3 className="text-sm font-medium text-blue-800">¡Solicitud en proceso de autorización!</h3>
                       <div className="mt-2 text-sm text-blue-700">
                         <p>
-                          Has seleccionado una cotización de <strong>{formatCurrency(selectedQuote?.monto)}</strong> que supera los $28,000 MXN.
+                          Has seleccionado una cotización de <strong>{formatCurrency(selectedQuote?.monto)}</strong> que supera los $50,000 MXN.
                         </p>
                         <p className="mt-1">
                           La solicitud está ahora en <strong>Autorización Gerencial</strong>. Un gerente o administrador debe aprobarla antes de continuar.
@@ -381,7 +382,7 @@ export default function MisSolicitudesDetallePage() {
                     <div className="text-lg font-semibold text-gray-900">
                       {formatCurrency(selectedQuote.monto)}
                     </div>
-                    {isOver28000 && (
+                    {isOver50000 && (
                       <div className="mt-2 text-sm text-yellow-600">
                         ⚠️ Requiere autorización gerencial
                       </div>
@@ -431,7 +432,7 @@ export default function MisSolicitudesDetallePage() {
                   </div>
                   <div>
                     <div className="font-medium">EN AUTORIZACIÓN</div>
-                    <div className="text-sm text-gray-600">Solo si mayor a $28,000 MXN</div>
+                    <div className="text-sm text-gray-600">Solo si mayor a $50,000 MXN</div>
                   </div>
                 </div>
                 
@@ -519,8 +520,13 @@ export default function MisSolicitudesDetallePage() {
           </div>
         )}
 
-        {/* Modal para seleccionar cotizaciones */}
-        {showQuotesModal && (
+        {/* Sección de comentarios tipo chat/blog */}
+        <div className="mt-6">
+          <PurchaseComments requestId={requestId} />
+        </div>
+
+        {/* Modal para seleccionar cotizaciones (solo Admin/Compras) */}
+        {showQuotesModal && (user.role === 'ADMIN' || user.role === 'COMPRAS') && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
             <div className="bg-white rounded-lg shadow-xl w-11/12 max-w-4xl max-h-[90vh] flex flex-col">
               {/* Encabezado del modal */}
@@ -626,7 +632,7 @@ export default function MisSolicitudesDetallePage() {
                                 <div className="text-2xl font-bold text-gray-900">
                                   {formatCurrency(quote.monto)}
                                 </div>
-                                {quote.monto > 28000 && (
+                                {quote.monto > 50000 && (
                                   <div className="text-sm text-yellow-600 mt-1">
                                     ⚠️ Requiere autorización gerencial
                                   </div>
