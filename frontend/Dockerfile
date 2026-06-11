@@ -36,21 +36,9 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build de producción
-# Capturar todo el output para debug en Coolify
-RUN npm run build > /tmp/build-out.log 2>&1; \
-    exit_code=$?; \
-    if [ $exit_code -ne 0 ]; then \
-        echo ""; \
-        echo "============================================"; \
-        echo "  BUILD FAILED (exit code: $exit_code)"; \
-        echo "============================================"; \
-        cat /tmp/build-out.log; \
-        echo ""; \
-        echo "============================================"; \
-        echo "  END OF BUILD LOG"; \
-        echo "============================================"; \
-        exit $exit_code; \
-    fi
+# NOTA: BuildKit en Coolify no muestra el output de comandos internos
+# Por eso usamos un shell script inline que escribe a stderr directamente
+RUN sh -c 'npm run build > /tmp/build.log 2>&1; exit_code=$?; if [ $exit_code -ne 0 ]; then echo "=== BUILD FAILED ===" >&2; cat /tmp/build.log >&2; exit $exit_code; fi'
 
 # ============================================================
 # STAGE 2: Runner - Solo lo necesario para producción
