@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
@@ -11,14 +11,144 @@ export default function PurchaseComments({ requestId }) {
   const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [sseConnected, setSseConnected] = useState(false);
   const messagesEndRef = useRef(null);
+  const eventSourceRef = useRef(null);
 
+  // ───────────────────────────────────────────────────────────
+  // 1. Carga inicial de comentarios (GET /purchases/:id/comments)
+  // ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (requestId) {
       fetchComments();
     }
   }, [requestId]);
 
+  // ───────────────────────────────────────────────────────────
+  // 2. Conexión SSE para recibir comentarios en tiempo real
+  // ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!requestId) return;
+
+    /**
+     * Establece una conexión SSE (Server-Sent Events) al backend.
+     *
+     * El token JWT se pasa como query param `token` porque
+     * EventSource (API nativa del navegador) NO soporta
+     * headers personalizados como Authorization.
+     *
+     * Eventos recibidos:
+     *   - 'connected':  Confirmación de conexión exitosa
+     *   - 'new-comment': Nuevo comentario agregado por otro usuario
+     *   - 'error':       Error del servidor
+     *   - 'shutdown':    Servidor cerrándose
+     */
+    const connectSSE = () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      // Cerrar conexión anterior si existe
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+
+      // Construir URL con token como query param
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const sseUrl = `${baseUrl}/api/purchases/${requestId}/comments/stream?token=${encodeURIComponent(token)}`;
+
+      const eventSource = new EventSource(sseUrl);
+      eventSourceRef.current = eventSource;
+
+      // ── Evento: connected ──
+      eventSource.addEventListener('connected', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('🔌 SSE conectado:', data.message);
+          setSseConnected(true);
+        } catch (err) {
+          console.warn('⚠️ SSE: Error parseando evento connected:', err);
+        }
+      });
+
+      // ── Evento: new-comment ──
+      // Cuando otro usuario (o el mismo desde otra pestaña) agrega
+      // un comentario, el backend lo emite y aquí lo agregamos a la
+      // lista local sin necesidad de hacer polling.
+      eventSource.addEventListener('new-comment', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const newComment = data.comment;
+
+          // Evitar duplicados: si el comentario ya está en la lista,
+          // no lo agregamos de nuevo (puede ocurrir si el usuario que
+          // envió el comentario ya lo agregó localmente en handleSendMessage).
+          setComments((prev) => {
+            const exists = prev.some((c) => c.id === newComment.id);
+            if (exists) return prev;
+            return [...prev, newComment];
+          });
+
+          // Scroll automático al nuevo comentario
+          setTimeout(scrollToBottom, 50);
+        } catch (err) {
+          console.warn('⚠️ SSE: Error parseando new-comment:', err);
+        }
+      });
+
+      // ── Evento: error ──
+      eventSource.addEventListener('error', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.error('❌ SSE Error:', data.error);
+        } catch (err) {
+          console.error('❌ SSE: Error de conexión (sin datos)');
+        }
+        setSseConnected(false);
+      });
+
+      // ── Evento: shutdown ──
+      eventSource.addEventListener('shutdown', (event) => {
+        console.log('🔌 SSE: Servidor cerró la conexión');
+        setSseConnected(false);
+        eventSource.close();
+      });
+
+      // ── Manejo de errores de conexión (onerror nativo) ──
+      // EventSource no tiene reconexión automática configurable,
+      // pero por defecto intenta reconectar después de 3 segundos.
+      // Nosotros implementamos reconexión manual con backoff.
+      eventSource.onerror = () => {
+        console.warn('⚠️ SSE: Error de conexión, reconectando en 5s...');
+        setSseConnected(false);
+        eventSource.close();
+
+        // Reconexión automática después de 5 segundos
+        setTimeout(() => {
+          if (requestId) {
+            console.log('🔄 SSE: Reintentando conexión...');
+            connectSSE();
+          }
+        }, 5000);
+      };
+    };
+
+    // Iniciar conexión SSE
+    connectSSE();
+
+    // Cleanup al desmontar el componente o cambiar requestId
+    return () => {
+      if (eventSourceRef.current) {
+        console.log('🔌 SSE: Cerrando conexión (cleanup)');
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      setSseConnected(false);
+    };
+  }, [requestId]);
+
+  // ───────────────────────────────────────────────────────────
+  // 3. Scroll automático al último comentario
+  // ───────────────────────────────────────────────────────────
   useEffect(() => {
     scrollToBottom();
   }, [comments]);
@@ -27,6 +157,9 @@ export default function PurchaseComments({ requestId }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // ───────────────────────────────────────────────────────────
+  // 4. Carga inicial de comentarios (GET)
+  // ───────────────────────────────────────────────────────────
   const fetchComments = async () => {
     try {
       setLoading(true);
@@ -39,6 +172,9 @@ export default function PurchaseComments({ requestId }) {
     }
   };
 
+  // ───────────────────────────────────────────────────────────
+  // 5. Envío de nuevo comentario (POST)
+  // ───────────────────────────────────────────────────────────
   const handleSendMessage = async (e) => {
     e.preventDefault();
     
@@ -53,6 +189,9 @@ export default function PurchaseComments({ requestId }) {
         mensaje: newMessage.trim()
       });
       
+      // Agregar el comentario localmente inmediatamente
+      // (el SSE también lo emitirá, pero el filtro de duplicados
+      //  en el listener de 'new-comment' evitará duplicación)
       setComments(prev => [...prev, response.data.data]);
       setNewMessage('');
       
@@ -65,6 +204,9 @@ export default function PurchaseComments({ requestId }) {
     }
   };
 
+  // ───────────────────────────────────────────────────────────
+  // 6. Helpers de UI
+  // ───────────────────────────────────────────────────────────
   const formatDateTime = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -104,6 +246,9 @@ export default function PurchaseComments({ requestId }) {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
+  // ───────────────────────────────────────────────────────────
+  // 7. Render
+  // ───────────────────────────────────────────────────────────
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
       {/* Header */}
@@ -117,6 +262,15 @@ export default function PurchaseComments({ requestId }) {
             <p className="text-sm text-blue-200">
               Conversación entre solicitante y compras
             </p>
+          </div>
+          {/* Indicador de conexión SSE en tiempo real */}
+          <div className="ml-auto flex items-center gap-2">
+            <span className={`inline-block w-2 h-2 rounded-full ${
+              sseConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'
+            }`}></span>
+            <span className="text-xs text-blue-200">
+              {sseConnected ? 'Tiempo real' : 'Reconectando...'}
+            </span>
           </div>
         </div>
       </div>

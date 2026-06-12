@@ -560,4 +560,7 @@ exports.sendPurchaseAuthorizationRequired = async (email, nombreAdmin, request, 
   return sendEmail(email, title, emailLayout(title, content));
 };
 
+// Exportar sendEmail como función pública para otros servicios
+exports.sendEmail = sendEmail;
+
 module.exports = exports;

@@ -387,7 +387,9 @@ model PurchaseRequest {
   fechaAutorizacion    DateTime?
   comments        PurchaseComment[]
   approvers       PurchaseApprover[]
+  purchaseOrder   PurchaseOrder?
   createdAt       DateTime       @default(now())
+
   updatedAt       DateTime       @updatedAt
 
   @@map("purchase_requests")
@@ -495,7 +497,38 @@ model NotificationLog {
   @@map("notification_logs")
 }
 
+model PurchaseOrder {
+  id                String              @id @default(cuid())
+  purchaseRequestId String              @unique
+  numero            String              @unique // Formato: OC-AAAA-000001
+  proveedor         String
+  monto             Float
+  subtotal          Float?
+  iva               Float?
+  ivaRate           Float?
+  pdfUrl            String?
+  createdAt         DateTime            @default(now())
+  request           PurchaseRequest     @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  items             PurchaseOrderItem[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id                String         @id @default(cuid())
+  orderId           String
+  productoServicio  String
+  cantidad          Float
+  descripcion       String?
+  precioUnitario    Float?
+  importe           Float?
+  order             PurchaseOrder  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("purchase_order_items")
+}
+
 model PurchaseApprover {
+
   id              String         @id @default(cuid())
   requestId       String
   employeeId      String
@@ -507,4 +540,22 @@ model PurchaseApprover {
 
   @@unique([requestId, employeeId])
   @@map("purchase_approvers")
+}
+
+model PurchaseAuditLog {
+  id              String   @id @default(cuid())
+  requestId       String
+  userId          String
+  accion          String   // CREACION | COTIZACION_SUBIDA | MONTO_EDITADO | COTIZACION_SELECCIONADA | ENVIO_AUTORIZACION | APROBACION | ENTREGA | CANCELACION
+  valorAnterior   Json?
+  valorNuevo      Json?
+  ip              String?
+  userAgent       String?
+  createdAt       DateTime @default(now())
+
+  @@index([requestId])
+  @@index([userId])
+  @@index([accion])
+  @@index([createdAt])
+  @@map("purchase_audit_logs")
 }

@@ -125,7 +125,59 @@ router.get('/purchases/:id/comparison',
   PurchaseController.getQuoteComparison
 );
 
+// ===== RUTAS DE ÓRDENES DE COMPRA =====
+
+// Obtener la orden de compra de una solicitud
+router.get('/purchases/:id/purchase-order',
+  AuthMiddleware.requireModule('COMPRAS'),
+  PurchaseController.getPurchaseOrder
+);
+
+// Generar orden de compra manual (POST, con partidas)
+router.post('/purchases/:id/purchase-order',
+  AuthMiddleware.requireModule('COMPRAS'),
+  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
+  PurchaseController.generatePurchaseOrder
+);
+
+// Listar todas las órdenes de compra
+router.get('/purchase-orders',
+  AuthMiddleware.requireModule('COMPRAS'),
+  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
+  PurchaseController.getAllPurchaseOrders
+);
+
+// Regenerar orden de compra manualmente (legacy)
+router.post('/purchases/:id/regenerate-order',
+  AuthMiddleware.requireModule('COMPRAS'),
+  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
+  PurchaseController.regeneratePurchaseOrder
+);
+
+// ===== RUTA DE AUDITORÍA =====
+
+
+// Ruta para obtener el historial de auditoría de una solicitud
+router.get('/purchases/:id/audit',
+  AuthMiddleware.requireModule('COMPRAS'),
+  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
+  PurchaseController.getAuditHistory
+);
+
 // ===== RUTAS DE COMENTARIOS (tipo chat/blog) =====
+
+// ── Endpoint SSE: Stream de comentarios en tiempo real ──
+// NOTA: EventSource (navegador) NO soporta headers personalizados,
+//       por lo que el token JWT se pasa como query param `token`.
+//       El middleware verifyTokenFromQuery extrae el token de la URL.
+//       Esta ruta DEBE ir ANTES de la ruta GET /:id/comments para
+//       evitar que Express interprete 'stream' como un :id.
+router.get('/purchases/:id/comments/stream',
+  AuthMiddleware.verifyTokenFromQuery,
+  AuthMiddleware.requireModule('COMPRAS'),
+  PurchaseCommentController.streamComments
+);
+
 
 // Obtener todos los comentarios de una solicitud
 router.get('/purchases/:id/comments',
@@ -140,3 +192,5 @@ router.post('/purchases/:id/comments',
 );
 
 module.exports = router;
+
+

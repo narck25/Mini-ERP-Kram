@@ -152,10 +152,92 @@ class AuthMiddleware {
   }
 
   /**
+   * Middleware to verify JWT token from query parameter (for SSE).
+   * ─────────────────────────────────────────────────────────────
+   * EventSource (navegador) NO soporta headers personalizados,
+   * por lo que el token JWT debe pasarse como query param `token`.
+   *
+   * Uso en rutas SSE:
+   *   router.get('/purchases/:id/comments/stream',
+   *     AuthMiddleware.verifyTokenFromQuery,
+   *     AuthMiddleware.requireModule('COMPRAS'),
+   *     PurchaseCommentController.streamComments
+   *   );
+   *
+   * El cliente se conecta con:
+   *   new EventSource('/api/purchases/123/comments/stream?token=JWT_TOKEN')
+   * ─────────────────────────────────────────────────────────────
+   */
+  static async verifyTokenFromQuery(req, res, next) {
+    try {
+      // Extraer token del query param (para SSE)
+      const token = req.query.token || AuthUtils.extractToken(req.headers.authorization);
+
+      if (!token) {
+        return res.status(401).json({ error: 'No token provided' });
+      }
+
+      // Verify JWT token
+      const decoded = AuthUtils.verifyToken(token);
+
+      // Find user in database with accessible modules and employee info
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true,
+          accessibleModules: true,
+          employee: {
+            select: {
+              id: true,
+              nombre: true,
+              puestoId: true,
+              departamento_id: true,
+              nivelJerarquico: true
+            }
+          }
+        }
+      });
+
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      if (!user.isActive) {
+        return res.status(401).json({ error: 'User account is deactivated' });
+      }
+
+      // Attach user to request with employee info
+      req.user = {
+        ...user,
+        employeeId: user.employee?.id || null,
+        employeeNombre: user.employee?.nombre || null,
+        employeePuesto: user.employee?.puestoId || null,
+        employeeDepartamentoId: user.employee?.departamento_id || null,
+        employeeNivelJerarquico: user.employee?.nivelJerarquico || null
+      };
+      next();
+    } catch (error) {
+      if (error.name === 'JsonWebTokenError') {
+        return res.status(401).json({ error: 'Invalid token' });
+      }
+      if (error.name === 'TokenExpiredError') {
+        return res.status(401).json({ error: 'Token expired' });
+      }
+      console.error('Auth middleware (query) error:', error);
+      return res.status(500).json({ error: 'Authentication failed' });
+    }
+  }
+
+  /**
    * Middleware to check if user has access to a specific module
    * @param {string} moduleName - Name of the required module
    */
   static requireModule(moduleName) {
+
     return (req, res, next) => {
       if (!req.user) {
         return res.status(401).json({ 

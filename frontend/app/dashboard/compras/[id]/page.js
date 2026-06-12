@@ -8,6 +8,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import QuoteSelectionModal from '@/components/QuoteSelectionModal';
+import PurchaseOrderModal from '@/components/PurchaseOrderModal';
 import PurchaseComments from '@/components/PurchaseComments';
 
 export default function ComprasDetailPage() {
@@ -44,6 +45,12 @@ export default function ComprasDetailPage() {
   const [comparison, setComparison] = useState(null);
   const [loadingComparison, setLoadingComparison] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+  
+  // Estado para la orden de compra
+  const [purchaseOrder, setPurchaseOrder] = useState(null);
+  const [generatingOrder, setGeneratingOrder] = useState(false);
+  const [loadingOrder, setLoadingOrder] = useState(false);
+  const [showPurchaseOrderModal, setShowPurchaseOrderModal] = useState(false);
 
   useEffect(() => {
     if (user && (user.role === 'ADMIN' || user.role === 'COMPRAS' || user.accessibleModules?.includes('COMPRAS'))) {
@@ -218,6 +225,33 @@ export default function ComprasDetailPage() {
       toast.error(error.response?.data?.message || 'Error al marcar como entregada');
     }
   };
+
+  // Función para abrir el modal de orden de compra
+  const handleGenerateOrder = () => {
+    setShowPurchaseOrderModal(true);
+  };
+
+  // Función para cargar la orden de compra existente
+  const fetchPurchaseOrder = async () => {
+    try {
+      setLoadingOrder(true);
+      const response = await api.get(`/purchases/${requestId}/purchase-order`);
+      if (response.data.order) {
+        setPurchaseOrder(response.data.order);
+      }
+    } catch (error) {
+      console.error('Error fetching purchase order:', error);
+    } finally {
+      setLoadingOrder(false);
+    }
+  };
+
+  // Cargar orden de compra si la solicitud está aprobada
+  useEffect(() => {
+    if (request?.estatus === 'APROBADO') {
+      fetchPurchaseOrder();
+    }
+  }, [request?.estatus]);
 
   const handleAuthorizeRequest = async () => {
     if (!confirm('¿Aprobar esta solicitud especial (mayor a $50,000 MXN)?')) return;
@@ -1219,19 +1253,102 @@ export default function ComprasDetailPage() {
           </div>
         )}
 
-        {/* Gestión de entrega (solo para estado APROBADO) */}
+        {/* Gestión de Orden de Compra y Entrega (solo para estado APROBADO) */}
         {request.estatus === 'APROBADO' && (
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Gestión de entrega</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Marca esta solicitud como entregada cuando se complete la compra.
-            </p>
-            <button
-              onClick={handleMarkAsDelivered}
-              className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium"
-            >
-              ✅ Marcar como Entregado
-            </button>
+          <div className="space-y-6 mt-6">
+            {/* Sección de Orden de Compra */}
+            <div className="bg-white border border-gray-200 rounded-lg p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                <span className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Orden de Compra
+                </span>
+              </h2>
+              
+              {loadingOrder ? (
+                <div className="text-center py-4">
+                  <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                  <p className="mt-2 text-sm text-gray-600">Cargando orden de compra...</p>
+                </div>
+              ) : purchaseOrder ? (
+                <div>
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg mb-4">
+                    <div className="flex items-start">
+                      <svg className="w-5 h-5 text-green-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div>
+                        <p className="text-sm text-green-700">
+                          <strong>Orden de Compra generada:</strong> {purchaseOrder.numero}
+                        </p>
+                        <p className="text-sm text-green-600 mt-1">
+                          Proveedor: {purchaseOrder.proveedor} • Monto: {formatCurrency(purchaseOrder.monto)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {purchaseOrder.pdfUrl && (
+                    <button
+                      onClick={() => {
+                        setPdfUrl(purchaseOrder.pdfUrl);
+                        setPdfTitle(`Orden de Compra ${purchaseOrder.numero}`);
+                        setShowPdfModal(true);
+                      }}
+                      className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Ver PDF de la Orden de Compra
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
+                    <div className="flex items-start">
+                      <svg className="w-5 h-5 text-yellow-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div>
+                        <p className="text-sm text-yellow-700">
+                          <strong>Sin orden de compra:</strong> Aún no se ha generado la orden de compra para esta solicitud.
+                        </p>
+                        <p className="text-sm text-yellow-600 mt-1">
+                          Haz clic en el botón para generar la orden de compra en formato PDF.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleGenerateOrder}
+                    className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-medium flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    📄 Generar Orden de Compra
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Sección de Gestión de entrega */}
+            <div className="bg-white border border-gray-200 rounded-lg p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Gestión de entrega</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Marca esta solicitud como entregada cuando se complete la compra.
+              </p>
+              <button
+                onClick={handleMarkAsDelivered}
+                className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium"
+              >
+                ✅ Marcar como Entregado
+              </button>
+            </div>
           </div>
         )}
 
@@ -1241,6 +1358,19 @@ export default function ComprasDetailPage() {
             request={request}
             onClose={() => setShowQuoteSelectionModal(false)}
             onSuccess={() => {
+              fetchRequestDetails();
+            }}
+          />
+        )}
+
+        {/* Modal para generar orden de compra */}
+        {showPurchaseOrderModal && (
+          <PurchaseOrderModal
+            request={request}
+            onClose={() => setShowPurchaseOrderModal(false)}
+            onSuccess={() => {
+              setShowPurchaseOrderModal(false);
+              fetchPurchaseOrder();
               fetchRequestDetails();
             }}
           />
