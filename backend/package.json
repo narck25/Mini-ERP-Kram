@@ -4,7 +4,7 @@
   "description": "Backend del ERP para KRAM con Node.js, Prisma y PostgreSQL",
   "main": "src/index.js",
   "scripts": {
-    "dev": "nodemon src/index.js",
+    "dev": "nodemon",
     "start": "node src/index.js",
     "start:prod": "npx prisma migrate deploy && node src/index.js",
     "prisma:generate": "prisma generate",
@@ -38,6 +38,7 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
     "node-cron": "^4.2.1",
+    "pdfkit": "^0.19.1",
     "resend": "^6.12.4",
     "xlsx": "^0.18.5"
   },

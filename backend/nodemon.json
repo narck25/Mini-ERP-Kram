@@ -1,0 +1,13 @@
+{
+  "watch": ["src/"],
+  "ext": "js,mjs,cjs,json",
+  "ignore": [
+    "uploads/**/*",
+    "prisma/migrations/*",
+    "*.log",
+    "temp/",
+    "tmp/"
+  ],
+  "delay": "1000",
+  "quiet": false
+}
