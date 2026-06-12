@@ -30,7 +30,7 @@ const adminNavigation = [
 
 const userNavigation = [
   { name: 'Tu perfil', href: '/dashboard/profile' },
-  { name: 'Configuración', href: '/dashboard/accesos' },
+  { name: 'Configuración', href: '/dashboard/usuarios', roles: ['ADMIN'] },
 ]
 
 export default function DashboardLayout({ children }) {
@@ -76,6 +76,14 @@ export default function DashboardLayout({ children }) {
       return item.roles.includes(user?.role)
     }
     
+    return true
+  })
+
+  // Filtrar navegación del menú desplegable del usuario
+  const filteredUserNav = userNavigation.filter(item => {
+    if (item.roles) {
+      return item.roles.includes(user?.role)
+    }
     return true
   })
 
@@ -256,7 +264,7 @@ export default function DashboardLayout({ children }) {
                       <div className="px-4 py-2 border-b border-gray-100">
                         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Opciones</div>
                       </div>
-                      {userNavigation.map((item) => (
+                      {filteredUserNav.map((item) => (
                         <Link
                           key={item.name}
                           href={item.href}

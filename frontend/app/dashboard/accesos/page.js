@@ -7,7 +7,8 @@ import DashboardLayout from '@/components/DashboardLayout';
 import RoleManager from '@/components/RoleManager';
 import { getRoleName, getRoleColor } from '@/lib/rolesConfig';
 
-const MODULES = [
+// Fallback de módulos en caso de que la API no esté disponible
+const FALLBACK_MODULES = [
   { id: 'EMPLEADOS', name: 'Empleados', description: 'Gestión de empleados y expedientes' },
   { id: 'RECLUTAMIENTO', name: 'Reclutamiento', description: 'Gestión de vacantes y candidatos' },
   { id: 'VACACIONES', name: 'Vacaciones', description: 'Solicitud y aprobación de vacaciones' },
@@ -17,7 +18,8 @@ const MODULES = [
   { id: 'COMPRAS', name: 'Compras', description: 'Solicitud y gestión de compras' }
 ];
 
-const SYSTEM_ROLE_PRESETS = {
+// Fallback de presets en caso de que la API no esté disponible
+const FALLBACK_PRESETS = {
   'ADMIN': ['DASHBOARD', 'EMPLEADOS', 'RECLUTAMIENTO', 'VACACIONES', 'INCIDENCIAS', 'CONFIGURACION', 'REPORTES', 'COMPRAS'],
   'RH': ['DASHBOARD', 'EMPLEADOS', 'RECLUTAMIENTO', 'VACACIONES', 'INCIDENCIAS', 'REPORTES'],
   'SISTEMAS': ['DASHBOARD', 'CONFIGURACION', 'REPORTES'],
@@ -38,6 +40,8 @@ export default function AccesosPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [expandedUser, setExpandedUser] = useState(null);
   const [allRoles, setAllRoles] = useState([]);
+  const [modules, setModules] = useState(FALLBACK_MODULES);
+  const [rolePresets, setRolePresets] = useState(FALLBACK_PRESETS);
 
   const canManagePermissions = user?.role === 'ADMIN' || user?.role === 'RH';
 
@@ -64,6 +68,39 @@ export default function AccesosPage() {
   useEffect(() => {
     if (canManagePermissions) fetchUsers();
   }, [canManagePermissions]);
+
+  // Cargar módulos desde la API (con fallback local)
+  useEffect(() => {
+    const fetchModules = async () => {
+      try {
+        const response = await permissionApi.getAvailableModules();
+        if (response.data.success && response.data.modules) {
+          // Filtrar DASHBOARD ya que se maneja aparte
+          setModules(response.data.modules.filter(m => m.id !== 'DASHBOARD'));
+        }
+      } catch (err) {
+        console.warn('Error fetching modules from API, using fallback:', err);
+        // Fallback: mantener FALLBACK_MODULES
+      }
+    };
+    fetchModules();
+  }, []);
+
+  // Cargar presets de módulos por rol desde la API (con fallback local)
+  useEffect(() => {
+    const fetchRolePresets = async () => {
+      try {
+        const response = await systemApi.getRolePresets();
+        if (response.data.presets) {
+          setRolePresets(response.data.presets);
+        }
+      } catch (err) {
+        console.warn('Error fetching role presets from API, using fallback:', err);
+        // Fallback: mantener FALLBACK_PRESETS
+      }
+    };
+    fetchRolePresets();
+  }, []);
 
   const filteredUsers = useMemo(() => {
     return users.filter(u => {
@@ -131,7 +168,7 @@ export default function AccesosPage() {
       setError(null);
       setSuccessMessage(null);
       const userToUpdate = users.find(u => u.id === userId);
-      const newModules = enableAll ? ['DASHBOARD', ...MODULES.map(m => m.id)] : ['DASHBOARD'];
+      const newModules = enableAll ? ['DASHBOARD', ...modules.map(m => m.id)] : ['DASHBOARD'];
       const response = await permissionApi.updateUserPermissions(userId, newModules);
       if (response.data.success) {
         setUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, accessibleModules: newModules } : u));
@@ -155,8 +192,8 @@ export default function AccesosPage() {
       setSuccessMessage(null);
       const userToUpdate = users.find(u => u.id === userId);
       // Si el rol tiene preset definido, usar sus módulos; si no (rol personalizado), mantener los módulos actuales
-      const presetModules = SYSTEM_ROLE_PRESETS[presetRole] !== undefined
-        ? SYSTEM_ROLE_PRESETS[presetRole]
+      const presetModules = rolePresets[presetRole] !== undefined
+        ? rolePresets[presetRole]
         : (userToUpdate?.accessibleModules || ['DASHBOARD']);
       const response = await permissionApi.updateUserPermissions(userId, presetModules, presetRole);
       if (response.data.success) {
@@ -277,7 +314,7 @@ export default function AccesosPage() {
                       const isUpdating = updating[userItem.id];
                       const isExpanded = expandedUser === userItem.id;
                       const activeModules = userItem.accessibleModules || [];
-                      const hasAllModules = MODULES.every(m => activeModules.includes(m.id));
+                      const hasAllModules = modules.every(m => activeModules.includes(m.id));
                       return (
                         <tr key={userItem.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3">
@@ -302,7 +339,7 @@ export default function AccesosPage() {
                           <td className="px-4 py-3">
                             <div className="flex flex-wrap gap-1">
                               {activeModules.filter(m => m !== 'DASHBOARD').slice(0, 3).map(module => (
-                                <span key={module} className="px-2 py-0.5 text-xs bg-blue-50 text-blue-700 rounded">{MODULES.find(m => m.id === module)?.name || module}</span>
+                                <span key={module} className="px-2 py-0.5 text-xs bg-blue-50 text-blue-700 rounded">{modules.find(m => m.id === module)?.name || module}</span>
                               ))}
                               {activeModules.filter(m => m !== 'DASHBOARD').length > 3 && (
                                 <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">+{activeModules.filter(m => m !== 'DASHBOARD').length - 3}</span>
@@ -355,7 +392,7 @@ export default function AccesosPage() {
                     <div className="mb-6">
                       <label className="block text-sm font-medium text-gray-700 mb-2">Aplicar preset por rol:</label>
                       <div className="flex flex-wrap gap-2">
-                        {Object.entries(SYSTEM_ROLE_PRESETS).map(([roleId, presetModules]) => (
+                        {Object.entries(rolePresets).map(([roleId, presetModules]) => (
                           <button key={roleId} onClick={() => handleApplyPreset(userItem.id, roleId)} disabled={isUpdating || !userItem.isActive}
                             className={`inline-flex items-center px-3 py-1.5 border text-xs font-medium rounded-md transition-colors ${
                               userItem.role === roleId ? 'bg-blue-100 border-blue-300 text-blue-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -376,7 +413,7 @@ export default function AccesosPage() {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                      {MODULES.map(module => {
+                      {modules.map(module => {
                         const hasAccess = activeModules.includes(module.id);
                         return (
                           <div key={module.id} onClick={() => { if (!isUpdating && userItem.isActive) handleToggleModule(userItem.id, module.id, !hasAccess); }}
@@ -396,7 +433,7 @@ export default function AccesosPage() {
 
                     <div className="mt-4 pt-4 border-t border-gray-200">
                       <div className="flex items-center justify-between text-sm text-gray-600">
-                        <span>Módulos activos: <strong>{activeModules.filter(m => m !== 'DASHBOARD').length} de {MODULES.length}</strong>{activeModules.includes('DASHBOARD') && ' (+ Dashboard siempre activo)'}</span>
+                        <span>Módulos activos: <strong>{activeModules.filter(m => m !== 'DASHBOARD').length} de {modules.length}</strong>{activeModules.includes('DASHBOARD') && ' (+ Dashboard siempre activo)'}</span>
                         <button onClick={() => setExpandedUser(null)} className="text-blue-600 hover:text-blue-800 font-medium">Cerrar</button>
                       </div>
                     </div>

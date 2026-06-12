@@ -3,6 +3,8 @@ const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const authMiddleware = require('../middlewares/auth.middleware');
+const { getModulesArray } = require('../config/modules.config');
+const { getAllPresets } = require('../config/roles.config');
 
 // Aplicar autenticación a todas las rutas
 router.use(authMiddleware.verifyToken);
@@ -218,24 +220,35 @@ router.delete('/roles/:id',
  */
 router.get('/modules', async (req, res) => {
   try {
-    const moduleEnumValues = [
-      { id: 'EMPLEADOS', name: 'Empleados', description: 'Gestión de empleados y expedientes' },
-      { id: 'RECLUTAMIENTO', name: 'Reclutamiento', description: 'Gestión de vacantes y candidatos' },
-      { id: 'VACACIONES', name: 'Vacaciones', description: 'Solicitud y aprobación de vacaciones' },
-      { id: 'INCIDENCIAS', name: 'Incidencias', description: 'Reporte y seguimiento de incidencias' },
-      { id: 'CONFIGURACION', name: 'Configuración', description: 'Configuración del sistema' },
-      { id: 'REPORTES', name: 'Reportes', description: 'Generación de reportes y estadísticas' },
-      { id: 'DASHBOARD', name: 'Dashboard', description: 'Panel principal (siempre activo)' },
-      { id: 'COMPRAS', name: 'Compras', description: 'Gestión de compras' },
-    ];
+    const modules = getModulesArray();
 
     res.json({
-      modules: moduleEnumValues,
-      total: moduleEnumValues.length
+      modules,
+      total: modules.length
     });
   } catch (error) {
     console.error('❌ Error getting modules:', error);
     res.status(500).json({ error: 'Error al obtener módulos', details: error.message });
+  }
+});
+
+/**
+ * GET /api/roles/presets
+ * Obtener los presets de módulos por rol
+ */
+router.get('/roles/presets', async (req, res) => {
+  try {
+    const presets = getAllPresets();
+    const modules = getModulesArray();
+
+    res.json({
+      presets,
+      availableModules: modules,
+      totalPresets: Object.keys(presets).length
+    });
+  } catch (error) {
+    console.error('❌ Error getting role presets:', error);
+    res.status(500).json({ error: 'Error al obtener presets de roles', details: error.message });
   }
 });
 

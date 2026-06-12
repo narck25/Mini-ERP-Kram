@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { getEnabledModuleKeys, getModulesArray } = require('../config/modules.config');
 
 class PermissionController {
   /**
@@ -88,8 +89,8 @@ class PermissionController {
         });
       }
 
-      // Validar que los módulos sean válidos
-      const validModules = ['EMPLEADOS', 'RECLUTAMIENTO', 'VACACIONES', 'INCIDENCIAS', 'CONFIGURACION', 'DASHBOARD', 'REPORTES', 'COMPRAS'];
+      // Validar que los módulos sean válidos usando la configuración centralizada
+      const validModules = [...getEnabledModuleKeys(), 'DASHBOARD'];
       const invalidModules = accessibleModules.filter(module => !validModules.includes(module));
       
       if (invalidModules.length > 0) {
@@ -155,16 +156,7 @@ class PermissionController {
    */
   static async getAvailableModules(req, res) {
     try {
-      const modules = [
-        { id: 'EMPLEADOS', name: 'Empleados', description: 'Gestión de empleados y expedientes' },
-        { id: 'RECLUTAMIENTO', name: 'Reclutamiento', description: 'Gestión de vacantes y candidatos' },
-        { id: 'VACACIONES', name: 'Vacaciones', description: 'Solicitud y aprobación de vacaciones' },
-        { id: 'INCIDENCIAS', name: 'Incidencias', description: 'Reporte y seguimiento de incidencias' },
-        { id: 'CONFIGURACION', name: 'Configuración', description: 'Configuración del sistema' },
-        { id: 'DASHBOARD', name: 'Dashboard', description: 'Panel principal de control', required: true },
-        { id: 'REPORTES', name: 'Reportes', description: 'Generación de reportes y estadísticas' },
-        { id: 'COMPRAS', name: 'Compras', description: 'Solicitud y gestión de compras' }
-      ];
+      const modules = getModulesArray();
 
       res.json({
         success: true,

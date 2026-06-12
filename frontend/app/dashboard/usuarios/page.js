@@ -6,7 +6,7 @@ import api from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { getAllRoles, getRoleName, getRoleColor, getModulesFromApi } from '@/lib/rolesConfig';
+import { getAllRoles, getRoleName, getRoleColor } from '@/lib/rolesConfig';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -23,9 +23,8 @@ function UsersManagementPage() {
   const [stats, setStats] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Roles y módulos dinámicos
+  // Roles dinámicos
   const [availableRoles, setAvailableRoles] = useState([]);
-  const [availableModules, setAvailableModules] = useState([]);
 
   // Búsqueda y filtros
   const [search, setSearch] = useState('');
@@ -34,54 +33,20 @@ function UsersManagementPage() {
 
   // Formularios
   const [createForm, setCreateForm] = useState({
-    name: '', email: '', password: '', role: 'RH', accessibleModules: [],
+    name: '', email: '', password: '', role: 'RH',
   });
 
   const [editForm, setEditForm] = useState({
-    name: '', email: '', password: '', role: 'RH', accessibleModules: [], isActive: true,
+    name: '', email: '', password: '', role: 'RH', isActive: true,
   });
 
   useEffect(() => {
     if (user && user.role === 'ADMIN') {
       fetchUsers();
       fetchStats();
-      loadRolesAndModules();
+      setAvailableRoles(getAllRoles());
     }
   }, [user]);
-
-  const loadRolesAndModules = async () => {
-    // Roles desde rolesConfig.js (estático pero centralizado)
-    setAvailableRoles(getAllRoles());
-    // Módulos desde API (dinámico)
-    try {
-      const modules = await getModulesFromApi();
-      if (modules.length > 0) {
-        setAvailableModules(modules);
-      } else {
-        // Fallback
-        setAvailableModules([
-          { id: 'EMPLEADOS', name: 'Empleados' },
-          { id: 'RECLUTAMIENTO', name: 'Reclutamiento' },
-          { id: 'VACACIONES', name: 'Vacaciones' },
-          { id: 'INCIDENCIAS', name: 'Incidencias' },
-          { id: 'CONFIGURACION', name: 'Configuración' },
-          { id: 'REPORTES', name: 'Reportes' },
-          { id: 'DASHBOARD', name: 'Dashboard' },
-        ]);
-      }
-    } catch (error) {
-      console.warn('Error loading modules:', error);
-      setAvailableModules([
-        { id: 'EMPLEADOS', name: 'Empleados' },
-        { id: 'RECLUTAMIENTO', name: 'Reclutamiento' },
-        { id: 'VACACIONES', name: 'Vacaciones' },
-        { id: 'INCIDENCIAS', name: 'Incidencias' },
-        { id: 'CONFIGURACION', name: 'Configuración' },
-        { id: 'REPORTES', name: 'Reportes' },
-        { id: 'DASHBOARD', name: 'Dashboard' },
-      ]);
-    }
-  };
 
   const fetchUsers = async () => {
     try {
@@ -131,28 +96,14 @@ function UsersManagementPage() {
 
   // ===== Handlers =====
   const handleCreateFormChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    if (type === 'checkbox' && name === 'accessibleModules') {
-      const updatedModules = checked
-        ? [...createForm.accessibleModules, value]
-        : createForm.accessibleModules.filter(m => m !== value);
-      setCreateForm({ ...createForm, accessibleModules: updatedModules });
-    } else {
-      setCreateForm({ ...createForm, [name]: value });
-    }
+    const { name, value } = e.target;
+    setCreateForm({ ...createForm, [name]: value });
   };
 
   const handleEditFormChange = (e) => {
     const { name, value, type, checked } = e.target;
     if (type === 'checkbox') {
-      if (name === 'accessibleModules') {
-        const updatedModules = checked
-          ? [...editForm.accessibleModules, value]
-          : editForm.accessibleModules.filter(m => m !== value);
-        setEditForm({ ...editForm, accessibleModules: updatedModules });
-      } else {
-        setEditForm({ ...editForm, [name]: checked });
-      }
+      setEditForm({ ...editForm, [name]: checked });
     } else {
       setEditForm({ ...editForm, [name]: value });
     }
@@ -168,7 +119,7 @@ function UsersManagementPage() {
       await api.post('/users', createForm);
       toast.success('Usuario creado exitosamente');
       setShowCreateModal(false);
-      setCreateForm({ name: '', email: '', password: '', role: 'RH', accessibleModules: [] });
+      setCreateForm({ name: '', email: '', password: '', role: 'RH' });
       await fetchUsers();
       await fetchStats();
     } catch (error) {
@@ -214,7 +165,6 @@ function UsersManagementPage() {
       email: user.email,
       password: '',
       role: user.role,
-      accessibleModules: user.accessibleModules || [],
       isActive: user.isActive,
     });
     setShowEditModal(true);
@@ -281,7 +231,7 @@ function UsersManagementPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Gestión de Usuarios</h1>
-              <p className="text-gray-600 mt-1">Administra los usuarios del sistema</p>
+              <p className="text-gray-600 mt-1">Administra las cuentas de usuario del sistema</p>
             </div>
             <button
               onClick={() => setShowCreateModal(true)}
@@ -358,7 +308,6 @@ function UsersManagementPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Empleado Vinculado</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Módulos</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Creado</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
                 </tr>
@@ -393,23 +342,6 @@ function UsersManagementPage() {
                       }`}>
                         {userItem.isActive ? 'Activo' : 'Inactivo'}
                       </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {userItem.accessibleModules?.slice(0, 3).map((module) => (
-                          <span key={module} className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded">
-                            {module}
-                          </span>
-                        ))}
-                        {userItem.accessibleModules?.length > 3 && (
-                          <span
-                            className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded cursor-default"
-                            title={userItem.accessibleModules.slice(3).join(', ')}
-                          >
-                            +{userItem.accessibleModules.length - 3}
-                          </span>
-                        )}
-                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {(() => {
@@ -485,23 +417,6 @@ function UsersManagementPage() {
                       <option key={role.id} value={role.id}>{role.name}</option>
                     ))}
                   </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Módulos Accesibles</label>
-                  <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-2">
-                    {availableModules.map((module) => (
-                      <div key={module.id} className="flex items-center">
-                        <input type="checkbox" id={`create-module-${module.id}`}
-                          name="accessibleModules" value={module.id}
-                          checked={createForm.accessibleModules.includes(module.id)}
-                          onChange={handleCreateFormChange}
-                          className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
-                        <label htmlFor={`create-module-${module.id}`} className="ml-2 text-sm text-gray-700">
-                          {module.name}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
                 </div>
                 <div className="flex justify-end space-x-3 pt-4">
                   <button onClick={() => setShowCreateModal(false)}
@@ -613,23 +528,6 @@ function UsersManagementPage() {
                       <option key={role.id} value={role.id}>{role.name}</option>
                     ))}
                   </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Módulos Accesibles</label>
-                  <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-2">
-                    {availableModules.map((module) => (
-                      <div key={module.id} className="flex items-center">
-                        <input type="checkbox" id={`edit-module-${module.id}`}
-                          name="accessibleModules" value={module.id}
-                          checked={editForm.accessibleModules.includes(module.id)}
-                          onChange={handleEditFormChange}
-                          className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
-                        <label htmlFor={`edit-module-${module.id}`} className="ml-2 text-sm text-gray-700">
-                          {module.name}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
                 </div>
                 <div className="flex items-center">
                   <input type="checkbox" id="isActive" name="isActive"

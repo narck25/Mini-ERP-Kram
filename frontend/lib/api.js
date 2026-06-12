@@ -214,6 +214,9 @@ export const systemApi = {
   
   // Obtener todos los módulos disponibles
   getModules: () => api.get('/modules'),
+
+  // Obtener presets de módulos por rol
+  getRolePresets: () => api.get('/roles/presets'),
 }
 
 export default api
