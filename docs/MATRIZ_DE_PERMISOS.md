@@ -1,6 +1,8 @@
 # MATRIZ DE PERMISOS — ERP KRAM
 
 > **Documento generado:** 13/06/2026
+> **Última actualización:** 13/06/2026
+> **Versión:** 1.1 — Roles Estratégicos
 > **Propósito:** Documentar el estado actual del modelo de autorización del sistema.
 > **Restricción:** Este documento NO propone cambios. Solo describe el estado actual del código fuente.
 
@@ -35,7 +37,8 @@ Restringe operaciones sensibles a roles específicos del sistema.
 
 - **Mecanismo:** `AuthMiddleware.requireRole(['ADMIN'])` o `AuthMiddleware.requireRHOrAdmin()`
 - **Uso:** Exclusivamente para operaciones que modifican la configuración del sistema, gestionan usuarios, o ejecutan acciones destructivas.
-- **Roles con bypass total:** `ADMIN` y `RH` tienen acceso completo a módulos y datos.
+- **Roles Estratégicos con bypass total:** `ADMIN` (control técnico global) y `RH` (control operativo global autorizado por Dirección General) tienen acceso completo a módulos y datos.
+- **Política de seguridad:** Ningún otro rol deberá recibir privilegios equivalentes a ADMIN o RH sin autorización expresa de Presidencia.
 
 ---
 
@@ -48,8 +51,8 @@ Definidos en `backend/src/routes/roles.routes.js` (líneas 15-22) como el enum `
 | Rol | Nombre | Descripción | Color | Icono | Fuente |
 |-----|--------|-------------|-------|-------|--------|
 | `EMPLEADO_BASICO` | Empleado | Acceso básico al sistema | `bg-gray-100 text-gray-800` | 👤 | SYSTEM_ROLES |
-| `ADMIN` | Administrador | Administrador del sistema | `bg-purple-100 text-purple-800` | 👑 | SYSTEM_ROLES |
-| `RH` | Recursos Humanos | Gestión de personal y reclutamiento | `bg-blue-100 text-blue-800` | 👥 | SYSTEM_ROLES |
+| `ADMIN` | Administrador | Administrador del sistema — control técnico global | `bg-purple-100 text-purple-800` | 👑 | SYSTEM_ROLES |
+| `RH` | Recursos Humanos | Gestión de personal y reclutamiento — control operativo global autorizado por Dirección General | `bg-blue-100 text-blue-800` | 👥 | SYSTEM_ROLES |
 | `SISTEMAS` | Sistemas | Soporte técnico y sistemas | `bg-green-100 text-green-800` | 💻 | SYSTEM_ROLES |
 | `COMPRAS` | Compras | Gestión de compras y proveedores | `bg-yellow-100 text-yellow-800` | 🛒 | SYSTEM_ROLES |
 | `PRODUCCION` | Producción | Gestión de producción | `bg-red-100 text-red-800` | 🏭 | SYSTEM_ROLES |
@@ -60,8 +63,8 @@ Definidos en `frontend/lib/rolesConfig.js` (líneas 19-62). Coinciden exactament
 
 | Rol | Nombre | Descripción | Color | Icono | Fuente |
 |-----|--------|-------------|-------|-------|--------|
-| `ADMIN` | Administrador | Acceso total al sistema | `bg-purple-100 text-purple-800` | 👑 | ROLE_FALLBACK_CONFIG |
-| `RH` | Recursos Humanos | Gestión de personal y reclutamiento | `bg-blue-100 text-blue-800` | 👥 | ROLE_FALLBACK_CONFIG |
+| `ADMIN` | Administrador | Administrador del sistema — control técnico global | `bg-purple-100 text-purple-800` | 👑 | ROLE_FALLBACK_CONFIG |
+| `RH` | Recursos Humanos | Gestión de personal y reclutamiento — control operativo global autorizado por Dirección General | `bg-blue-100 text-blue-800` | 👥 | ROLE_FALLBACK_CONFIG |
 | `SISTEMAS` | Sistemas | Soporte técnico y sistemas | `bg-green-100 text-green-800` | 💻 | ROLE_FALLBACK_CONFIG |
 | `COMPRAS` | Compras | Gestión de compras y proveedores | `bg-yellow-100 text-yellow-800` | 🛒 | ROLE_FALLBACK_CONFIG |
 | `PRODUCCION` | Producción | Gestión de producción | `bg-red-100 text-red-800` | 🏭 | ROLE_FALLBACK_CONFIG |
@@ -355,18 +358,31 @@ Endpoints protegidos con `requireRole()`, `requireRHOrAdmin()`, `requireAdmin()`
 La siguiente jerarquía representa los **privilegios administrativos** observados en el código (middlewares y controladores). No necesariamente refleja la jerarquía organizacional de la empresa.
 
 ```
-ADMIN (acceso total al sistema)
-├── RH (acceso a módulos de RH + gestión de empleados)
+ADMIN (control técnico global — acceso total al sistema)
+├── RH (control operativo global autorizado por Dirección General)
 ├── SISTEMAS (acceso a CONFIGURACION + REPORTES)
 ├── COMPRAS (acceso a COMPRAS + REPORTES)
-└── PRODUCCION (acceso solo a REPORTES)
-     └── EMPLEADO_BASICO (solo DASHBOARD)
+├── PRODUCCION (acceso solo a REPORTES)
+└── EMPLEADO_BASICO (solo DASHBOARD)
 ```
+
+### Roles Estratégicos
+
+El ERP KRAM reconoce dos **Roles Estratégicos** con bypass global, cada uno con responsabilidades distintas:
+
+| Rol | Tipo | Responsabilidad | Ámbito |
+|-----|------|----------------|--------|
+| **ADMIN** | Control técnico global | Administración del sistema, configuración técnica, operaciones críticas (Nivel C) | Todo el sistema |
+| **RH** | Control operativo global autorizado por Dirección General | Gestión de personal, reclutamiento, configuración de accesos, supervisión operativa | Todos los módulos y datos |
+
+**Fundamento organizacional:** El rol RH representa la mano derecha operativa de Presidencia dentro de Comercializadora KRAM. Por decisión explícita de Dirección General, RH posee acceso global al sistema, al mismo nivel funcional que ADMIN, aunque con responsabilidades distintas.
+
+> ⚠️ **Política de seguridad:** Ningún otro rol deberá recibir privilegios equivalentes a ADMIN o RH sin autorización expresa de Presidencia.
 
 ### Observaciones sobre la jerarquía:
 
-1. **ADMIN** tiene acceso completo a todos los módulos y operaciones críticas del sistema.
-2. **RH** tiene bypass total en scoping de datos (ve todos los empleados) y puede gestionar permisos de módulos.
+1. **ADMIN** tiene acceso completo a todos los módulos y operaciones críticas del sistema (control técnico global).
+2. **RH** tiene bypass total en scoping de datos (ve todos los empleados) y puede gestionar permisos de módulos (control operativo global autorizado por Dirección General).
 3. **SISTEMAS, COMPRAS, PRODUCCION** son roles departamentales con acceso limitado a módulos específicos.
 4. **EMPLEADO_BASICO** es el rol con menos privilegios (solo Dashboard).
 5. La jerarquía NO es transitiva: un rol no hereda automáticamente los permisos de los roles superiores. Cada rol tiene sus propios módulos asignados explícitamente.
@@ -581,7 +597,7 @@ El modelo de autorización del ERP KRAM implementa correctamente la **estrategia
 
 1. **Nivel A (Módulos):** 59 endpoints protegidos con `requireModule()`, distribuidos en 5 de los 7 módulos configurados.
 2. **Nivel B (Scoping):** Implementado en los controladores de Compras y Reclutamiento, con filtros por `solicitanteId` y verificación de propiedad.
-3. **Nivel C (Roles):** 63 endpoints protegidos con `requireRole()` en sus variantes, con ADMIN como rol de máximo privilegio.
+3. **Nivel C (Roles):** 63 endpoints protegidos con `requireRole()` en sus variantes, con ADMIN (control técnico global) y RH (control operativo global autorizado por Dirección General) como Roles Estratégicos con bypass total.
 
 **Fortalezas observadas:**
 - Separación clara entre control de acceso a módulos y restricciones por rol.

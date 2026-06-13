@@ -1,5 +1,11 @@
 # REGLAS MAESTRAS DEL ERP KRAM (AI SYSTEM PROMPT)
 
+**Última actualización**: 13/06/2026  
+**Versión**: 4.1 — Roles Estratégicos y Modelo Oficial de Seguridad  
+**Cambios en v4.1**: Documentación de ADMIN y RH como Roles Estratégicos con bypass global intencional; corrección del alcance documental de RH (control operativo global autorizado por Dirección General); actualización de ejemplos de código; incorporación de nota de seguridad sobre autorización de Presidencia; alineación con la política oficial de seguridad de KRAM.
+
+---
+
 ## 1. Sistema de Permisos (ACL) — Filosofía Escalable
 
 El ERP está diseñado para que los permisos de acceso sean **dinámicos y configurables por usuario**, no atados a un rol fijo. Esto permite agregar nuevos roles o reorganizar responsabilidades sin modificar código.
@@ -10,12 +16,25 @@ El ERP está diseñado para que los permisos de acceso sean **dinámicos y confi
 
 **SIEMPRE** utiliza el array `user.accessibleModules` para control de acceso a módulos de usuarios regulares.
 
-### Excepción: ADMIN y RH tienen bypass total
+### Roles Estratégicos
 
-Los roles **ADMIN** y **RH** son roles administrativos del sistema y tienen **acceso total a todos los módulos y datos**. Por lo tanto:
+El ERP KRAM reconoce dos **Roles Estratégicos** con bypass global, cada uno con responsabilidades distintas:
 
-- **ADMIN**: Puede ver y hacer TODO en el sistema (acceso completo a módulos + operaciones críticas)
-- **RH**: Puede ver y hacer TODO en los módulos que gestiona (acceso completo a módulos + scoping total de datos)
+| Rol | Tipo | Responsabilidad | Ámbito |
+|-----|------|----------------|--------|
+| **ADMIN** | Control técnico global | Administración del sistema, configuración técnica, operaciones críticas (Nivel C) | Todo el sistema |
+| **RH** | Control operativo global autorizado por Dirección General | Gestión de personal, reclutamiento, configuración de accesos, supervisión operativa | Todos los módulos y datos |
+
+**Fundamento organizacional:** El rol RH representa la mano derecha operativa de Presidencia dentro de Comercializadora KRAM. Por decisión explícita de Dirección General, RH posee acceso global al sistema, al mismo nivel funcional que ADMIN, aunque con responsabilidades distintas.
+
+> ⚠️ **Política de seguridad:** Ningún otro rol deberá recibir privilegios equivalentes a ADMIN o RH sin autorización expresa de Presidencia.
+
+### Bypass Global de ADMIN y RH
+
+Los roles **ADMIN** y **RH** tienen bypass total en acceso a módulos y scoping de datos:
+
+- **ADMIN**: Puede ver y hacer TODO en el sistema (acceso completo a módulos + operaciones críticas + scoping total de datos)
+- **RH**: Puede ver y hacer TODO en el sistema (acceso completo a módulos + scoping total de datos), con la excepción de operaciones críticas del sistema (Nivel C) que requieren explícitamente `requireRole(['ADMIN'])`
 
 Esto significa que en validaciones de acceso y scoping, SIEMPRE se debe verificar primero si el usuario es ADMIN o RH:
 
@@ -23,8 +42,7 @@ Esto significa que en validaciones de acceso y scoping, SIEMPRE se debe verifica
 // ✅ BIEN: Bypass para ADMIN/RH en acceso a módulos
 if (user.role === 'ADMIN' || user.role === 'RH') {
   // Tiene acceso completo, no verificar módulos
-}
-if (user.accessibleModules?.includes('EMPLEADOS')) { ... }
+} else if (user.accessibleModules?.includes('EMPLEADOS')) { ... }
 
 // ✅ BIEN: Bypass para ADMIN/RH en scoping de datos
 if (user.role === 'ADMIN' || user.role === 'RH') {
@@ -60,7 +78,7 @@ if (user.role === 'ADMIN' || user.role === 'RH') {
 ### Lo que NUNCA debes hacer
 
 ```js
-// ❌ MAL: Hardcodear roles NO administrativos para acceso a módulos
+// ❌ MAL: Hardcodear roles NO estratégicos para acceso a módulos
 if (user.role === 'SISTEMAS') { ... }
 if (['SISTEMAS', 'COMPRAS'].includes(user.role)) { ... }
 
@@ -102,11 +120,15 @@ const rhUsers = await prisma.user.findMany({
 });
 ```
 
+---
+
 ## 2. Base de Datos (Prisma)
 
 **PROHIBIDO** renombrar tablas principales (ej. `JobVacancy`, `Employee`) o columnas clave sin autorización explícita del usuario, ya que esto rompe el Frontend.
 
 No agregues campos calculados a la base de datos (como edad, antigüedad, o fechas en letras). Estos deben calcularse dinámicamente en el Frontend.
+
+---
 
 ## 3. Manejo de Fechas y Zonas Horarias
 
@@ -114,38 +136,92 @@ No agregues campos calculados a la base de datos (como edad, antigüedad, o fech
 - El Frontend **DEBE** formatear las fechas a `DD/MM/YYYY` para la UI.
 - Para evitar el 'bug del día anterior', al procesar fechas del backend en el frontend, extrae estrictamente la fecha sin zona horaria (`.substring(0,10)` o `split('T')[0]`) antes de convertirla a objeto `Date`.
 
+---
+
 ## 4. Calidad del Código
 
 - No dejes código huérfano (Dead Code). Si reemplazas una función o endpoint, elimina el viejo.
 - Revisa siempre los imports de React y asegúrate de no generar condiciones de carrera en los Contextos de Autenticación.
 
+---
+
 ## 5. Módulos del Sistema
 
-Los módulos disponibles son:
+### Fuente de Verdad
 
-| ID | Nombre | Descripción |
-|----|--------|-------------|
-| `EMPLEADOS` | Empleados | Gestión de empleados y expedientes |
-| `RECLUTAMIENTO` | Reclutamiento | Gestión de vacantes y candidatos |
-| `VACACIONES` | Vacaciones | Solicitud y aprobación de vacaciones |
-| `INCIDENCIAS` | Incidencias | Reporte y seguimiento de incidencias |
-| `CONFIGURACION` | Configuración | Configuración del sistema |
-| `REPORTES` | Reportes | Generación de reportes y estadísticas |
-| `DASHBOARD` | Dashboard | Panel principal (siempre activo) |
+La **única fuente de verdad** para los módulos del sistema es:
+
+```
+backend/src/config/modules.config.js
+```
+
+Este archivo centraliza la definición de todos los módulos (key, label, description, enabled). El backend expone estos módulos dinámicamente a través de `GET /api/modules` (definido en `backend/src/routes/roles.routes.js`).
+
+**NO** hardcodear listados de módulos en el frontend. Consumir siempre desde `GET /api/modules` o desde `modules.config.js` en el backend.
+
+### Módulos Registrados
+
+| ID | Nombre | Descripción | Estado |
+|----|--------|-------------|--------|
+| `DASHBOARD` | Dashboard | Panel principal (siempre activo) | ✅ enabled |
+| `EMPLEADOS` | Empleados | Gestión de empleados y expedientes | ✅ enabled |
+| `RECLUTAMIENTO` | Reclutamiento | Gestión de vacantes y candidatos | ✅ enabled |
+| `VACACIONES` | Vacaciones | Solicitud y aprobación de vacaciones | ✅ enabled |
+| `INCIDENCIAS` | Incidencias | Reporte y seguimiento de incidencias | ✅ enabled |
+| `CONFIGURACION` | Configuración | Configuración del sistema | ✅ enabled |
+| `REPORTES` | Reportes | Generación de reportes y estadísticas | ✅ enabled |
+| `COMPRAS` | Compras | Gestión de compras | ✅ enabled |
+
+### Persistencia en Base de Datos
+
+El enum `ModuleType` en `backend/prisma/schema.prisma` (línea ~352) contiene los mismos valores y se usa para persistencia cuando es necesario.
+
+---
 
 ## 6. Roles del Sistema
 
-Los roles definen la identidad organizacional del usuario. **No definen qué módulos puede ver** (eso lo hacen los `accessibleModules`).
+### Fuentes Oficiales
 
-| Rol | Descripción | Uso principal |
-|-----|-------------|---------------|
-| `ADMIN` | Administrador del sistema | Operaciones críticas (Nivel C), asignación de permisos |
-| `RH` | Recursos Humanos | Scoping: ve todos los empleados. Destinatario de notificaciones |
-| `SISTEMAS` | Jefe de Sistemas | Scoping: ve empleados de su departamento |
-| `COMPRAS` | Jefe de Compras | Scoping: ve empleados de su departamento |
-| `PRODUCCION` | Jefe de Producción | Scoping: ve empleados de su departamento |
+**Backend (fuente primaria):**
+- `backend/src/config/roles.config.js` — Presets de módulos por rol (módulos asignados por defecto)
+- `backend/src/routes/roles.routes.js` — `SYSTEM_ROLES` (definición de roles del sistema con nombre, color, ícono, descripción)
+- `GET /api/roles` — Endpoint dinámico que devuelve roles del sistema + roles personalizados
+- `GET /api/roles/presets` — Endpoint dinámico que devuelve presets de módulos por rol
 
-**Principio**: El rol es un atributo del usuario, no un mecanismo de control de acceso a módulos.
+**Frontend (solo fallback visual):**
+- `frontend/lib/rolesConfig.js` — `ROLE_FALLBACK_CONFIG`
+
+> ⚠️ **ADVERTENCIA**: `ROLE_FALLBACK_CONFIG` existe ÚNICAMENTE como fallback visual para cuando la API no está disponible. **NO debe utilizarse para autorización ni lógica de negocio.** La fuente de verdad para roles es el backend.
+
+### Roles del Sistema
+
+Los roles definen la identidad organizacional del usuario. **No definen qué módulos puede ver** (eso lo hacen los `accessibleModules`), con la excepción de los Roles Estratégicos (ADMIN y RH) que tienen bypass global.
+
+| Rol | Nombre | Descripción | Color | Icono | Tipo |
+|-----|--------|-------------|-------|-------|------|
+| `ADMIN` | Administrador | Administrador del sistema — control técnico global | `bg-purple-100 text-purple-800` | 👑 | Estratégico |
+| `RH` | Recursos Humanos | Gestión de personal y reclutamiento — control operativo global autorizado por Dirección General | `bg-blue-100 text-blue-800` | 👥 | Estratégico |
+| `SISTEMAS` | Sistemas | Soporte técnico y sistemas | `bg-green-100 text-green-800` | 💻 | Departamental |
+| `COMPRAS` | Compras | Gestión de compras y proveedores | `bg-yellow-100 text-yellow-800` | 🛒 | Departamental |
+| `PRODUCCION` | Producción | Gestión de producción | `bg-red-100 text-red-800` | 🏭 | Departamental |
+| `EMPLEADO_BASICO` | Empleado | Acceso básico al sistema | `bg-gray-100 text-gray-800` | 👤 | Base |
+
+**Principio**: El rol es un atributo del usuario, no un mecanismo de control de acceso a módulos. La excepción son ADMIN y RH, que por política organizacional tienen bypass global.
+
+### Presets de Módulos por Rol
+
+Definidos en `backend/src/config/roles.config.js`:
+
+| Rol | Módulos asignados por defecto |
+|-----|-------------------------------|
+| `ADMIN` | DASHBOARD, EMPLEADOS, RECLUTAMIENTO, VACACIONES, INCIDENCIAS, CONFIGURACION, REPORTES, COMPRAS |
+| `RH` | DASHBOARD, EMPLEADOS, RECLUTAMIENTO, VACACIONES, INCIDENCIAS, REPORTES |
+| `SISTEMAS` | DASHBOARD, CONFIGURACION, REPORTES |
+| `COMPRAS` | DASHBOARD, COMPRAS, REPORTES |
+| `PRODUCCION` | DASHBOARD, REPORTES |
+| `EMPLEADO_BASICO` | DASHBOARD |
+
+---
 
 ## 7. Reglas de Validación
 
@@ -154,9 +230,11 @@ Los roles definen la identidad organizacional del usuario. **No definen qué mó
 **Frontend:**
 - Usar `user.accessibleModules?.includes('MODULO')` para validar acceso
 - Usar `<ProtectedRoute requiredModule="MODULO">` para proteger rutas
+- ADMIN y RH tienen bypass: no necesitan verificar módulos
 
 **Backend:**
 - Usar `requireModule('MODULO')` para proteger endpoints de cualquier tipo
+- ADMIN y RH tienen bypass automático en `requireModule()` (implementado en `auth.middleware.js`)
 - Validación inline: `if (!req.user.accessibleModules?.includes('MODULO')) return 403`
 
 ### Nivel B: Scoping de Datos / Visibilidad
@@ -165,10 +243,14 @@ Los roles definen la identidad organizacional del usuario. **No definen qué mó
 - Usar atributos del empleado asociado (`employeeId`, `nivelJerarquico`, `departamento_id`) para filtrar datos
 - Verificar propiedad: `if (vacancy.solicitanteId !== employee.id)` en lugar de `if (!['RH','ADMIN'].includes(user.role))`
 - `getOrCreateSolicitante(userId)`: buscar empleado por `userId`, no por rol
+- ADMIN y RH tienen bypass total en scoping
 
 ### Nivel C: Operaciones Críticas del Sistema
 
 - Usar `req.user.role !== 'ADMIN'` **SOLO** para: modificar permisos de usuarios, eliminar usuarios, estadísticas del sistema
+- RH **NO** tiene bypass en operaciones de Nivel C (solo ADMIN)
+
+---
 
 ## 8. Convenciones de Código
 
@@ -178,12 +260,21 @@ Los roles definen la identidad organizacional del usuario. **No definen qué mó
 - **Errores**: Mensajes de error claros y localizados (español)
 - **Imports**: Usar `@/` para rutas absolutas en Frontend
 
+---
+
 ## 9. Seguridad
 
 - **Tokens JWT**: Incluir `accessibleModules` y `role` en el payload
 - **Middleware**: Validar permisos en cada ruta protegida con `requireModule()`
 - **Contraseñas**: Hash con bcrypt (salt rounds: 10)
 - **Sesiones**: Invalidar tokens al cambiar contraseña o modificar permisos
+- **`accessibleModules`**: Controla acceso funcional (Nivel A). Nunca confiar exclusivamente en el contenido del JWT para decisiones críticas; siempre validar contra la base de datos cuando sea posible.
+- **`requireRole`**: Controla operaciones críticas (Nivel C). Solo ADMIN debe tener acceso a operaciones de nivel C.
+- **Ownership/Scope**: Validar propiedad del recurso o alcance de datos (Nivel B) incluso después de pasar Nivel A. Evitar bypass de permisos fuera de ADMIN y RH.
+- **Modelo de 3 niveles**: Mantener siempre la separación de niveles A, B y C. No mezclar responsabilidades.
+- **Política de Roles Estratégicos**: Ningún otro rol deberá recibir privilegios equivalentes a ADMIN o RH sin autorización expresa de Presidencia.
+
+---
 
 ## 10. Mantenimiento y Escalabilidad
 
@@ -192,58 +283,73 @@ Los roles definen la identidad organizacional del usuario. **No definen qué mó
 - **Logs**: Registrar intentos de acceso fallidos y operaciones críticas
 - **Documentación**: Mantener actualizado este `.clinerules` al agregar nuevos módulos o roles
 - **Nuevos Roles**: Al crear un nuevo rol, solo se necesita:
-  1. Agregarlo a la tabla de roles en este archivo
-  2. Configurar sus `accessibleModules` en la UI de administración
-  3. **No se requiere modificar código** de validación de acceso
-- **Nuevos Módulos**: Al agregar un módulo, solo se necesita:
-  1. Agregarlo a la tabla de módulos en este archivo
-  2. Crear las rutas protegidas con `requireModule('NUEVO_MODULO')`
-  3. Asignarlo desde la UI a los usuarios que corresponda
+  1. Agregarlo al enum `RoleType` en `backend/prisma/schema.prisma`
+  2. Agregar configuración visual en `backend/src/routes/roles.routes.js` (SYSTEM_ROLES)
+  3. Agregar preset en `backend/src/config/roles.config.js` (módulos por defecto)
+  4. Configurar sus `accessibleModules` desde la UI de administración
+  5. **No se requiere modificar código** de validación de acceso
+- **Nuevos Módulos**: Ver [Guía para creación de módulos](#guía-para-creación-de-módulos) en la sección 11
 
 ---
 
-## 11. Sistema de Roles Escalable (v3.0)
+## 11. Sistema de Roles Escalable
 
 ### Arquitectura de Roles
 
-El sistema ahora soporta roles **semidinámicos** con un archivo de configuración centralizado:
+El sistema soporta roles **semidinámicos** con archivos de configuración centralizados:
 
 | Componente | Propósito | Archivo |
 |------------|-----------|---------|
-| `frontend/lib/rolesConfig.js` | Configuración estática de roles (nombre, color, ícono, descripción) | Frontend |
-| `GET /api/roles` | Endpoint dinámico que devuelve roles desde la BD o enum | Backend |
-| `GET /api/modules` | Endpoint dinámico que devuelve módulos disponibles | Backend |
+| `backend/src/config/modules.config.js` | **Fuente de verdad** de módulos del sistema | Backend |
+| `backend/src/config/roles.config.js` | **Fuente de verdad** de presets de módulos por rol | Backend |
+| `backend/src/routes/roles.routes.js` | **Fuente de verdad** de roles del sistema (SYSTEM_ROLES) + endpoints dinámicos | Backend |
+| `GET /api/roles` | Endpoint dinámico que devuelve roles desde SYSTEM_ROLES + BD | Backend |
+| `GET /api/modules` | Endpoint dinámico que devuelve módulos desde `modules.config.js` | Backend |
+| `GET /api/roles/presets` | Endpoint dinámico que devuelve presets desde `roles.config.js` | Backend |
+| `frontend/lib/rolesConfig.js` | ⚠️ Solo fallback visual (`ROLE_FALLBACK_CONFIG`). No usar para autorización | Frontend |
 | `frontend/lib/api.js` → `systemApi` | Cliente API para consumir roles/módulos | Frontend |
+
+### Guía para creación de módulos
+
+Procedimiento oficial paso a paso para agregar un nuevo módulo al ERP KRAM:
+
+1. **Actualizar Prisma Schema**: Agregar valor al enum `ModuleType` en `backend/prisma/schema.prisma`
+2. **Crear migraciones**: Ejecutar `npx prisma migrate dev` para generar la migración
+3. **Registrar módulo en `modules.config.js`**: Agregar entrada en `backend/src/config/modules.config.js` con key, label, description y enabled
+4. **Actualizar presets en `roles.config.js`**: Agregar el módulo a los presets de los roles que correspondan en `backend/src/config/roles.config.js`
+5. **Crear servicios**: Implementar lógica de negocio en `backend/src/services/<modulo>/`
+6. **Crear controladores**: Implementar endpoints REST en `backend/src/controllers/`
+7. **Crear rutas**: Definir rutas Express protegidas con `requireModule('NUEVO_MODULO')` en `backend/src/routes/`
+8. **Registrar rutas en `index.js`**: Montar las rutas en `backend/src/index.js` con `app.use('/api', nuevasRutas)`
+9. **Registrar APIs frontend**: Agregar métodos en `frontend/lib/api.js` para consumir los nuevos endpoints
+10. **Crear páginas Next.js**: Implementar UI en `frontend/app/<modulo>/`
+11. **Actualizar DashboardLayout**: Agregar entradas en el sidebar de `frontend/components/DashboardLayout.js`
+12. **Aplicar ProtectedRoute**: Proteger rutas del frontend con el módulo correspondiente
+13. **Actualizar documentación oficial**: Reflejar cambios en `.clinerules` y `docs/`
 
 ### Cómo agregar un nuevo rol
 
 1. **Agregar al enum `RoleType`** en `backend/prisma/schema.prisma`
-2. **Agregar configuración** en `frontend/lib/rolesConfig.js` con:
+2. **Agregar a `SYSTEM_ROLES`** en `backend/src/routes/roles.routes.js` con:
+   - `id`: Código del rol (mayúsculas)
    - `name`: Nombre legible
-   - `color`: Clases Tailwind (bg-* text-*)
    - `description`: Descripción del rol
+   - `color`: Clases Tailwind (bg-* text-*)
    - `icon`: Emoji representativo
-   - `order`: Orden de visualización
-3. **Configurar `accessibleModules`** desde la UI de Gestión de Accesos
-4. **No se requiere modificar código** de validación de acceso
-
-### Cómo agregar un nuevo módulo
-
-1. **Agregar al enum `ModuleType`** en `backend/prisma/schema.prisma`
-2. **Agregar al endpoint** `GET /api/modules` en `backend/src/routes/roles.routes.js`
-3. **Crear rutas protegidas** con `requireModule('NUEVO_MODULO')`
-4. **Asignar desde la UI** a los usuarios que corresponda
+3. **Agregar preset** en `backend/src/config/roles.config.js` con los módulos por defecto
+4. **Configurar `accessibleModules`** desde la UI de Gestión de Accesos
+5. **No se requiere modificar código** de validación de acceso
 
 ### Uso en Frontend
 
 ```jsx
-// Importar funciones de rolesConfig
+// Importar funciones de rolesConfig (solo para visualización)
 import { getRoleName, getRoleColor, getRoleIcon } from '@/lib/rolesConfig'
 
-// Uso simple
+// Uso simple (visualización únicamente)
 <span className={getRoleColor(user.role)}>{getRoleName(user.role)}</span>
 
-// Obtener roles desde la API (dinámico)
+// Obtener roles desde la API (dinámico — fuente de verdad)
 import { getRolesFromApi, getModulesFromApi } from '@/lib/rolesConfig'
 const roles = await getRolesFromApi()
 const modules = await getModulesFromApi()
@@ -257,11 +363,37 @@ const response = await fetch(`${API_URL}/api/roles`, {
   headers: { 'Authorization': `Bearer ${token}` }
 });
 const { roles } = await response.json();
+
+// Consumir presets
+const presetsResponse = await fetch(`${API_URL}/api/roles/presets`, {
+  headers: { 'Authorization': `Bearer ${token}` }
+});
+const { presets } = await presetsResponse.json();
 ```
 
 ---
 
-**Última actualización**: 04/06/2026  
-**Versión**: 3.0 — Sistema de Roles Escalable  
-**Cambios en v3.0**: Archivo centralizado `rolesConfig.js`, endpoints dinámicos `GET /api/roles` y `GET /api/modules`, guía de escalabilidad para nuevos roles y módulos, integración con `systemApi`  
-**Propósito**: Guía para desarrollo consistente, mantenible y escalable del ERP KRAM
+## 12. Documentación Asociada
+
+El ERP KRAM cuenta con documentación técnica oficial en el directorio `docs/`. Cualquier cambio importante en la arquitectura, flujos de negocio, modelo de datos o permisos debe reflejarse tanto en este `.clinerules` como en la documentación correspondiente.
+
+| Documento | Propósito |
+|-----------|-----------|
+| `docs/ARQUITECTURA_KRAM.md` | Arquitectura general, estructura del repositorio, inventario de módulos, roles, presets y base de datos |
+| `docs/FLUJOS_DE_NEGOCIO.md` | Flujos funcionales detallados: reclutamiento, compras, empleados, configuración de accesos |
+| `docs/MATRIZ_DE_PERMISOS.md` | Matriz completa de permisos por módulo y rol, modelo de autorización de 3 niveles |
+| `docs/ERD_KRAM.md` | Diagrama entidad-relación con 23 modelos y 9 enums, relaciones y campos clave |
+| `docs/GUIA_NUEVO_MODULO.md` | Guía detallada paso a paso para implementar un nuevo módulo en el sistema |
+| `docs/DEUDA_TECNICA.md` | Inventario de deuda técnica clasificada por prioridad (P0-P3) con plan de remediación |
+
+---
+
+## Historial de Versiones
+
+| Versión | Fecha | Cambios |
+|---------|-------|---------|
+| 1.0 | — | Versión inicial |
+| 2.0 | — | Sistema de permisos ACL, estrategia de 3 niveles |
+| 3.0 | 04/06/2026 | Sistema de Roles Escalable: `rolesConfig.js`, endpoints dinámicos `GET /api/roles` y `GET /api/modules`, guía de escalabilidad |
+| 4.0 | 13/06/2026 | Centralización de módulos en `modules.config.js`; formalización de documentación técnica (`docs/`); incorporación del módulo Compras; reglas actualizadas para nuevos módulos; documentación de fuentes oficiales de roles y presets; sección de documentación asociada; refuerzo de reglas de seguridad |
+| **4.1** | **13/06/2026** | Documentación de ADMIN y RH como Roles Estratégicos con bypass global intencional; corrección del alcance documental de RH (control operativo global autorizado por Dirección General); actualización de ejemplos de código; incorporación de nota de seguridad sobre autorización de Presidencia; alineación con la política oficial de seguridad de KRAM |

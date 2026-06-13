@@ -2,6 +2,8 @@
 
 > **Documento de Arquitectura — Fase 1: Inventario del Sistema**
 > *Generado: 13/06/2026*
+> *Última actualización: 13/06/2026*
+> *Versión: 1.1 — Roles Estratégicos*
 
 ---
 
@@ -270,16 +272,29 @@ Mini-ERP-Kram/
 **Fuente primaria:** `backend/src/routes/roles.routes.js` → `SYSTEM_ROLES`
 **Fuente de fallback visual:** `frontend/lib/rolesConfig.js`
 
-| # | ID | Nombre | Color | Icono | Descripción | Orden |
-|---|-----|--------|-------|-------|-------------|-------|
-| 1 | `ADMIN` | Administrador | `bg-purple-100 text-purple-800` | 👑 | Acceso total al sistema | 0 |
-| 2 | `RH` | Recursos Humanos | `bg-blue-100 text-blue-800` | 👥 | Gestión de personal y reclutamiento | 1 |
-| 3 | `SISTEMAS` | Sistemas | `bg-green-100 text-green-800` | 💻 | Soporte técnico y sistemas | 2 |
-| 4 | `COMPRAS` | Compras | `bg-yellow-100 text-yellow-800` | 🛒 | Gestión de compras y proveedores | 3 |
-| 5 | `PRODUCCION` | Producción | `bg-red-100 text-red-800` | 🏭 | Gestión de producción | 4 |
-| 6 | `EMPLEADO_BASICO` | Empleado | `bg-gray-100 text-gray-800` | 👤 | Acceso básico al sistema | 5 |
+| # | ID | Nombre | Color | Icono | Descripción | Tipo | Orden |
+|---|-----|--------|-------|-------|-------------|------|-------|
+| 1 | `ADMIN` | Administrador | `bg-purple-100 text-purple-800` | 👑 | Administrador del sistema — control técnico global | Estratégico | 0 |
+| 2 | `RH` | Recursos Humanos | `bg-blue-100 text-blue-800` | 👥 | Gestión de personal y reclutamiento — control operativo global autorizado por Dirección General | Estratégico | 1 |
+| 3 | `SISTEMAS` | Sistemas | `bg-green-100 text-green-800` | 💻 | Soporte técnico y sistemas | Departamental | 2 |
+| 4 | `COMPRAS` | Compras | `bg-yellow-100 text-yellow-800` | 🛒 | Gestión de compras y proveedores | Departamental | 3 |
+| 5 | `PRODUCCION` | Producción | `bg-red-100 text-red-800` | 🏭 | Gestión de producción | Departamental | 4 |
+| 6 | `EMPLEADO_BASICO` | Empleado | `bg-gray-100 text-gray-800` | 👤 | Acceso básico al sistema | Base | 5 |
 
 **Total de roles del sistema: 6**
+
+### Roles Estratégicos
+
+El ERP KRAM reconoce dos **Roles Estratégicos** con bypass global, cada uno con responsabilidades distintas:
+
+| Rol | Tipo | Responsabilidad | Ámbito |
+|-----|------|----------------|--------|
+| **ADMIN** | Control técnico global | Administración del sistema, configuración técnica, operaciones críticas (Nivel C) | Todo el sistema |
+| **RH** | Control operativo global autorizado por Dirección General | Gestión de personal, reclutamiento, configuración de accesos, supervisión operativa | Todos los módulos y datos |
+
+**Fundamento organizacional:** El rol RH representa la mano derecha operativa de Presidencia dentro de Comercializadora KRAM. Por decisión explícita de Dirección General, RH posee acceso global al sistema, al mismo nivel funcional que ADMIN, aunque con responsabilidades distintas.
+
+> ⚠️ **Política de seguridad:** Ningún otro rol deberá recibir privilegios equivalentes a ADMIN o RH sin autorización expresa de Presidencia.
 
 > **Nota:** El backend también soporta roles personalizados (almacenados en tabla `roles` de BD), creados desde la UI de Gestión de Accesos. Estos no se listan aquí por ser dinámicos.
 
@@ -3125,14 +3140,14 @@ Frontend (React/Next.js)                    Backend (Express)
 
 Definidos en `roles.routes.js` (líneas 15-22):
 
-| ID | Nombre | Descripción | Color | Ícono |
-|----|--------|-------------|-------|-------|
-| `EMPLEADO_BASICO` | Empleado | Acceso básico al sistema | `bg-gray-100 text-gray-800` | 👤 |
-| `ADMIN` | Administrador | Administrador del sistema | `bg-purple-100 text-purple-800` | 👑 |
-| `RH` | Recursos Humanos | Gestión de personal y reclutamiento | `bg-blue-100 text-blue-800` | 👥 |
-| `SISTEMAS` | Sistemas | Soporte técnico y sistemas | `bg-green-100 text-green-800` | 💻 |
-| `COMPRAS` | Compras | Gestión de compras y proveedores | `bg-yellow-100 text-yellow-800` | 🛒 |
-| `PRODUCCION` | Producción | Gestión de producción | `bg-red-100 text-red-800` | 🏭 |
+| ID | Nombre | Descripción | Color | Ícono | Tipo |
+|----|--------|-------------|-------|-------|------|
+| `ADMIN` | Administrador | Administrador del sistema — control técnico global | `bg-purple-100 text-purple-800` | 👑 | Estratégico |
+| `RH` | Recursos Humanos | Gestión de personal y reclutamiento — control operativo global autorizado por Dirección General | `bg-blue-100 text-blue-800` | 👥 | Estratégico |
+| `SISTEMAS` | Sistemas | Soporte técnico y sistemas | `bg-green-100 text-green-800` | 💻 | Departamental |
+| `COMPRAS` | Compras | Gestión de compras y proveedores | `bg-yellow-100 text-yellow-800` | 🛒 | Departamental |
+| `PRODUCCION` | Producción | Gestión de producción | `bg-red-100 text-red-800` | 🏭 | Departamental |
+| `EMPLEADO_BASICO` | Empleado | Acceso básico al sistema | `bg-gray-100 text-gray-800` | 👤 | Base |
 
 ### 14.7 Roles Personalizados
 
@@ -4415,7 +4430,18 @@ const formatDate = (isoString) => {
 | **B — Scoping** | Lógica de negocio (empleado, departamento) | ¿Qué datos ve? |
 | **C — Críticas** | `requireRole(['ADMIN'])` | ¿Puede eliminar usuarios? |
 
-#### 16.12.2 Bypass para ADMIN y RH
+#### 16.12.2 Bypass para ADMIN y RH (Roles Estratégicos)
+
+El ERP KRAM reconoce dos **Roles Estratégicos** con bypass global, cada uno con responsabilidades distintas:
+
+| Rol | Tipo | Responsabilidad | Ámbito |
+|-----|------|----------------|--------|
+| **ADMIN** | Control técnico global | Administración del sistema, configuración técnica, operaciones críticas (Nivel C) | Todo el sistema |
+| **RH** | Control operativo global autorizado por Dirección General | Gestión de personal, reclutamiento, configuración de accesos, supervisión operativa | Todos los módulos y datos |
+
+**Fundamento organizacional:** El rol RH representa la mano derecha operativa de Presidencia dentro de Comercializadora KRAM. Por decisión explícita de Dirección General, RH posee acceso global al sistema, al mismo nivel funcional que ADMIN, aunque con responsabilidades distintas.
+
+> ⚠️ **Política de seguridad:** Ningún otro rol deberá recibir privilegios equivalentes a ADMIN o RH sin autorización expresa de Presidencia.
 
 ```javascript
 // Siempre verificar bypass primero
