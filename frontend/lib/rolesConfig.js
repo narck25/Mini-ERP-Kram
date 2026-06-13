@@ -1,17 +1,22 @@
 /**
- * Configuración centralizada de Roles del Sistema
+ * ⚠️ CONFIGURACIÓN DE FALLBACK VISUAL — NO USAR PARA LÓGICA DE NEGOCIO
  * 
- * Para agregar un nuevo rol:
- * 1. Agregarlo al enum RoleType en backend/prisma/schema.prisma
- * 2. Agregarlo aquí con su nombre, color y descripción
- * 3. El frontend automáticamente lo mostrará correctamente
+ * La fuente primaria de roles es GET /api/roles (backend).
+ * Esta configuración existe ÚNICAMENTE como fallback visual para cuando
+ * la API no está disponible (desarrollo, red, etc.).
  * 
- * Para roles 100% dinámicos (desde backend):
+ * Reglas:
+ * - No utilizar para lógica de negocio.
+ * - No utilizar para control de acceso.
+ * - No agregar nuevos roles aquí sin agregarlos también al backend.
+ * - La fuente de verdad es backend/src/routes/roles.routes.js (SYSTEM_ROLES).
+ * 
+ * Para roles dinámicos (desde backend):
  * Usar getRolesFromApi() que consume GET /api/roles
  */
 
-// Definición estática de roles (fallback y para desarrollo)
-const ROLES_CONFIG = {
+// Fallback visual — solo se usa cuando GET /api/roles falla
+const ROLE_FALLBACK_CONFIG = {
   ADMIN: {
     name: 'Administrador',
     color: 'bg-purple-100 text-purple-800',
@@ -62,7 +67,7 @@ const ROLES_CONFIG = {
  * @returns {string} Nombre legible
  */
 export function getRoleName(role) {
-  return ROLES_CONFIG[role]?.name || role || 'Sin rol';
+  return ROLE_FALLBACK_CONFIG[role]?.name || role || 'Sin rol';
 }
 
 /**
@@ -71,7 +76,7 @@ export function getRoleName(role) {
  * @returns {string} Clases Tailwind para el color
  */
 export function getRoleColor(role) {
-  return ROLES_CONFIG[role]?.color || 'bg-gray-100 text-gray-800';
+  return ROLE_FALLBACK_CONFIG[role]?.color || 'bg-gray-100 text-gray-800';
 }
 
 /**
@@ -80,7 +85,7 @@ export function getRoleColor(role) {
  * @returns {string} Emoji del rol
  */
 export function getRoleIcon(role) {
-  return ROLES_CONFIG[role]?.icon || '👤';
+  return ROLE_FALLBACK_CONFIG[role]?.icon || '👤';
 }
 
 /**
@@ -89,7 +94,7 @@ export function getRoleIcon(role) {
  * @returns {string} Descripción del rol
  */
 export function getRoleDescription(role) {
-  return ROLES_CONFIG[role]?.description || '';
+  return ROLE_FALLBACK_CONFIG[role]?.description || '';
 }
 
 /**
@@ -97,7 +102,7 @@ export function getRoleDescription(role) {
  * @returns {Array} Array de objetos { id, name, color, description, icon }
  */
 export function getAllRoles() {
-  return Object.entries(ROLES_CONFIG)
+  return Object.entries(ROLE_FALLBACK_CONFIG)
     .map(([id, config]) => ({
       id,
       ...config,
@@ -135,4 +140,4 @@ export async function getModulesFromApi() {
   }
 }
 
-export default ROLES_CONFIG;
+export default ROLE_FALLBACK_CONFIG;

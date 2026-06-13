@@ -7,26 +7,8 @@ import DashboardLayout from '@/components/DashboardLayout';
 import RoleManager from '@/components/RoleManager';
 import { getRoleName, getRoleColor } from '@/lib/rolesConfig';
 
-// Fallback de módulos en caso de que la API no esté disponible
-const FALLBACK_MODULES = [
-  { id: 'EMPLEADOS', name: 'Empleados', description: 'Gestión de empleados y expedientes' },
-  { id: 'RECLUTAMIENTO', name: 'Reclutamiento', description: 'Gestión de vacantes y candidatos' },
-  { id: 'VACACIONES', name: 'Vacaciones', description: 'Solicitud y aprobación de vacaciones' },
-  { id: 'INCIDENCIAS', name: 'Incidencias', description: 'Reporte y seguimiento de incidencias' },
-  { id: 'CONFIGURACION', name: 'Configuración', description: 'Configuración del sistema' },
-  { id: 'REPORTES', name: 'Reportes', description: 'Generación de reportes y estadísticas' },
-  { id: 'COMPRAS', name: 'Compras', description: 'Solicitud y gestión de compras' }
-];
-
-// Fallback de presets en caso de que la API no esté disponible
-const FALLBACK_PRESETS = {
-  'ADMIN': ['DASHBOARD', 'EMPLEADOS', 'RECLUTAMIENTO', 'VACACIONES', 'INCIDENCIAS', 'CONFIGURACION', 'REPORTES', 'COMPRAS'],
-  'RH': ['DASHBOARD', 'EMPLEADOS', 'RECLUTAMIENTO', 'VACACIONES', 'INCIDENCIAS', 'REPORTES'],
-  'SISTEMAS': ['DASHBOARD', 'CONFIGURACION', 'REPORTES'],
-  'COMPRAS': ['DASHBOARD', 'COMPRAS', 'REPORTES'],
-  'PRODUCCION': ['DASHBOARD', 'REPORTES'],
-  'EMPLEADO_BASICO': ['DASHBOARD']
-};
+// Módulos y presets se cargan desde la API (systemApi.getModules, systemApi.getRolePresets)
+// con fallback inline en caso de error de conexión.
 
 export default function AccesosPage() {
   const { user } = useAuth();
@@ -40,8 +22,8 @@ export default function AccesosPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [expandedUser, setExpandedUser] = useState(null);
   const [allRoles, setAllRoles] = useState([]);
-  const [modules, setModules] = useState(FALLBACK_MODULES);
-  const [rolePresets, setRolePresets] = useState(FALLBACK_PRESETS);
+  const [modules, setModules] = useState([]);
+  const [rolePresets, setRolePresets] = useState({});
 
   const canManagePermissions = user?.role === 'ADMIN' || user?.role === 'RH';
 
@@ -69,37 +51,26 @@ export default function AccesosPage() {
     if (canManagePermissions) fetchUsers();
   }, [canManagePermissions]);
 
-  // Cargar módulos desde la API (con fallback local)
+  // Cargar módulos y presets desde la API (systemApi como fuente única)
   useEffect(() => {
-    const fetchModules = async () => {
+    const fetchModulesAndPresets = async () => {
       try {
-        const response = await permissionApi.getAvailableModules();
-        if (response.data.success && response.data.modules) {
+        const [modulesRes, presetsRes] = await Promise.all([
+          systemApi.getModules(),
+          systemApi.getRolePresets()
+        ]);
+        if (modulesRes.data?.modules) {
           // Filtrar DASHBOARD ya que se maneja aparte
-          setModules(response.data.modules.filter(m => m.id !== 'DASHBOARD'));
+          setModules(modulesRes.data.modules.filter(m => m.id !== 'DASHBOARD'));
+        }
+        if (presetsRes.data?.presets) {
+          setRolePresets(presetsRes.data.presets);
         }
       } catch (err) {
-        console.warn('Error fetching modules from API, using fallback:', err);
-        // Fallback: mantener FALLBACK_MODULES
+        console.warn('Error fetching modules/presets from API:', err);
       }
     };
-    fetchModules();
-  }, []);
-
-  // Cargar presets de módulos por rol desde la API (con fallback local)
-  useEffect(() => {
-    const fetchRolePresets = async () => {
-      try {
-        const response = await systemApi.getRolePresets();
-        if (response.data.presets) {
-          setRolePresets(response.data.presets);
-        }
-      } catch (err) {
-        console.warn('Error fetching role presets from API, using fallback:', err);
-        // Fallback: mantener FALLBACK_PRESETS
-      }
-    };
-    fetchRolePresets();
+    fetchModulesAndPresets();
   }, []);
 
   const filteredUsers = useMemo(() => {
