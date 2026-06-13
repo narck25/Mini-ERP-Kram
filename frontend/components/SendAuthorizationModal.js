@@ -8,11 +8,6 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function SendAuthorizationModal({ request, onClose, onSuccess }) {
   const { user } = useAuth();
   
-  // Solo ADMIN y COMPRAS pueden enviar autorización
-  if (!user || (user.role !== 'ADMIN' && user.role !== 'COMPRAS')) {
-    return null;
-  }
-  
   const [potentialApprovers, setPotentialApprovers] = useState([]);
   const [selectedApproverIds, setSelectedApproverIds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -116,6 +111,11 @@ export default function SendAuthorizationModal({ request, onClose, onSuccess }) 
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  // Solo ADMIN y COMPRAS pueden enviar autorización
+  if (!user || (user.role !== 'ADMIN' && user.role !== 'COMPRAS')) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

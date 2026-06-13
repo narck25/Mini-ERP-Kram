@@ -19,11 +19,6 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function PurchaseOrderModal({ request, onClose, onSuccess }) {
   const { user } = useAuth();
 
-  // Solo ADMIN y COMPRAS pueden generar OC
-  if (!user || (user.role !== 'ADMIN' && user.role !== 'COMPRAS')) {
-    return null;
-  }
-
   // ── Estado de las partidas ──
   const [items, setItems] = useState([]);
   const [subtotal, setSubtotal] = useState(0);
@@ -184,6 +179,11 @@ export default function PurchaseOrderModal({ request, onClose, onSuccess }) {
 
   // ── Obtener la cotización seleccionada ──
   const selectedQuote = request?.quotes?.find((q) => q.isSelected);
+
+  // Solo ADMIN y COMPRAS pueden generar OC
+  if (!user || (user.role !== 'ADMIN' && user.role !== 'COMPRAS')) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">

@@ -8,11 +8,6 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function QuoteSelectionModal({ request, onClose, onSuccess }) {
   const { user } = useAuth();
   
-  // Solo ADMIN y COMPRAS pueden seleccionar cotizaciones
-  if (!user || (user.role !== 'ADMIN' && user.role !== 'COMPRAS')) {
-    return null;
-  }
-  
   const [selectedQuoteId, setSelectedQuoteId] = useState(null);
   const [comentarios, setComentarios] = useState('');
   const [fechaEstimadaEntrega, setFechaEstimadaEntrega] = useState('');
@@ -149,6 +144,11 @@ export default function QuoteSelectionModal({ request, onClose, onSuccess }) {
   // Ordenar cotizaciones por monto ascendente
   const sortedQuotes = [...(request.quotes || [])].sort((a, b) => a.monto - b.monto);
   const mejorMonto = sortedQuotes.length > 0 ? sortedQuotes[0].monto : 0;
+
+  // Solo ADMIN y COMPRAS pueden seleccionar cotizaciones
+  if (!user || (user.role !== 'ADMIN' && user.role !== 'COMPRAS')) {
+    return null;
+  }
 
   return (
     <>
