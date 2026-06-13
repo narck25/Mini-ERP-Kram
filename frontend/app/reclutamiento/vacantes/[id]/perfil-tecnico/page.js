@@ -379,7 +379,7 @@ function TechnicalProfilePageContent() {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
               <h3 className="text-lg font-semibold text-blue-900 mb-2">⚠️ Importante</h3>
               <ul className="text-sm text-blue-800 space-y-2">
-                <li>• Una vez que envíes este formulario, la vacante cambiará a estado "Buscando" y RH comenzará a buscar candidatos.</li>
+                <li>• Una vez que envíes este formulario, la vacante cambiará a estado &ldquo;Buscando&rdquo; y RH comenzará a buscar candidatos.</li>
                 <li>• Los requerimientos técnicos que definas serán utilizados para evaluar a los candidatos.</li>
                 <li>• Puedes comunicarte con RH a través del sistema de comentarios si necesitas ajustar algún requerimiento.</li>
                 <li>• Asegúrate de que los requerimientos sean claros y específicos para facilitar la búsqueda de candidatos adecuados.</li>

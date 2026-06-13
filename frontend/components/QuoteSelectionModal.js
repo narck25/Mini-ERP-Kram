@@ -528,7 +528,7 @@ export default function QuoteSelectionModal({ request, onClose, onSuccess }) {
           {/* Pie del modal */}
           <div className="flex justify-between items-center p-4 border-t">
             <div className="text-sm text-gray-600">
-              <p>Para descargar el PDF, haz clic derecho en el documento y selecciona "Guardar como"</p>
+                <p>Para descargar el PDF, haz clic derecho en el documento y selecciona &ldquo;Guardar como&rdquo;</p>
             </div>
             <div className="flex gap-2">
               <a

@@ -497,7 +497,7 @@ export default function MisSolicitudesDetallePage() {
               {/* Pie del modal */}
               <div className="flex justify-between items-center p-4 border-t">
                 <div className="text-sm text-gray-600">
-                  <p>Para descargar el PDF, haz clic derecho en el documento y selecciona "Guardar como"</p>
+                  <p>Para descargar el PDF, haz clic derecho en el documento y selecciona &ldquo;Guardar como&rdquo;</p>
                 </div>
                 <div className="flex gap-2">
                   <a
@@ -658,7 +658,7 @@ export default function MisSolicitudesDetallePage() {
                       <h3 className="text-sm font-medium text-blue-800">Instrucciones</h3>
                       <div className="mt-2 text-sm text-blue-700">
                         <p>1. Selecciona una cotización marcando el círculo correspondiente</p>
-                        <p>2. Haz clic en "Seleccionar Cotización" para confirmar tu elección</p>
+                        <p>2. Haz clic en &ldquo;Seleccionar Cotización&rdquo; para confirmar tu elección</p>
                         <p>3. La cotización con el menor costo se muestra en color verde como la mejor opción</p>
                       </div>
                     </div>

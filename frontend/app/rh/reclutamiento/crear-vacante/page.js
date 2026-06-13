@@ -726,7 +726,7 @@ function CrearVacantePageContent() {
                     <h3 className="text-sm font-medium text-blue-800">Vacante Pre-Aprobada</h3>
                     <div className="mt-2 text-sm text-blue-700">
                       <p>
-                        Esta vacante será creada con estado <span className="font-semibold">"Aprobada"</span> automáticamente.
+                        Esta vacante será creada con estado <span className="font-semibold">&ldquo;Aprobada&rdquo;</span> automáticamente.
                         El jefe de área podrá definir el perfil técnico detallado y actividades antes de comenzar la búsqueda.
                       </p>
                     </div>

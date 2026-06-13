@@ -448,7 +448,7 @@ export default function IncidenciasPage() {
                   <h2 className="text-lg font-semibold text-gray-800">Reporte de Asistencia Detallado</h2>
                   <p className="text-sm text-gray-600">
                     Mostrando {datosFiltrados.length} de {datosProcesados.length} días de trabajo
-                    {searchTerm && <span className="text-blue-600"> (filtrados por "{searchTerm}")</span>}
+                    {searchTerm && <span className="text-blue-600"> (filtrados por &ldquo;{searchTerm}&rdquo;)</span>}
                   </p>
                 </div>
                 <div className="flex space-x-2">
@@ -540,7 +540,7 @@ export default function IncidenciasPage() {
               
               {datosFiltrados.length === 0 && (
                 <div className="px-6 py-8 text-center text-gray-500">
-                  No hay datos que coincidan con la búsqueda "{searchTerm}".
+                  No hay datos que coincidan con la búsqueda &ldquo;{searchTerm}&rdquo;.
                 </div>
               )}
             </div>

@@ -833,7 +833,7 @@ export default function ComprasDetailPage() {
               <div className="bg-white border border-gray-200 rounded-lg p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Cotizaciones subidas</h2>
                 <p className="text-sm text-gray-600 mb-6">
-                  Cotizaciones ya registradas en el sistema. Haz clic en "Ver Cotización" para revisar los archivos PDF.
+                  Cotizaciones ya registradas en el sistema. Haz clic en &ldquo;Ver Cotización&rdquo; para revisar los archivos PDF.
                 </p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1404,7 +1404,7 @@ export default function ComprasDetailPage() {
               {/* Pie del modal */}
               <div className="flex justify-between items-center p-4 border-t">
                 <div className="text-sm text-gray-600">
-                  <p>Para descargar el PDF, haz clic derecho en el documento y selecciona "Guardar como"</p>
+                  <p>Para descargar el PDF, haz clic derecho en el documento y selecciona &ldquo;Guardar como&rdquo;</p>
                 </div>
                 <div className="flex gap-2">
                   <a

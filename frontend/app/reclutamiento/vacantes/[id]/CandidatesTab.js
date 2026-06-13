@@ -701,8 +701,8 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
           )}
           {isSolicitante && (
             <>
-              <li>• <strong>Arrastra</strong> candidatos de "En Revisión" a "Seleccionados" (👍) o "Descartados" (👎).</li>
-              <li>• <strong>Seleccionar Candidato (🎉):</strong> En la columna de Seleccionados, haz clic en "Contratar" para cerrar la vacante.</li>
+              <li>• <strong>Arrastra</strong> candidatos de &ldquo;En Revisión&rdquo; a &ldquo;Seleccionados&rdquo; (👍) o &ldquo;Descartados&rdquo; (👎).</li>
+              <li>• <strong>Seleccionar Candidato (🎉):</strong> En la columna de Seleccionados, haz clic en &ldquo;Contratar&rdquo; para cerrar la vacante.</li>
               <li>• <strong>Documentos:</strong> Puedes ver el CV (📄) y las pruebas psicométricas (📊) de cada candidato.</li>
             </>
           )}
@@ -807,7 +807,7 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
             {/* Pie del modal */}
             <div className="flex justify-between items-center p-4 border-t">
               <div className="text-sm text-gray-600">
-                <p>Para descargar el PDF, haz clic derecho en el documento y selecciona "Guardar como"</p>
+                <p>Para descargar el PDF, haz clic derecho en el documento y selecciona &ldquo;Guardar como&rdquo;</p>
               </div>
               <div className="flex gap-2">
                 <a

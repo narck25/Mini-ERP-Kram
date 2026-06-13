@@ -205,7 +205,7 @@ export default function RoleManager({ onRolesChange }) {
               {customRoles.length === 0 ? (
                 <div className="text-center py-6 bg-gray-50 rounded-lg border border-dashed border-gray-300">
                   <p className="text-sm text-gray-500">No hay roles personalizados aún.</p>
-                  <p className="text-xs text-gray-400 mt-1">Crea tu primer rol haciendo clic en "+ Nuevo Rol"</p>
+                  <p className="text-xs text-gray-400 mt-1">Crea tu primer rol haciendo clic en &ldquo;+ Nuevo Rol&rdquo;</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">

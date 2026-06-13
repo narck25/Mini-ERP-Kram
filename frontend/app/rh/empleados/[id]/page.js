@@ -963,7 +963,7 @@ function EmployeeProfilePage() {
               <div className="text-center py-8">
                 <p className="text-gray-500">No hay documentos registrados para este empleado.</p>
                 {user && (user.role === 'ADMIN' || user.role === 'RH') && (
-                  <p className="text-gray-400 text-sm mt-2">Haz clic en "Subir Documento" para agregar el primer documento.</p>
+                  <p className="text-gray-400 text-sm mt-2">Haz clic en &ldquo;Subir Documento&rdquo; para agregar el primer documento.</p>
                 )}
               </div>
             )}
