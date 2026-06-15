@@ -7,8 +7,15 @@ const { upload, uploadCV, uploadPsychTest, uploadCandidate, ensureUploadDirs, ha
 // Aplicar autenticación a todas las rutas
 router.use(authMiddleware.verifyToken);
 
+// Datos para formulario de solicitud de vacante (departamentos + puestos)
+router.get('/vacancies/form-data', 
+  authMiddleware.requireModule('RECLUTAMIENTO'), 
+  recruitmentController.getVacancyFormData
+);
+
 // Rutas para jefes de área (SISTEMAS, COMPRAS, PRODUCCION) - Flujo Estándar
 router.post('/recruitment/vacancies', 
+
   authMiddleware.requireModule('RECLUTAMIENTO'), 
   recruitmentController.createVacancyRequest
 );
