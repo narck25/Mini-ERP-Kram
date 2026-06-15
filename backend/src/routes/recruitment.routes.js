@@ -13,8 +13,33 @@ router.get('/vacancies/form-data',
   recruitmentController.getVacancyFormData
 );
 
+// Alias cortos para crear vacante (el frontend llama a /api/vacancies/*)
+router.post('/vacancies', 
+  authMiddleware.requireModule('RECLUTAMIENTO'), 
+  recruitmentController.createVacancyRequest
+);
+router.get('/vacancies', 
+  authMiddleware.requireModule('RECLUTAMIENTO'), 
+  recruitmentController.getAllVacancyRequests
+);
+router.get('/vacancies/my', 
+  authMiddleware.requireModule('RECLUTAMIENTO'), 
+  recruitmentController.getMyVacancyRequests
+);
+router.get('/vacancies/stats', 
+  authMiddleware.requireModule('RECLUTAMIENTO'), 
+  recruitmentController.getVacancyRequestStats
+);
+router.get('/vacancies/:id', 
+  authMiddleware.requireModule('RECLUTAMIENTO'), 
+  recruitmentController.getVacancyRequestById
+);
+
+
 // Rutas para jefes de área (SISTEMAS, COMPRAS, PRODUCCION) - Flujo Estándar
 router.post('/recruitment/vacancies', 
+
+
 
   authMiddleware.requireModule('RECLUTAMIENTO'), 
   recruitmentController.createVacancyRequest
