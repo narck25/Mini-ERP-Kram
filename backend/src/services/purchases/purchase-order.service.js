@@ -22,12 +22,14 @@ const PDFDocument = require('pdfkit');
 const path = require('path');
 const fs = require('fs');
 const audit = require('../audit.service');
+const { COMPANY_INFO } = require('../../config/company.config');
 
 // ─────────────────────────────────────────────────────────────
 // Constantes
 // ─────────────────────────────────────────────────────────────
 const ORDERS_DIR = path.join(__dirname, '..', '..', '..', 'uploads', 'purchase-orders');
 const IVA_RATE = 0.16; // 16% IVA
+
 
 // Asegurar que el directorio exista
 if (!fs.existsSync(ORDERS_DIR)) {
@@ -80,14 +82,12 @@ const generatePDF = (orderData) => {
         subtotal,
         iva,
         ivaRate,
-        solicitante,
-        departamento,
         items,
-        justificacion,
-        fechaSolicitud,
-        fechaAutorizacion,
-        autorizadoPor
+        contactoKram,
+        lugarEntrega,
+        observaciones
       } = orderData;
+
 
       const filename = `${numero.replace(/\//g, '-')}.pdf`;
       const filePath = path.join(ORDERS_DIR, filename);
@@ -97,9 +97,9 @@ const generatePDF = (orderData) => {
         margins: { top: 50, bottom: 50, left: 50, right: 50 },
         info: {
           Title: `Orden de Compra ${numero}`,
-          Author: 'ERP KRAM - Sistema de Compras',
+          Author: 'COMERCIALIZADORA KRAM',
           Subject: 'Orden de Compra',
-          Keywords: 'orden, compra, OC'
+          Keywords: 'orden, compra, OC, KRAM'
         }
       });
 
@@ -107,45 +107,96 @@ const generatePDF = (orderData) => {
       doc.pipe(stream);
 
       // ── Colores corporativos ──
-      const PRIMARY = '#1e40af';    // Azul oscuro
+      const PRIMARY = '#1e40af';    // Azul oscuro KRAM
       const SECONDARY = '#3b82f6';  // Azul medio
       const LIGHT_BG = '#f0f4ff';   // Fondo azul claro
       const DARK_TEXT = '#1f2937';  // Texto oscuro
       const GRAY_TEXT = '#6b7280';  // Texto gris
       const BORDER = '#d1d5db';     // Borde
 
-      // ── Header: Logo + Título ──
+      // ═══════════════════════════════════════════════════════
+      // HEADER: Logo + Datos corporativos + No. OC
+      // ═══════════════════════════════════════════════════════
+
       // Barra superior decorativa
       doc.rect(50, 50, 515, 4).fill(PRIMARY);
 
-      // Título
-      doc.fontSize(24)
+      // ── Logo de KRAM (lado izquierdo) ──
+      const LOGO_PATH = path.join(__dirname, '..', '..', '..', 'uploads', 'logo-kram.png');
+      if (fs.existsSync(LOGO_PATH)) {
+        doc.image(LOGO_PATH, 50, 65, { width: 70, height: 70 });
+      }
+
+      // ── Datos de la empresa (lado izquierdo, debajo del logo) ──
+      const infoX = 50;
+      const infoY = 145;
+
+      doc.fontSize(9)
          .font('Helvetica-Bold')
          .fillColor(PRIMARY)
-         .text('ORDEN DE COMPRA', 50, 70, { align: 'center' });
+         .text(COMPANY_INFO.name, infoX, infoY);
 
-      doc.fontSize(10)
+      doc.fontSize(7)
          .font('Helvetica')
          .fillColor(GRAY_TEXT)
-         .text('Sistema de Gestión de Compras - ERP KRAM', 50, 95, { align: 'center' });
+         .text('Dirección:', infoX, infoY + 14, { width: 300 });
+      doc.fontSize(7)
+         .font('Helvetica')
+         .fillColor(DARK_TEXT)
+         .text(COMPANY_INFO.address, infoX, infoY + 24, { width: 300 });
 
-      // ── Número de OC (destacado) ──
-      doc.rect(350, 70, 215, 40).fill(LIGHT_BG);
-      doc.rect(350, 70, 215, 40).stroke(SECONDARY);
+      doc.fontSize(7)
+         .font('Helvetica')
+         .fillColor(GRAY_TEXT)
+         .text('Teléfono:', infoX, infoY + 40, { width: 300 });
+      doc.fontSize(7)
+         .font('Helvetica')
+         .fillColor(DARK_TEXT)
+         .text(COMPANY_INFO.phone, infoX, infoY + 50, { width: 300 });
+
+      doc.fontSize(7)
+         .font('Helvetica')
+         .fillColor(GRAY_TEXT)
+         .text('Correo:', infoX, infoY + 66, { width: 300 });
+      doc.fontSize(7)
+         .font('Helvetica')
+         .fillColor(DARK_TEXT)
+         .text(COMPANY_INFO.email, infoX, infoY + 76, { width: 300 });
+
+      doc.fontSize(7)
+         .font('Helvetica')
+         .fillColor(GRAY_TEXT)
+         .text('Contacto:', infoX, infoY + 92, { width: 300 });
+      doc.fontSize(7)
+         .font('Helvetica')
+         .fillColor(DARK_TEXT)
+         .text(contactoKram || '—', infoX, infoY + 102, { width: 300 });
+
+      // ── Número de OC (destacado, lado derecho) ──
+      doc.rect(350, 75, 215, 40).fill(LIGHT_BG);
+      doc.rect(350, 75, 215, 40).stroke(SECONDARY);
       doc.fontSize(9)
          .font('Helvetica')
          .fillColor(GRAY_TEXT)
-         .text('No. de Orden', 360, 78, { width: 195, align: 'right' });
+         .text('No. de Orden', 360, 83, { width: 195, align: 'right' });
       doc.fontSize(16)
          .font('Helvetica-Bold')
          .fillColor(PRIMARY)
-         .text(numero, 360, 92, { width: 195, align: 'right' });
+         .text(numero, 360, 97, { width: 195, align: 'right' });
+
+      // ── Título central ──
+      doc.fontSize(22)
+         .font('Helvetica-Bold')
+         .fillColor(PRIMARY)
+         .text('ORDEN DE COMPRA', 50, 330, { align: 'center' });
 
       // ── Línea separadora ──
-      doc.moveTo(50, 125).lineTo(565, 125).stroke(BORDER);
+      doc.moveTo(50, 355).lineTo(565, 355).stroke(BORDER);
 
-      // ── Información general ──
-      let yPos = 140;
+
+      // ═══════════════════════════════════════════════════════
+      // INFORMACIÓN GENERAL
+      // ═══════════════════════════════════════════════════════
 
       // Función helper para dibujar campos
       const drawField = (label, value, x, y, width = 230) => {
@@ -160,45 +211,21 @@ const generatePDF = (orderData) => {
         return y + 34;
       };
 
+      let yPos = 370;
+
       // Columna izquierda
-      yPos = drawField('Solicitante', solicitante, 50, yPos);
-      yPos = drawField('Departamento', departamento, 50, yPos);
-      yPos = drawField('Fecha de Solicitud', fechaSolicitud, 50, yPos);
+      yPos = drawField('Proveedor', proveedor, 50, yPos);
 
       // Columna derecha
-      let yPosRight = 140;
-      yPosRight = drawField('Proveedor', proveedor, 310, yPosRight);
-      yPosRight = drawField('Subtotal', `$ ${(subtotal || monto).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN`, 310, yPosRight);
-      yPosRight = drawField('IVA (${Math.round((ivaRate || IVA_RATE) * 100)}%)', `$ ${(iva || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN`, 310, yPosRight);
-      yPosRight = drawField('Monto Total', `$ ${monto.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN`, 310, yPosRight);
-      yPosRight = drawField('Fecha de Autorización', fechaAutorizacion, 310, yPosRight);
+      let yPosRight = 370;
+      yPosRight = drawField('Lugar de entrega', lugarEntrega || '—', 310, yPosRight, 255);
 
-      // Autorizado por
-      const maxY = Math.max(yPos, yPosRight);
-      doc.fontSize(7)
-         .font('Helvetica')
-         .fillColor(GRAY_TEXT)
-         .text('AUTORIZADO POR', 50, maxY + 5, { width: 230 });
-      doc.fontSize(10)
-         .font('Helvetica-Bold')
-         .fillColor(DARK_TEXT)
-         .text(autorizadoPor || '—', 50, maxY + 17, { width: 230 });
 
-      // ── Justificación ──
-      if (justificacion) {
-        const justY = maxY + 45;
-        doc.fontSize(7)
-           .font('Helvetica')
-           .fillColor(GRAY_TEXT)
-           .text('JUSTIFICACIÓN', 50, justY, { width: 515 });
-        doc.fontSize(9)
-           .font('Helvetica')
-           .fillColor(DARK_TEXT)
-           .text(justificacion, 50, justY + 12, { width: 515 });
-      }
 
-      // ── Tabla de partidas ──
-      const tableY = Math.max(maxY + (justificacion ? 80 : 55), 280);
+      // ═══════════════════════════════════════════════════════
+      // TABLA DE PARTIDAS
+      // ═══════════════════════════════════════════════════════
+      const tableY = Math.max(yPos, yPosRight + 10) + 10;
 
       // Encabezado de tabla
       doc.rect(50, tableY, 515, 22).fill(PRIMARY);
@@ -245,7 +272,9 @@ const generatePDF = (orderData) => {
       // ── Línea final de la tabla ──
       doc.rect(50, rowY, 515, 1).fill(PRIMARY);
 
-      // ── Totales al final de la tabla ──
+      // ═══════════════════════════════════════════════════════
+      // TOTALES
+      // ═══════════════════════════════════════════════════════
       rowY += 8;
       doc.fontSize(9)
          .font('Helvetica-Bold')
@@ -270,27 +299,63 @@ const generatePDF = (orderData) => {
          .text('Total:', 350, rowY, { width: 95, align: 'right' });
       doc.text(`$ ${monto.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 455, rowY, { width: 105, align: 'right' });
 
-      // ── Footer ──
-      const footerY = Math.max(rowY + 40, 650);
+      // ═══════════════════════════════════════════════════════
+      // OBSERVACIONES
+      // ═══════════════════════════════════════════════════════
+      const obsY = rowY + 35;
+      if (observaciones) {
+        doc.fontSize(7)
+           .font('Helvetica')
+           .fillColor(GRAY_TEXT)
+           .text('OBSERVACIONES', 50, obsY, { width: 515 });
+        doc.fontSize(9)
+           .font('Helvetica')
+           .fillColor(DARK_TEXT)
+           .text(observaciones, 50, obsY + 12, { width: 515 });
+      }
+
+      // ═══════════════════════════════════════════════════════
+      // FIRMA INSTITUCIONAL — Área de Compras
+      // ═══════════════════════════════════════════════════════
+      const firmaY = Math.max(obsY + (observaciones ? 50 : 20), rowY + 70);
+
+      doc.moveTo(50, firmaY).lineTo(565, firmaY).stroke(BORDER);
+
+      doc.fontSize(9)
+         .font('Helvetica-Bold')
+         .fillColor(PRIMARY)
+         .text('AUTORIZADO POR', 50, firmaY + 10, { width: 515, align: 'center' });
+
+      // Línea para firma
+      doc.moveTo(180, firmaY + 45).lineTo(435, firmaY + 45).stroke(BORDER);
+
+      doc.fontSize(10)
+         .font('Helvetica-Bold')
+         .fillColor(DARK_TEXT)
+         .text(contactoKram || '—', 180, firmaY + 50, { width: 255, align: 'center' });
+
+      doc.fontSize(8)
+         .font('Helvetica')
+         .fillColor(GRAY_TEXT)
+         .text('Área de Compras', 180, firmaY + 64, { width: 255, align: 'center' });
+
+      doc.fontSize(8)
+         .font('Helvetica-Bold')
+         .fillColor(PRIMARY)
+         .text('COMERCIALIZADORA KRAM', 180, firmaY + 76, { width: 255, align: 'center' });
+
+      // ═══════════════════════════════════════════════════════
+      // FOOTER — Mensaje institucional
+      // ═══════════════════════════════════════════════════════
+      const footerY = Math.max(firmaY + 100, 680);
 
       doc.fontSize(7)
          .font('Helvetica')
          .fillColor(GRAY_TEXT);
 
-      doc.text('Este documento es una orden de compra oficial generada por el ERP KRAM.', 50, footerY, { align: 'center', width: 515 });
+      doc.text('Documento oficial emitido por ERP KRAM para efectos comerciales y administrativos.', 50, footerY, { align: 'center', width: 515 });
       doc.text(`Generado el: ${new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, 50, footerY + 14, { align: 'center', width: 515 });
 
-      // ── Sello de autenticidad ──
-      doc.rect(200, footerY + 30, 215, 30).fill(LIGHT_BG);
-      doc.rect(200, footerY + 30, 215, 30).stroke(SECONDARY);
-      doc.fontSize(8)
-         .font('Helvetica-Bold')
-         .fillColor(PRIMARY)
-         .text('✓ DOCUMENTO AUTENTICADO', 210, footerY + 38, { align: 'center', width: 195 });
-      doc.fontSize(6)
-         .font('Helvetica')
-         .fillColor(GRAY_TEXT)
-         .text(`Orden: ${numero} | Folio interno: ${orderData.folio || '—'}`, 210, footerY + 50, { align: 'center', width: 195 });
 
       // ── Finalizar ──
       doc.end();
@@ -312,10 +377,12 @@ const generatePDF = (orderData) => {
   });
 };
 
+
 // ─────────────────────────────────────────────────────────────
 // 3. Generar Orden de Compra completa (con transacción)
 // ─────────────────────────────────────────────────────────────
-const generateOrder = async (requestId, userId, customItems = null) => {
+const generateOrder = async (requestId, userId, customItems = null, extraData = {}) => {
+
   // ── 3.1 Obtener la solicitud con todos los datos ──
   const request = await prisma.purchaseRequest.findUnique({
     where: { id: requestId },
@@ -422,7 +489,11 @@ const generateOrder = async (requestId, userId, customItems = null) => {
         subtotal: subtotal > 0 ? subtotal : null,
         iva: iva > 0 ? iva : null,
         ivaRate: IVA_RATE,
+        contactoKram: extraData.contactoKram || null,
+        lugarEntrega: extraData.lugarEntrega || null,
+        observaciones: extraData.observaciones || null,
         items: {
+
           create: sourceItems.map((item) => {
             const precioUnitario = parseFloat(item.precioUnitario) || 0;
             const cantidad = parseFloat(item.cantidad) || 0;
@@ -463,15 +534,14 @@ const generateOrder = async (requestId, userId, customItems = null) => {
     subtotal: subtotal > 0 ? subtotal : montoTotal,
     iva: iva > 0 ? iva : 0,
     ivaRate: IVA_RATE,
-    solicitante: request.solicitante.nombre || request.solicitante.user?.name || '—',
-    departamento: request.departamento.nombre,
     items: result.items,
-    justificacion: request.justificacion,
-    fechaSolicitud: formatDate(request.fechaSolicitud),
-    fechaAutorizacion: formatDate(request.fechaAutorizacion),
-    autorizadoPor: request.autorizadoPor?.nombre || '—',
-    folio: request.folio
+    contactoKram: extraData.contactoKram || null,
+    lugarEntrega: extraData.lugarEntrega || null,
+    observaciones: extraData.observaciones || null
   });
+
+
+
 
   // ── 3.9 Actualizar el pdfUrl en la OC (operación rápida fuera de transacción) ──
   const order = await prisma.purchaseOrder.update({
@@ -580,15 +650,14 @@ const regeneratePdf = async (requestId, userId) => {
     subtotal: existingOrder.subtotal || existingOrder.monto,
     iva: existingOrder.iva || 0,
     ivaRate: existingOrder.ivaRate || IVA_RATE,
-    solicitante: existingOrder.request.solicitante.nombre || existingOrder.request.solicitante.user?.name || '—',
-    departamento: existingOrder.request.departamento.nombre,
     items: existingOrder.items,
-    justificacion: existingOrder.request.justificacion,
-    fechaSolicitud: formatDate(existingOrder.request.fechaSolicitud),
-    fechaAutorizacion: formatDate(existingOrder.request.fechaAutorizacion),
-    autorizadoPor: existingOrder.request.autorizadoPor?.nombre || '—',
-    folio: existingOrder.request.folio
+    contactoKram: existingOrder.contactoKram || null,
+    lugarEntrega: existingOrder.lugarEntrega || null,
+    observaciones: existingOrder.observaciones || null
   });
+
+
+
 
   // ── 6.5 Actualizar SOLO el pdfUrl en la OC existente ──
   const updatedOrder = await prisma.purchaseOrder.update({

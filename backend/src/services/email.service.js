@@ -530,6 +530,7 @@ exports.sendDailySummaryToRH = async (email, rhName, birthdayList, anniversaryLi
 
 /**
  * Notificar que se requiere autorización para una compra > $50,000
+ * El link apunta a la página pública de autorización (no requiere módulo COMPRAS)
  */
 exports.sendPurchaseAuthorizationRequired = async (email, nombreAdmin, request, quote) => {
   const title = '💰 Autorización de Compra Requerida';
@@ -551,14 +552,19 @@ exports.sendPurchaseAuthorizationRequired = async (email, nombreAdmin, request, 
     <p>Esta compra supera el límite de $50,000 MXN y requiere autorización de Dirección o RH.</p>
     
     <center>
-      <a href="${FRONTEND_URL}/dashboard/compras" class="button">
-        Ir al Dashboard de Compras
+      <a href="${FRONTEND_URL}/autorizar-compra/${request.id}" class="button">
+        Revisar y Autorizar Compra
       </a>
     </center>
+    <p style="color: #71717a; font-size: 13px; text-align: center;">
+      O copia este enlace en tu navegador:<br>
+      <span style="font-size: 11px;">${FRONTEND_URL}/autorizar-compra/${request.id}</span>
+    </p>
   `;
 
   return sendEmail(email, title, emailLayout(title, content));
 };
+
 
 // Exportar sendEmail como función pública para otros servicios
 exports.sendEmail = sendEmail;

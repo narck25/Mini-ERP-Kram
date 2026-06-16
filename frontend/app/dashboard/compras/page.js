@@ -19,6 +19,8 @@ export default function ComprasAdminPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [selectedRequestForAuth, setSelectedRequestForAuth] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+
 
   useEffect(() => {
     if (user && user.accessibleModules?.includes('COMPRAS')) {
@@ -149,6 +151,25 @@ export default function ComprasAdminPage() {
     }
   };
 
+  const handleDelete = async (requestId) => {
+    if (!window.confirm('¿Estás seguro de eliminar esta solicitud? Se eliminarán todos los datos relacionados (cotizaciones, comentarios, órdenes de compra, etc.). Esta acción no se puede deshacer.')) {
+      return;
+    }
+    try {
+      setDeletingId(requestId);
+      await api.delete(`/purchases/${requestId}`);
+      toast.success('Solicitud eliminada exitosamente');
+      fetchAllRequests();
+      fetchStats();
+    } catch (error) {
+      console.error('Error deleting purchase request:', error);
+      toast.error(error.response?.data?.message || 'Error al eliminar la solicitud');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+
   const handleExportExcel = () => {
     if (!requests.length) {
       toast.error('No hay datos para exportar');
@@ -230,8 +251,77 @@ export default function ComprasAdminPage() {
     }
   };
 
+  // ─────────────────────────────────────────────────────────────
+  // Calcular gastos por departamento (solicitudes APROBADAS y ENTREGADAS)
+  // ─────────────────────────────────────────────────────────────
+  const gastosPorDepto = (() => {
+    const deptos = {};
+    const estadosGasto = ['APROBADO', 'ENTREGADO'];
+    
+    requests.forEach(req => {
+      if (!estadosGasto.includes(req.estatus)) return;
+      const depto = req.departamento?.nombre || 'Sin departamento';
+      const monto = calculateTotal(req);
+      
+      if (!deptos[depto]) {
+        deptos[depto] = { departamento: depto, total: 0, cantidad: 0 };
+      }
+      deptos[depto].total += monto;
+      deptos[depto].cantidad += 1;
+    });
+    
+    return Object.values(deptos).sort((a, b) => b.total - a.total);
+  })();
+
+  const exportGastosPorDepartamento = () => {
+    if (!gastosPorDepto.length) {
+      toast.error('No hay datos de gastos para exportar');
+      return;
+    }
+    try {
+      const totalGeneral = gastosPorDepto.reduce((s, d) => s + d.total, 0);
+      const totalCantidad = gastosPorDepto.reduce((s, d) => s + d.cantidad, 0);
+      
+      const dataToExport = [
+        ...gastosPorDepto.map(d => ({
+          "Departamento": d.departamento,
+          "Solicitudes Completadas": d.cantidad,
+          "Total Gastado": d.total,
+          "Total Formateado": formatCurrency(d.total)
+        })),
+        {
+          "Departamento": "TOTAL GENERAL",
+          "Solicitudes Completadas": totalCantidad,
+          "Total Gastado": totalGeneral,
+          "Total Formateado": formatCurrency(totalGeneral)
+        }
+      ];
+
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const maxWidth = dataToExport.reduce((acc, row) => {
+        Object.keys(row).forEach(key => {
+          const cellValue = String(row[key] || '');
+          acc[key] = Math.max(acc[key] || 0, cellValue.length);
+        });
+        return acc;
+      }, {});
+      worksheet['!cols'] = Object.keys(maxWidth).map(key => ({ wch: Math.min(maxWidth[key] + 2, 50) }));
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Gastos por Departamento");
+      
+      const fecha = new Date().toISOString().split('T')[0].replace(/-/g, '');
+      XLSX.writeFile(workbook, `Gastos_por_Departamento_${fecha}.xlsx`);
+      toast.success('Reporte de gastos por departamento exportado exitosamente');
+    } catch (error) {
+      console.error('Error exporting gastos:', error);
+      toast.error('Error al exportar el reporte de gastos');
+    }
+  };
+
   // Verificar permisos
   const hasAccess = user && user.accessibleModules?.includes('COMPRAS');
+
   
   if (!hasAccess) {
     return (
@@ -326,6 +416,62 @@ export default function ComprasAdminPage() {
             </ResponsiveContainer>
           </div>
         )}
+
+        {/* Gastos por Departamento */}
+        {requests.length > 0 && (
+          <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Gastos por Departamento</h2>
+              <button
+                onClick={() => exportGastosPorDepartamento()}
+                className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Exportar
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              Montos totales de solicitudes aprobadas y entregadas, agrupados por departamento.
+            </p>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={gastosPorDepto}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="departamento" />
+                <YAxis tickFormatter={(val) => `$${(val/1000).toFixed(0)}k`} />
+                <Tooltip formatter={(val) => formatCurrency(val)} />
+                <Bar dataKey="total" radius={[4, 4, 0, 0]} fill="#3B82F6" />
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-3 font-medium text-gray-600">Departamento</th>
+                    <th className="text-right py-2 px-3 font-medium text-gray-600">Solicitudes</th>
+                    <th className="text-right py-2 px-3 font-medium text-gray-600">Total Gastado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gastosPorDepto.map((depto, idx) => (
+                    <tr key={idx} className="border-b hover:bg-gray-50">
+                      <td className="py-2 px-3 font-medium">{depto.departamento}</td>
+                      <td className="py-2 px-3 text-right">{depto.cantidad}</td>
+                      <td className="py-2 px-3 text-right font-semibold">{formatCurrency(depto.total)}</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-gray-50 font-semibold">
+                    <td className="py-2 px-3">TOTAL GENERAL</td>
+                    <td className="py-2 px-3 text-right">{gastosPorDepto.reduce((s, d) => s + d.cantidad, 0)}</td>
+                    <td className="py-2 px-3 text-right">{formatCurrency(gastosPorDepto.reduce((s, d) => s + d.total, 0))}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
 
         {/* Filtros */}
         <div className="mb-6 bg-white border border-gray-200 rounded-lg p-4">
@@ -477,12 +623,23 @@ export default function ComprasAdminPage() {
                           {request.estatus === 'APROBADO' && (
                             <button
                               onClick={() => handleMarkAsDelivered(request.id)}
-                              className="text-green-600 hover:text-green-900"
+                              className="text-green-600 hover:text-green-900 mr-3"
                             >
                               Entregar
                             </button>
                           )}
+                          {/* Botón Eliminar: solo ADMIN y COMPRAS, solo en estatus NUEVO, PENDIENTE o CANCELADO */}
+                          {['NUEVO', 'PENDIENTE', 'CANCELADO'].includes(request.estatus) && (
+                            <button
+                              onClick={() => handleDelete(request.id)}
+                              disabled={deletingId === request.id}
+                              className="text-red-700 hover:text-red-900 disabled:opacity-50"
+                            >
+                              {deletingId === request.id ? 'Eliminando...' : 'Eliminar'}
+                            </button>
+                          )}
                         </td>
+
                       </tr>
                     );
                   })}

@@ -5,6 +5,20 @@ const PurchaseCommentController = require('../controllers/purchase-comment.contr
 const AuthMiddleware = require('../middlewares/auth.middleware');
 const UploadMiddleware = require('../middlewares/upload.middleware');
 
+// ===== RUTAS SSE (DEBEN IR ANTES DE verifyToken GLOBAL) =====
+// NOTA: EventSource (navegador) NO soporta headers personalizados,
+//       por lo que el token JWT se pasa como query param `token`.
+//       Estas rutas usan verifyTokenFromQuery en lugar de verifyToken.
+//       DEBEN ir ANTES de router.use(AuthMiddleware.verifyToken) para
+//       evitar que el middleware global intente leer el token de headers.
+
+// ── Endpoint SSE: Stream de comentarios en tiempo real ──
+router.get('/purchases/:id/comments/stream',
+  AuthMiddleware.verifyTokenFromQuery,
+  AuthMiddleware.requireModule('COMPRAS'),
+  PurchaseCommentController.streamComments
+);
+
 // Todas las rutas requieren autenticación
 router.use(AuthMiddleware.verifyToken);
 
@@ -13,6 +27,7 @@ router.post('/purchases',
   AuthMiddleware.requireModule('COMPRAS'),
   PurchaseController.createRequest
 );
+
 
 // Ruta para obtener las solicitudes del usuario autenticado
 // IMPORTANTE: Debe ir ANTES de /purchases/:id para evitar conflicto
@@ -82,11 +97,19 @@ router.post('/purchases/:id/send-authorization',
   PurchaseController.sendAuthorization
 );
 
+// Ruta para eliminar una solicitud (Admin/Compras)
+router.delete('/purchases/:id',
+  AuthMiddleware.requireModule('COMPRAS'),
+  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
+  PurchaseController.deleteRequest
+);
+
 // Ruta para cancelar una solicitud
 router.post('/purchases/:id/cancel',
   AuthMiddleware.requireModule('COMPRAS'),
   PurchaseController.cancelRequest
 );
+
 
 // Ruta para subir archivo a una cotización existente (solo Admin/Compras)
 router.post('/purchases/:id/quotes/:quoteId/upload',
@@ -166,20 +189,8 @@ router.get('/purchases/:id/audit',
 
 // ===== RUTAS DE COMENTARIOS (tipo chat/blog) =====
 
-// ── Endpoint SSE: Stream de comentarios en tiempo real ──
-// NOTA: EventSource (navegador) NO soporta headers personalizados,
-//       por lo que el token JWT se pasa como query param `token`.
-//       El middleware verifyTokenFromQuery extrae el token de la URL.
-//       Esta ruta DEBE ir ANTES de la ruta GET /:id/comments para
-//       evitar que Express interprete 'stream' como un :id.
-router.get('/purchases/:id/comments/stream',
-  AuthMiddleware.verifyTokenFromQuery,
-  AuthMiddleware.requireModule('COMPRAS'),
-  PurchaseCommentController.streamComments
-);
-
-
 // Obtener todos los comentarios de una solicitud
+
 router.get('/purchases/:id/comments',
   AuthMiddleware.requireModule('COMPRAS'),
   PurchaseCommentController.getComments

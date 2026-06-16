@@ -29,7 +29,13 @@ export default function PurchaseOrderModal({ request, onClose, onSuccess }) {
   // ── IVA configurable (16% por defecto) ──
   const [ivaRate, setIvaRate] = useState(16);
 
+  // ── Información adicional de la OC ──
+  const [contactoKram, setContactoKram] = useState('José Luis González Guillén');
+  const [lugarEntrega, setLugarEntrega] = useState('');
+  const [observaciones, setObservaciones] = useState('');
+
   // ── Inicializar partidas desde los PurchaseItems de la solicitud ──
+
   useEffect(() => {
     if (request?.items && request.items.length > 0) {
       const initialItems = request.items.map((item) => ({
@@ -139,7 +145,7 @@ export default function PurchaseOrderModal({ request, onClose, onSuccess }) {
     try {
       setGenerating(true);
 
-      // Construir payload con las partidas editadas
+      // Construir payload con las partidas editadas + info adicional
       const payload = {
         items: items.map((item) => ({
           productoServicio: item.productoServicio.trim(),
@@ -150,8 +156,12 @@ export default function PurchaseOrderModal({ request, onClose, onSuccess }) {
         subtotal,
         iva,
         total,
-        ivaRate
+        ivaRate,
+        contactoKram: contactoKram.trim(),
+        lugarEntrega: lugarEntrega.trim(),
+        observaciones: observaciones.trim()
       };
+
 
       const response = await api.post(`/purchases/${request.id}/purchase-order`, payload);
 
@@ -388,8 +398,57 @@ export default function PurchaseOrderModal({ request, onClose, onSuccess }) {
             </div>
           </div>
 
+          {/* ── Información adicional de la OC ── */}
+          <div className="border-t border-gray-200 pt-4">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Información adicional de la OC</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Contacto KRAM */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Contacto KRAM
+                </label>
+                <input
+                  type="text"
+                  value={contactoKram}
+                  onChange={(e) => setContactoKram(e.target.value)}
+                  placeholder="Nombre del contacto en KRAM"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              {/* Lugar de entrega */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Lugar de entrega
+                </label>
+                <input
+                  type="text"
+                  value={lugarEntrega}
+                  onChange={(e) => setLugarEntrega(e.target.value)}
+                  placeholder="Ej: Almacén central, Planta, etc."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              {/* Observaciones (ocupa ambas columnas) */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Observaciones
+                </label>
+                <textarea
+                  value={observaciones}
+                  onChange={(e) => setObservaciones(e.target.value)}
+                  placeholder="Instrucciones adicionales para el proveedor..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* ── Nota informativa ── */}
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+
             <p className="font-medium">📋 Nota importante</p>
             <p className="mt-1">
               Las partidas se precargan desde los items de la solicitud. Puede editarlas, agregar nuevas líneas,

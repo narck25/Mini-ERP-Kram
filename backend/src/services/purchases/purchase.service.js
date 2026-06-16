@@ -153,10 +153,17 @@ exports.getMyRequests = async (req) => {
 exports.getRequestDetails = async (req) => {
   const { id } = req.params;
   const userId = req.user.id;
+  const userRole = req.user.role;
 
-  const employee = await getEmployeeByUserId(userId);
-  if (!employee) {
-    throw { status: 404, error: 'Empleado no encontrado', message: 'El usuario no tiene un empleado asociado' };
+  // ADMIN y RH tienen bypass total: no necesitan empleado asociado ni verificación de propiedad
+  const isAdminOrRH = ['ADMIN', 'RH'].includes(userRole);
+
+  if (!isAdminOrRH) {
+    const employee = await getEmployeeByUserId(userId);
+    if (!employee) {
+      throw { status: 404, error: 'Empleado no encontrado', message: 'El usuario no tiene un empleado asociado' };
+    }
+    req.user.employeeData = employee;
   }
 
   const request = await prisma.purchaseRequest.findUnique({
@@ -168,11 +175,17 @@ exports.getRequestDetails = async (req) => {
     throw { status: 404, error: 'Solicitud no encontrada', message: 'La solicitud de compra no existe' };
   }
 
-  const isSolicitante = request.solicitanteId === employee.id;
-  const isAdminOrCompras = ['ADMIN', 'COMPRAS'].includes(req.user.role);
+  // Para ADMIN/RH: acceso total a cualquier solicitud
+  // Para COMPRAS: acceso si es el solicitante o tiene rol COMPRAS
+  // Para otros roles: solo si es el solicitante
+  if (!isAdminOrRH) {
+    const employee = req.user.employeeData;
+    const isSolicitante = request.solicitanteId === employee.id;
+    const isComprasRole = userRole === 'COMPRAS';
 
-  if (!isSolicitante && !isAdminOrCompras) {
-    throw { status: 403, error: 'Acceso denegado', message: 'No tiene permisos para ver esta solicitud' };
+    if (!isSolicitante && !isComprasRole) {
+      throw { status: 403, error: 'Acceso denegado', message: 'No tiene permisos para ver esta solicitud' };
+    }
   }
 
   return {
@@ -383,10 +396,35 @@ exports.updateQuoteAmount = async (requestId, quoteId, monto) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// 10. Autorizar solicitud (Admin/Gerente)
-//     → Genera automáticamente la Orden de Compra
+// 10. Obtener detalles de solicitud (público, sin validación de módulo)
+//     → Solo verifica que la solicitud existe
+//     → NO valida permisos de módulo (para página pública de autorización)
+// ─────────────────────────────────────────────────────────────
+exports.getPublicRequestDetails = async (req) => {
+  const { id } = req.params;
+
+  const request = await prisma.purchaseRequest.findUnique({
+    where: { id },
+    include: REQUEST_INCLUDE
+  });
+
+  if (!request) {
+    throw { status: 404, error: 'Solicitud no encontrada', message: 'La solicitud de compra no existe' };
+  }
+
+  return {
+    ...request,
+    quotes: transformQuoteUrls(req, request.quotes)
+  };
+};
+
+// ─────────────────────────────────────────────────────────────
+// 11. Autorizar solicitud (Admin/Gerente)
+//     → Solo cambia estado a APROBADO.
+//     → El área de Compras genera la Orden de Compra manualmente.
 // ─────────────────────────────────────────────────────────────
 exports.authorizeRequest = async (userId, requestId) => {
+
   const employee = await getEmployeeByUserId(userId);
   if (!employee) {
     throw { status: 404, error: 'Empleado no encontrado', message: 'El usuario no tiene un empleado asociado' };
@@ -401,7 +439,20 @@ exports.authorizeRequest = async (userId, requestId) => {
     throw { status: 400, error: 'Estado inválido', message: 'Solo se pueden autorizar solicitudes en estado EN_AUTORIZACION' };
   }
 
-  // ── 10.1 Actualizar estado a APROBADO ──
+  // ── Actualizar estado del aprobador (PurchaseApprover) ──
+  // Buscar el registro de aprobador asignado a este empleado para esta solicitud
+  await prisma.purchaseApprover.updateMany({
+    where: {
+      requestId,
+      employeeId: employee.id
+    },
+    data: {
+      estatus: 'APROBADO',
+      fechaRespuesta: new Date()
+    }
+  });
+
+  // ── Actualizar estado de la solicitud a APROBADO ──
   const updatedRequest = await prisma.purchaseRequest.update({
     where: { id: requestId },
     data: {
@@ -414,28 +465,38 @@ exports.authorizeRequest = async (userId, requestId) => {
     }
   });
 
-  // ── 10.2 Generar Orden de Compra automáticamente ──
-  // Fire & forget: la generación de OC se ejecuta en segundo plano
-  // para no bloquear la respuesta al frontend.
-  // Si falla, se loggea el error pero la solicitud ya quedó aprobada.
-  try {
-    const orderService = require('./purchase-order.service');
-    const result = await orderService.generateOrder(requestId);
-    console.log(`📄 OC generada: ${result.order.numero} → ${result.pdfUrl}`);
-  } catch (orderError) {
-    // Si la OC ya existe (409) o no hay cotización seleccionada,
-    // no es crítico: la solicitud ya está aprobada.
-    console.warn(`⚠️ No se pudo generar OC automática para ${requestId}:`, orderError.message);
-  }
-
   return updatedRequest;
+
 };
 
+
+
+// ─────────────────────────────────────────────────────────────
+// 11. Eliminar solicitud de compra (Admin/Compras)
+//     → Elimina la solicitud y todo lo relacionado (cascada)
+// ─────────────────────────────────────────────────────────────
+exports.deleteRequest = async (userId, userRole, requestId) => {
+  const isAdminOrCompras = ['ADMIN', 'COMPRAS'].includes(userRole);
+  if (!isAdminOrCompras) {
+    throw { status: 403, error: 'Acceso denegado', message: 'Solo ADMIN o COMPRAS pueden eliminar solicitudes' };
+  }
+
+  const request = await prisma.purchaseRequest.findUnique({ where: { id: requestId } });
+  if (!request) {
+    throw { status: 404, error: 'Solicitud no encontrada', message: 'La solicitud de compra no existe' };
+  }
+
+  // Eliminar la solicitud (onDelete: Cascade eliminará items, quotes, comments, approvers, purchaseOrder, etc.)
+  await prisma.purchaseRequest.delete({ where: { id: requestId } });
+
+  return { message: 'Solicitud eliminada exitosamente' };
+};
 
 // ─────────────────────────────────────────────────────────────
 // Exportar helpers para uso en otros servicios
 // ─────────────────────────────────────────────────────────────
 exports._helpers = {
+
   buildFileUrl,
   getEmployeeByUserId,
   transformQuoteUrls,

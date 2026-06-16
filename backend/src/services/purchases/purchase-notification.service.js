@@ -62,6 +62,7 @@ exports.sendAuthorization = async (requestId, approverEmails) => {
         email,
         email.split('@')[0] || 'Usuario',
         {
+          id: request.id,
           folio: request.folio,
           solicitante: request.solicitante?.nombre || 'N/A',
           departamento: request.departamento?.nombre || 'N/A',
@@ -69,6 +70,7 @@ exports.sendAuthorization = async (requestId, approverEmails) => {
         },
         selectedQuote
       )
+
     )
   );
 

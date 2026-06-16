@@ -7,11 +7,26 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 
+/**
+ * Vista simplificada de "Mis Solicitudes de Compra".
+ * Muestra solo la información relevante para el solicitante:
+ *   - Folio, estado, fecha, justificación
+ *   - Monto total y proveedor seleccionado
+ *   - Aprobadores y su estatus individual
+ *   - Acciones principales (Ver Detalle, Cancelar)
+ * 
+ * Oculta información operativa que solo necesita COMPRAS/ADMIN:
+ *   - Tabla detallada de ítems (se ve en el detalle)
+ *   - Lista completa de cotizaciones (solo la seleccionada)
+ *   - Botón Eliminar
+ *   - Botón Marcar como Entregado
+ */
 export default function MisSolicitudesComprasPage() {
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+  const [cancellingId, setCancellingId] = useState(null);
+
   useEffect(() => {
     if (user && user.accessibleModules?.includes('COMPRAS')) {
       fetchMyRequests();
@@ -55,6 +70,18 @@ export default function MisSolicitudesComprasPage() {
     }
   };
 
+  const getStatusIcon = (estatus) => {
+    switch (estatus) {
+      case 'NUEVO': return '🆕';
+      case 'PENDIENTE': return '⏳';
+      case 'EN_AUTORIZACION': return '📋';
+      case 'APROBADO': return '✅';
+      case 'ENTREGADO': return '📦';
+      case 'CANCELADO': return '❌';
+      default: return '📄';
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -79,6 +106,21 @@ export default function MisSolicitudesComprasPage() {
     return selectedQuote?.monto || 0;
   };
 
+  const handleCancel = async (requestId) => {
+    if (!window.confirm('¿Estás seguro de cancelar esta solicitud?')) return;
+    try {
+      setCancellingId(requestId);
+      await api.put(`/purchases/${requestId}/cancel`);
+      toast.success('Solicitud cancelada exitosamente');
+      fetchMyRequests();
+    } catch (error) {
+      console.error('Error cancelling request:', error);
+      toast.error(error.response?.data?.message || 'Error al cancelar la solicitud');
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
   if (!user || !user.accessibleModules?.includes('COMPRAS')) {
     return (
       <DashboardLayout>
@@ -100,36 +142,14 @@ export default function MisSolicitudesComprasPage() {
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Mis Solicitudes de Compra</h1>
-              <p className="text-gray-600">Gestiona tus solicitudes de compra y materiales</p>
+              <p className="text-gray-600">Solicitudes que has creado</p>
             </div>
-            <div className="flex gap-3">
-              <Link
-                href="/compras/nueva-solicitud"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
-              >
-                + Nueva Solicitud
-              </Link>
-            </div>
-          </div>
-          <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800">Proceso de Compras</h3>
-                <div className="mt-2 text-sm text-blue-700">
-                  <p>
-                    <span className="font-semibold">NUEVO</span> → <span className="font-semibold">PENDIENTE</span> → <span className="font-semibold">EN AUTORIZACIÓN</span> → <span className="font-semibold">APROBADO</span> → <span className="font-semibold">ENTREGADO</span>
-                  </p>
-                  <p className="mt-1">
-                    Las solicitudes mayores a $28,000 MXN requieren autorización adicional.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <Link
+              href="/compras/nueva-solicitud"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
+            >
+              + Nueva Solicitud
+            </Link>
           </div>
         </div>
 
@@ -156,160 +176,146 @@ export default function MisSolicitudesComprasPage() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {requests.map((request) => {
               const total = calculateTotal(request);
               const selectedQuote = request?.quotes?.find(q => q.isSelected);
-              
+              const isAdminOrCompras = ['ADMIN', 'COMPRAS'].includes(user?.role);
+              const canCancel = ['NUEVO', 'PENDIENTE'].includes(request.estatus);
+              const canSelectQuote = request.estatus === 'PENDIENTE' && request.quotes?.length > 0;
+
               return (
-                <div key={request.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            Solicitud #{request.folio}
-                          </h3>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(request.estatus)}`}>
-                            {getStatusText(request.estatus)}
-                          </span>
+                <div key={request.id} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+                  {/* Encabezado de la tarjeta */}
+                  <div className="p-5">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-4 flex-1">
+                        {/* Icono de estado */}
+                        <div className={`hidden sm:flex w-12 h-12 rounded-full items-center justify-center text-2xl ${
+                          request.estatus === 'APROBADO' || request.estatus === 'ENTREGADO' ? 'bg-green-100' :
+                          request.estatus === 'CANCELADO' ? 'bg-gray-100' :
+                          request.estatus === 'EN_AUTORIZACION' ? 'bg-blue-100' :
+                          'bg-yellow-100'
+                        }`}>
+                          {getStatusIcon(request.estatus)}
                         </div>
-                        <p className="text-sm text-gray-600">
-                          Departamento: {request.departamento?.nombre} • 
-                          Fecha: {formatDate(request.fechaSolicitud)}
-                        </p>
-                        {request.justificacion && (
-                          <p className="text-sm text-gray-700 mt-2">{request.justificacion}</p>
-                        )}
+
+                        {/* Información principal */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                              Solicitud #{request.folio}
+                            </h3>
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(request.estatus)}`}>
+                              {getStatusText(request.estatus)}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
+                            <span>📅 {formatDate(request.fechaSolicitud)}</span>
+                            {request.departamento && (
+                              <span>🏢 {request.departamento.nombre}</span>
+                            )}
+                            {request.items && (
+                              <span>📦 {request.items.length} ítem(s)</span>
+                            )}
+                          </div>
+
+                          {request.justificacion && (
+                            <p className="text-sm text-gray-700 mt-2 line-clamp-2">{request.justificacion}</p>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right">
+
+                      {/* Monto y proveedor */}
+                      <div className="text-right ml-4 flex-shrink-0">
                         {total > 0 && (
-                          <div className="text-lg font-semibold text-gray-900">
+                          <div className="text-xl font-bold text-gray-900">
                             {formatCurrency(total)}
                           </div>
                         )}
                         {selectedQuote && (
-                          <div className="text-sm text-gray-600">
-                            Proveedor: {selectedQuote.proveedor}
+                          <div className="text-sm text-gray-600 mt-1">
+                            <span className="font-medium">{selectedQuote.proveedor}</span>
                           </div>
                         )}
                       </div>
                     </div>
-                    
-                    {/* Ítems de la solicitud */}
-                    {request.items?.length > 0 && (
-                      <div className="mb-4">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Ítems solicitados:</h4>
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Producto/Servicio
-                                </th>
-                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Cantidad
-                                </th>
-                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Descripción
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {request.items.map((item, index) => (
-                                <tr key={index}>
-                                  <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-                                    {item.productoServicio}
-                                  </td>
-                                  <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-                                    {item.cantidad}
-                                  </td>
-                                  <td className="px-3 py-2 text-sm text-gray-900">
-                                    {item.descripcion || '-'}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
 
-                    {/* Cotizaciones */}
-                    {request.quotes?.length > 0 && (
-                      <div className="mb-4">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Cotizaciones:</h4>
-                        <div className="space-y-2">
-                          {request.quotes.map((quote, index) => (
-                            <div 
-                              key={quote.id} 
-                              className={`p-3 rounded border ${quote.isSelected ? 'border-green-300 bg-green-50' : 'border-gray-200'}`}
-                            >
-                              <div className="flex justify-between items-center">
-                                <div>
-                                  <span className="font-medium">{quote.proveedor}</span>
-                                  <span className="ml-2 text-sm text-gray-600">
-                                    {formatDate(quote.fechaCotizacion)}
-                                  </span>
-                                  {quote.isSelected && (
-                                    <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
-                                      Seleccionada
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="font-semibold">
-                                  {formatCurrency(quote.monto)}
-                                </div>
-                              </div>
+                    {/* Aprobadores (solo si está en autorización o aprobado) */}
+                    {request.approvers?.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-gray-100">
+                        <div className="flex flex-wrap gap-3">
+                          {request.approvers.map((app, idx) => (
+                            <div key={idx} className="flex items-center gap-2 text-sm">
+                              <span className={`w-2 h-2 rounded-full ${
+                                app.estatus === 'APROBADO' ? 'bg-green-500' :
+                                app.estatus === 'RECHAZADO' ? 'bg-red-500' :
+                                'bg-yellow-400'
+                              }`}></span>
+                              <span className="text-gray-700">{app.employee?.nombre || 'N/A'}</span>
+                              <span className="text-gray-400 text-xs">
+                                {app.employee?.nivelJerarquico || ''}
+                              </span>
+                              <span className={`text-xs font-medium ${
+                                app.estatus === 'APROBADO' ? 'text-green-600' :
+                                app.estatus === 'RECHAZADO' ? 'text-red-600' :
+                                'text-yellow-600'
+                              }`}>
+                                {app.estatus === 'APROBADO' ? '✓ Aprobó' :
+                                 app.estatus === 'RECHAZADO' ? '✗ Rechazó' :
+                                 '⏳ Pendiente'}
+                              </span>
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
 
-                    {/* Información de autorización */}
-                    {request.autorizadoPor && (
-                      <div className="mb-4 p-3 bg-blue-50 rounded border border-blue-200">
-                        <h4 className="text-sm font-medium text-blue-700 mb-1">Autorización:</h4>
-                        <p className="text-sm text-blue-600">
-                          Autorizado por: {request.autorizadoPor?.nombre} • 
-                          Fecha: {formatDate(request.fechaAutorizacion)}
-                        </p>
-                      </div>
-                    )}
+                    {/* Acciones */}
+                    <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
+                      <Link
+                        href={`/compras/mis-solicitudes/${request.id}`}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium"
+                      >
+                        Ver Detalle
+                      </Link>
 
-                    {/* Botones de acción */}
-                    <div className="flex flex-wrap gap-2 pt-4 border-t">
-                      {request.estatus === 'PENDIENTE' && request.quotes?.length > 0 && (
+                      {canSelectQuote && (
                         <Link
                           href={`/compras/mis-solicitudes/${request.id}`}
-                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium text-sm inline-block"
+                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium"
                         >
                           Seleccionar Cotización
                         </Link>
                       )}
-                      
-                      {request.estatus === 'APROBADO' && (
+
+                      {canCancel && (
                         <button
-                          onClick={() => {
-                            // Aquí iría la lógica para marcar como entregado
-                            toast.success('Función de entrega en desarrollo');
-                          }}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium text-sm"
+                          onClick={() => handleCancel(request.id)}
+                          disabled={cancellingId === request.id}
+                          className="px-4 py-2 bg-white border border-red-300 hover:bg-red-50 text-red-700 rounded-md text-sm font-medium disabled:opacity-50"
                         >
-                          Marcar como Entregado
+                          {cancellingId === request.id ? 'Cancelando...' : 'Cancelar Solicitud'}
                         </button>
                       )}
-                      
-                      {(request.estatus === 'NUEVO' || request.estatus === 'PENDIENTE') && (
+
+                      {/* Eliminar: solo ADMIN/COMPRAS en estados permitidos */}
+                      {isAdminOrCompras && ['NUEVO', 'PENDIENTE', 'CANCELADO'].includes(request.estatus) && (
                         <button
-                          onClick={() => {
-                            // Aquí iría la lógica para cancelar
-                            toast.success('Función de cancelación en desarrollo');
+                          onClick={async () => {
+                            if (!window.confirm('¿Eliminar solicitud? Esta acción no se puede deshacer.')) return;
+                            try {
+                              await api.delete(`/purchases/${request.id}`);
+                              toast.success('Solicitud eliminada');
+                              fetchMyRequests();
+                            } catch (error) {
+                              toast.error(error.response?.data?.message || 'Error al eliminar');
+                            }
                           }}
-                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium text-sm"
+                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium"
                         >
-                          Cancelar Solicitud
+                          Eliminar
                         </button>
                       )}
                     </div>
@@ -323,3 +329,5 @@ export default function MisSolicitudesComprasPage() {
     </DashboardLayout>
   );
 }
+
+

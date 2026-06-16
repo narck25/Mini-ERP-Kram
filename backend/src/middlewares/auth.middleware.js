@@ -10,11 +10,18 @@ class AuthMiddleware {
   static async verifyToken(req, res, next) {
     try {
       const authHeader = req.headers.authorization;
-      const token = AuthUtils.extractToken(authHeader);
+      // Intentar extraer token de headers primero, luego de query param (para SSE)
+      let token = AuthUtils.extractToken(authHeader);
+      
+      // Fallback: si no hay token en headers, buscar en query param (para EventSource/SSE)
+      if (!token && req.query && req.query.token) {
+        token = req.query.token;
+      }
 
       if (!token) {
         return res.status(401).json({ error: 'No token provided' });
       }
+
 
       // Verify JWT token
       const decoded = AuthUtils.verifyToken(token);
@@ -168,14 +175,76 @@ class AuthMiddleware {
    *   new EventSource('/api/purchases/123/comments/stream?token=JWT_TOKEN')
    * ─────────────────────────────────────────────────────────────
    */
+  /**
+   * Helper: Envía una respuesta de error en formato SSE si el cliente
+   * espera text/event-stream, o JSON en caso contrario.
+   * Esto evita que EventSource (navegador) entre en ciclo de reconexión
+   * infinito al recibir un JSON en lugar de SSE.
+   * @param {Object} req - Request de Express
+   * @param {Object} res - Response de Express
+   * @param {number} statusCode - Código HTTP de error
+   * @param {string} eventName - Nombre del evento SSE (ej. 'error')
+   * @param {Object} data - Datos del error
+   */
+  static _sendSSEAwareError(req, res, statusCode, eventName, data) {
+    const acceptsSSE = req.headers.accept === 'text/event-stream' ||
+                       req.path.includes('/stream') ||
+                       req.query.token;
+
+    if (acceptsSSE) {
+      // Si el cliente ya envió headers (conexión SSE iniciada), escribir evento
+      if (res.headersSent) {
+        try {
+          res.write(`event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`);
+          res.end();
+        } catch (e) {
+          // Ignorar si ya se cerró
+        }
+      } else {
+        // Si no se han enviado headers, enviar como SSE
+        res.writeHead(statusCode, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'close'
+        });
+        res.write(`event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`);
+        res.end();
+      }
+    } else {
+      res.status(statusCode).json(data);
+    }
+  }
+
+  /**
+   * Middleware to verify JWT token from query parameter (for SSE).
+   * ─────────────────────────────────────────────────────────────
+   * EventSource (navegador) NO soporta headers personalizados,
+   * por lo que el token JWT debe pasarse como query param `token`.
+   *
+   * Uso en rutas SSE:
+   *   router.get('/purchases/:id/comments/stream',
+   *     AuthMiddleware.verifyTokenFromQuery,
+   *     AuthMiddleware.requireModule('COMPRAS'),
+   *     PurchaseCommentController.streamComments
+   *   );
+   *
+   * El cliente se conecta con:
+   *   new EventSource('/api/purchases/123/comments/stream?token=JWT_TOKEN')
+   * ─────────────────────────────────────────────────────────────
+   */
   static async verifyTokenFromQuery(req, res, next) {
     try {
       // Extraer token del query param (para SSE)
       const token = req.query.token || AuthUtils.extractToken(req.headers.authorization);
 
       if (!token) {
-        return res.status(401).json({ error: 'No token provided' });
+
+        return AuthMiddleware._sendSSEAwareError(req, res, 401, 'error', {
+          error: 'No token provided',
+          message: 'Token de autenticación requerido'
+        });
       }
+
 
       // Verify JWT token
       const decoded = AuthUtils.verifyToken(token);
@@ -203,11 +272,17 @@ class AuthMiddleware {
       });
 
       if (!user) {
-        return res.status(401).json({ error: 'User not found' });
+        return AuthMiddleware._sendSSEAwareError(req, res, 401, 'error', {
+          error: 'User not found',
+          message: 'Usuario no encontrado'
+        });
       }
 
       if (!user.isActive) {
-        return res.status(401).json({ error: 'User account is deactivated' });
+        return AuthMiddleware._sendSSEAwareError(req, res, 401, 'error', {
+          error: 'User account is deactivated',
+          message: 'La cuenta de usuario está desactivada'
+        });
       }
 
       // Attach user to request with employee info
@@ -222,15 +297,25 @@ class AuthMiddleware {
       next();
     } catch (error) {
       if (error.name === 'JsonWebTokenError') {
-        return res.status(401).json({ error: 'Invalid token' });
+        return AuthMiddleware._sendSSEAwareError(req, res, 401, 'error', {
+          error: 'Invalid token',
+          message: 'Token inválido'
+        });
       }
       if (error.name === 'TokenExpiredError') {
-        return res.status(401).json({ error: 'Token expired' });
+        return AuthMiddleware._sendSSEAwareError(req, res, 401, 'error', {
+          error: 'Token expired',
+          message: 'Token expirado'
+        });
       }
       console.error('Auth middleware (query) error:', error);
-      return res.status(500).json({ error: 'Authentication failed' });
+      return AuthMiddleware._sendSSEAwareError(req, res, 500, 'error', {
+        error: 'Authentication failed',
+        message: 'Error de autenticación'
+      });
     }
   }
+
 
   /**
    * Middleware to check if user has access to a specific module
@@ -240,10 +325,15 @@ class AuthMiddleware {
 
     return (req, res, next) => {
       if (!req.user) {
-        return res.status(401).json({ 
+        return AuthMiddleware._sendSSEAwareError(req, res, 401, 'error', {
           error: 'Authentication required',
           message: 'Debe iniciar sesión para acceder a este recurso'
         });
+      }
+
+      // ADMIN y RH tienen bypass total en acceso a módulos
+      if (req.user.role === 'ADMIN' || req.user.role === 'RH') {
+        return next();
       }
 
       // Check if user has the required module
@@ -255,12 +345,14 @@ class AuthMiddleware {
           'INCIDENCIAS': 'Incidencias',
           'CONFIGURACION': 'Configuración',
           'REPORTES': 'Reportes',
-          'DASHBOARD': 'Dashboard'
+          'DASHBOARD': 'Dashboard',
+          'COMPRAS': 'Compras'
         };
+
         
         const moduleDisplayName = moduleNames[moduleName] || moduleName;
         
-        return res.status(403).json({ 
+        return AuthMiddleware._sendSSEAwareError(req, res, 403, 'error', {
           error: 'Acceso denegado',
           message: `No tiene acceso al módulo de ${moduleDisplayName}.`,
           details: `Contacte al administrador o al departamento de RH para solicitar acceso.`,
@@ -272,6 +364,7 @@ class AuthMiddleware {
       next();
     };
   }
+
 }
 
 module.exports = AuthMiddleware;

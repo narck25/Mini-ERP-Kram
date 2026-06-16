@@ -54,6 +54,8 @@ const permissionRoutes = loadRoute('permission', './routes/permission.routes');
 const userRoutes = loadRoute('user', './routes/user.routes');
 const organizationRoutes = loadRoute('organization', './routes/organization.routes');
 const purchaseRoutes = loadRoute('purchase', './routes/purchase.routes');
+const purchasePublicRoutes = loadRoute('purchase-public', './routes/purchase-public.routes');
+
 const attendanceRoutes = loadRoute('attendance', './routes/attendance.routes');
 const rolesRoutes = loadRoute('roles', './routes/roles.routes');
 const notificationsRoutes = loadRoute('notifications', './routes/notifications.routes');
@@ -144,7 +146,9 @@ app.use('/api', permissionRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api', organizationRoutes);
 app.use('/api', purchaseRoutes);
+app.use('/api', purchasePublicRoutes);
 app.use('/api/incidencias', attendanceRoutes);
+
 app.use('/api', rolesRoutes);
 app.use('/api', notificationsRoutes);
 app.use('/api', seedRoutes);

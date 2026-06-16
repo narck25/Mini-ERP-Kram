@@ -507,12 +507,16 @@ model PurchaseOrder {
   iva               Float?
   ivaRate           Float?
   pdfUrl            String?
+  contactoKram      String?             // Contacto del área de compras de KRAM
+  lugarEntrega      String?             // Dirección o lugar de entrega
+  observaciones     String?             // Observaciones adicionales para el proveedor
   createdAt         DateTime            @default(now())
   request           PurchaseRequest     @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
   items             PurchaseOrderItem[]
 
   @@map("purchase_orders")
 }
+
 
 model PurchaseOrderItem {
   id                String         @id @default(cuid())

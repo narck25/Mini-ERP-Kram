@@ -30,6 +30,40 @@ export default function PurchaseComments({ requestId }) {
   useEffect(() => {
     if (!requestId) return;
 
+    // Verificar que el usuario tenga acceso al módulo COMPRAS
+    // antes de intentar la conexión SSE. Si no tiene acceso,
+    // el backend respondería con 403 y EventSource entraría
+    // en un ciclo de reconexión infinito.
+    const hasModuleAccess = user?.accessibleModules?.includes('COMPRAS') ||
+                            user?.role === 'ADMIN' ||
+                            user?.role === 'RH';
+
+    if (!hasModuleAccess) {
+      console.warn('⚠️ SSE: Usuario no tiene acceso al módulo COMPRAS. No se conectará SSE.');
+      setSseConnected(false);
+      return;
+    }
+
+    /**
+     * Contador de reintentos para backoff exponencial.
+     * Se reinicia cuando la conexión es exitosa.
+     */
+    let retryCount = 0;
+    const MAX_RETRIES = 10;
+    const BASE_DELAY = 2000; // 2 segundos base
+
+    /**
+     * Calcula el delay de reconexión con backoff exponencial + jitter.
+     * Fórmula: min(BASE_DELAY * 2^retryCount, 30000) + random(0, 1000)
+     * Esto evita sobrecargar el servidor en caso de caídas prolongadas.
+     */
+    const getRetryDelay = () => {
+      const exponential = BASE_DELAY * Math.pow(2, Math.min(retryCount, 5));
+      const capped = Math.min(exponential, 30000);
+      const jitter = Math.random() * 1000;
+      return capped + jitter;
+    };
+
     /**
      * Establece una conexión SSE (Server-Sent Events) al backend.
      *
@@ -43,6 +77,8 @@ export default function PurchaseComments({ requestId }) {
      *   - 'error':       Error del servidor
      *   - 'shutdown':    Servidor cerrándose
      */
+    let reconnectTimer = null;
+
     const connectSSE = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
@@ -60,10 +96,14 @@ export default function PurchaseComments({ requestId }) {
       eventSourceRef.current = eventSource;
 
       // ── Evento: connected ──
+      // El backend envía este evento cuando la conexión SSE se establece
+      // exitosamente. Al recibirlo, reiniciamos el contador de reintentos
+      // y marcamos la conexión como activa.
       eventSource.addEventListener('connected', (event) => {
         try {
           const data = JSON.parse(event.data);
           console.log('🔌 SSE conectado:', data.message);
+          retryCount = 0; // Reiniciar contador de reintentos
           setSseConnected(true);
         } catch (err) {
           console.warn('⚠️ SSE: Error parseando evento connected:', err);
@@ -96,10 +136,24 @@ export default function PurchaseComments({ requestId }) {
       });
 
       // ── Evento: error ──
+      // Evento personalizado enviado por el backend cuando ocurre
+      // un error (ej. token inválido, módulo no autorizado).
+      // A diferencia del onerror nativo, este evento tiene datos
+      // parseables que podemos mostrar al usuario.
       eventSource.addEventListener('error', (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.error('❌ SSE Error:', data.error);
+          console.error('❌ SSE Error del servidor:', data.error, data.message);
+          // Si es un error de autenticación o autorización, no reconectar
+          if (data.error === 'Acceso denegado' || 
+              data.error === 'Invalid token' || 
+              data.error === 'Token expired' ||
+              data.error === 'No token provided') {
+            console.warn('🚫 SSE: Error de autorización, no se reconectará automáticamente');
+            setSseConnected(false);
+            eventSource.close();
+            return;
+          }
         } catch (err) {
           console.error('❌ SSE: Error de conexión (sin datos)');
         }
@@ -107,29 +161,70 @@ export default function PurchaseComments({ requestId }) {
       });
 
       // ── Evento: shutdown ──
+      // El servidor envía este evento cuando se está apagando
+      // (graceful shutdown). Cerramos la conexión sin reconectar.
       eventSource.addEventListener('shutdown', (event) => {
-        console.log('🔌 SSE: Servidor cerró la conexión');
+        console.log('🔌 SSE: Servidor cerró la conexión (shutdown)');
         setSseConnected(false);
         eventSource.close();
       });
 
       // ── Manejo de errores de conexión (onerror nativo) ──
-      // EventSource no tiene reconexión automática configurable,
-      // pero por defecto intenta reconectar después de 3 segundos.
-      // Nosotros implementamos reconexión manual con backoff.
+      // EventSource dispara onerror cuando:
+      //   a) La conexión HTTP falla (red, DNS, etc.)
+      //   b) El servidor responde con un código HTTP ≠ 200
+      //   c) El stream se cierra inesperadamente
+      //
+      // IMPORTANTE: Cuando el backend responde con 401/403 (error de
+      // autenticación o autorización), EventSource NO puede leer el
+      // body de la respuesta JSON. En su lugar, dispara onerror con
+      // readyState = CLOSED (2) sin haber pasado por OPEN (1).
+      //
+      // Para distinguir entre un error de red temporal y un error de
+      // autenticación permanente, usamos la siguiente heurística:
+      //   - Si readyState es CLOSED y NUNCA recibimos 'connected'
+      //     (retryCount === 0), es probablemente un error de auth.
+      //   - Si readyState es CLOSED pero ya habíamos recibido 'connected'
+      //     antes (retryCount > 0), es una caída de red.
+      //
+      // EventSource tiene reconexión automática nativa (~3s),
+      // pero nosotros la desactivamos cerrando el EventSource
+      // y manejando la reconexión manualmente con backoff.
       eventSource.onerror = () => {
-        console.warn('⚠️ SSE: Error de conexión, reconectando en 5s...');
+        const isFirstAttempt = retryCount === 0;
+        const isClosedImmediately = eventSource.readyState === EventSource.CLOSED;
+
+        console.warn(`⚠️ SSE: Error de conexión (intento #${retryCount + 1}, readyState: ${eventSource.readyState})`);
         setSseConnected(false);
         eventSource.close();
 
-        // Reconexión automática después de 5 segundos
-        setTimeout(() => {
+        // Detectar error de autenticación/autorización:
+        // Si es el primer intento y la conexión se cierra inmediatamente
+        // sin haber recibido el evento 'connected', es un error de auth.
+        if (isFirstAttempt && isClosedImmediately) {
+          console.error('🚫 SSE: Error de autenticación (401/403). No se reconectará automáticamente.');
+          return;
+        }
+
+        // Verificar si alcanzamos el máximo de reintentos
+        if (retryCount >= MAX_RETRIES) {
+          console.error(`🚫 SSE: Se alcanzó el máximo de ${MAX_RETRIES} reintentos. No se reconectará.`);
+          return;
+        }
+
+        // Backoff exponencial con jitter
+        const delay = getRetryDelay();
+        retryCount++;
+        console.log(`🔄 SSE: Reintentando en ${Math.round(delay / 1000)}s (intento #${retryCount}/${MAX_RETRIES})...`);
+
+        reconnectTimer = setTimeout(() => {
           if (requestId) {
-            console.log('🔄 SSE: Reintentando conexión...');
+            console.log(`🔄 SSE: Reintentando conexión (intento #${retryCount})...`);
             connectSSE();
           }
-        }, 5000);
+        }, delay);
       };
+
     };
 
     // Iniciar conexión SSE
@@ -137,6 +232,11 @@ export default function PurchaseComments({ requestId }) {
 
     // Cleanup al desmontar el componente o cambiar requestId
     return () => {
+      // Limpiar timer de reconexión pendiente
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
       if (eventSourceRef.current) {
         console.log('🔌 SSE: Cerrando conexión (cleanup)');
         eventSourceRef.current.close();
@@ -144,7 +244,8 @@ export default function PurchaseComments({ requestId }) {
       }
       setSseConnected(false);
     };
-  }, [requestId]);
+  }, [requestId, user]);
+
 
   // ───────────────────────────────────────────────────────────
   // 3. Scroll automático al último comentario

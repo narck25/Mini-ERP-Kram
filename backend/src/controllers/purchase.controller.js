@@ -686,8 +686,9 @@ class PurchaseController {
   static async generatePurchaseOrder(req, res) {
     try {
       const { id } = req.params;
-      const { items } = req.body; // Items personalizados desde el modal (con precioUnitario)
-      const result = await PurchaseOrderService.generateOrder(id, req.user.id, items);
+      const { items, contactoKram, lugarEntrega, observaciones } = req.body;
+      const result = await PurchaseOrderService.generateOrder(id, req.user.id, items, { contactoKram, lugarEntrega, observaciones });
+
 
       // Auditoría
       await audit.logWithReq(
@@ -750,9 +751,41 @@ class PurchaseController {
 
 
   // ───────────────────────────────────────────────────────────
+  // ELIMINAR solicitud de compra (Admin/Compras)
+  // ───────────────────────────────────────────────────────────
+  static async deleteRequest(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await PurchaseService.deleteRequest(req.user.id, req.user.role, id);
+
+      await audit.log({
+        requestId: id,
+        userId: req.user.id,
+        accion: 'ELIMINACION',
+        valorAnterior: { id },
+        valorNuevo: null,
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+
+      res.json({ message: result.message });
+    } catch (error) {
+      if (error.status) {
+        return res.status(error.status).json({ error: error.error, message: error.message });
+      }
+      console.error("🔥 ERROR al eliminar solicitud:", error);
+      res.status(500).json({
+        error: 'Error interno del servidor',
+        message: 'No se pudo eliminar la solicitud'
+      });
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────
   // ENDPOINT DE AUDITORÍA: Obtener historial de una solicitud
   // ───────────────────────────────────────────────────────────
   static async getAuditHistory(req, res) {
+
     try {
       const { id } = req.params;
 
