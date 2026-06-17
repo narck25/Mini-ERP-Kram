@@ -33,10 +33,11 @@ export default function ComprasDetailPage() {
   const [pdfUrl, setPdfUrl] = useState('');
   const [pdfTitle, setPdfTitle] = useState('');
   
-  // Estado para edición de montos
+  // Estado para edición de cotizaciones (proveedor + monto)
   const [editingQuoteId, setEditingQuoteId] = useState(null);
-  const [editingAmount, setEditingAmount] = useState('');
+  const [editingQuoteData, setEditingQuoteData] = useState({ proveedor: '', monto: '' });
   const [updatingAmount, setUpdatingAmount] = useState(false);
+
   
   // Estado para el modal de selección de cotización
   const [showQuoteSelectionModal, setShowQuoteSelectionModal] = useState(false);
@@ -376,21 +377,61 @@ export default function ComprasDetailPage() {
     }
   };
 
-  // Función para iniciar la edición de un monto
-  const startEditingAmount = (quoteId, currentAmount) => {
-    setEditingQuoteId(quoteId);
-    setEditingAmount(currentAmount.toString());
+  // Función para eliminar una solicitud (Admin/Compras)
+  const handleDeleteRequest = async () => {
+    if (!confirm('⚠️ ¿Estás seguro de eliminar esta solicitud?\n\nEsta acción es irreversible y eliminará TODOS los datos relacionados (cotizaciones, comentarios, aprobadores, etc.).')) {
+      return;
+    }
+    
+    try {
+      await api.delete(`/purchases/${requestId}`);
+      toast.success('Solicitud eliminada exitosamente');
+      router.push('/dashboard/compras');
+    } catch (error) {
+      console.error('Error deleting request:', error);
+      toast.error(error.response?.data?.message || 'Error al eliminar la solicitud');
+    }
+  };
+
+  // Función para cancelar una solicitud
+  const handleCancelRequest = async () => {
+    if (!confirm('¿Cancelar esta solicitud de compra?')) return;
+    
+    try {
+      await api.post(`/purchases/${requestId}/cancel`);
+      toast.success('Solicitud cancelada exitosamente');
+      fetchRequestDetails();
+    } catch (error) {
+      console.error('Error cancelling request:', error);
+      toast.error(error.response?.data?.message || 'Error al cancelar la solicitud');
+    }
+  };
+
+  // Función para iniciar la edición de una cotización (proveedor + monto)
+  const startEditingQuote = (quote) => {
+
+    setEditingQuoteId(quote.id);
+    setEditingQuoteData({
+      proveedor: quote.proveedor || '',
+      monto: quote.monto?.toString() || ''
+    });
   };
 
   // Función para cancelar la edición
-  const cancelEditingAmount = () => {
+  const cancelEditingQuote = () => {
     setEditingQuoteId(null);
-    setEditingAmount('');
+    setEditingQuoteData({ proveedor: '', monto: '' });
   };
 
-  // Función para guardar el monto editado
-  const saveEditedAmount = async (quoteId) => {
-    if (!editingAmount || isNaN(parseFloat(editingAmount)) || parseFloat(editingAmount) <= 0) {
+  // Función para guardar la cotización editada
+  const saveEditedQuote = async (quoteId) => {
+    const { proveedor, monto } = editingQuoteData;
+    
+    if (!proveedor || !proveedor.trim()) {
+      toast.error('El nombre del proveedor no puede estar vacío');
+      return;
+    }
+    if (!monto || isNaN(parseFloat(monto)) || parseFloat(monto) <= 0) {
       toast.error('El monto debe ser un número mayor a 0');
       return;
     }
@@ -398,20 +439,22 @@ export default function ComprasDetailPage() {
     try {
       setUpdatingAmount(true);
       
-      await api.put(`/purchases/${requestId}/quotes/${quoteId}/amount`, {
-        monto: parseFloat(editingAmount)
+      await api.put(`/purchases/${requestId}/quotes/${quoteId}`, {
+        proveedor: proveedor.trim(),
+        monto: parseFloat(monto)
       });
       
-      toast.success('Monto actualizado exitosamente');
+      toast.success('Cotización actualizada exitosamente');
       fetchRequestDetails(); // Recargar datos
-      cancelEditingAmount(); // Salir del modo edición
+      cancelEditingQuote(); // Salir del modo edición
     } catch (error) {
-      console.error('Error updating amount:', error);
-      toast.error(error.response?.data?.message || 'Error al actualizar el monto');
+      console.error('Error updating quote:', error);
+      toast.error(error.response?.data?.message || 'Error al actualizar la cotización');
     } finally {
       setUpdatingAmount(false);
     }
   };
+
 
   const getStatusColor = (estatus) => {
     switch (estatus) {
@@ -551,8 +594,38 @@ export default function ComprasDetailPage() {
                 Fecha: {formatDate(request.fechaSolicitud)}
               </p>
             </div>
+            
+            {/* Botones de acción en el header */}
+            <div className="flex gap-2">
+              {/* Cancelar solicitud - disponible para Admin/Compras o el solicitante */}
+              {(user.role === 'ADMIN' || user.role === 'COMPRAS') && request.estatus !== 'CANCELADO' && request.estatus !== 'ENTREGADO' && (
+                <button
+                  onClick={handleCancelRequest}
+                  className="px-4 py-2 border border-yellow-300 text-yellow-700 bg-yellow-50 hover:bg-yellow-100 rounded-md font-medium text-sm flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Cancelar
+                </button>
+              )}
+              
+              {/* Eliminar solicitud - solo Admin/Compras */}
+              {(user.role === 'ADMIN' || user.role === 'COMPRAS') && (
+                <button
+                  onClick={handleDeleteRequest}
+                  className="px-4 py-2 border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 rounded-md font-medium text-sm flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Eliminar
+                </button>
+              )}
+            </div>
           </div>
         </div>
+
 
         {/* Flujo del proceso - Horizontal en la parte inicial */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
@@ -837,87 +910,162 @@ export default function ComprasDetailPage() {
                 </p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {request.quotes.map((quote, index) => (
-                    <div 
-                      key={quote.id} 
-                      className={`p-5 rounded-lg border ${quote.isSelected ? 'border-green-300 bg-green-50' : 'border-gray-200'} flex flex-col`}
-                    >
-                      <div className="space-y-4">
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="font-medium text-lg">{quote.proveedor}</span>
-                            {quote.isSelected && (
-                              <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
-                                Seleccionada
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            Fecha: {formatDate(quote.fechaCotizacion)}
-                          </div>
-                        </div>
-                        
-                        <div className="text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                              {formatCurrency(quote.monto)}
+                  {request.quotes.map((quote, index) => {
+                    const isEditing = editingQuoteId === quote.id;
+                    const canEdit = user.role === 'ADMIN' || user.role === 'COMPRAS';
+                    
+                    return (
+                      <div 
+                        key={quote.id} 
+                        className={`p-5 rounded-lg border ${quote.isSelected ? 'border-green-300 bg-green-50' : 'border-gray-200'} flex flex-col`}
+                      >
+                        {isEditing ? (
+                          /* ── MODO EDICIÓN ── */
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-semibold text-blue-700">Editando cotización</span>
+                              <button
+                                onClick={cancelEditingQuote}
+                                className="text-gray-400 hover:text-gray-600"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Proveedor</label>
+                              <input
+                                type="text"
+                                value={editingQuoteData.proveedor}
+                                onChange={(e) => setEditingQuoteData(prev => ({ ...prev, proveedor: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Monto ($)</label>
+                              <input
+                                type="number"
+                                value={editingQuoteData.monto}
+                                onChange={(e) => setEditingQuoteData(prev => ({ ...prev, monto: e.target.value }))}
+                                min="0.01"
+                                step="0.01"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              />
+                            </div>
+                            
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => saveEditedQuote(quote.id)}
+                                disabled={updatingAmount}
+                                className="flex-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium disabled:opacity-50"
+                              >
+                                {updatingAmount ? 'Guardando...' : 'Guardar'}
+                              </button>
+                              <button
+                                onClick={cancelEditingQuote}
+                                className="px-3 py-2 border border-gray-300 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-50"
+                              >
+                                Cancelar
+                              </button>
                             </div>
                           </div>
-                        </div>
-                        
-                        {/* Botón para ver/descargar archivo */}
-                        <div className="mt-4">
-                          {quote.archivoUrl ? (
-                            <>
-                              <button
-                                onClick={() => handleViewQuote(quote)}
-                                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium flex items-center justify-center gap-2"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                Ver Cotización
-                              </button>
-                              <p className="text-xs text-gray-500 mt-1 text-center">
-                                Se abrirá en modal
-                              </p>
-                            </>
-                          ) : (
+                        ) : (
+                          /* ── MODO VISUALIZACIÓN ── */
+                          <div className="space-y-4">
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="font-medium text-lg">{quote.proveedor}</span>
+                                {quote.isSelected && (
+                                  <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
+                                    Seleccionada
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                Fecha: {formatDate(quote.fechaCotizacion)}
+                              </div>
+                            </div>
+                            
                             <div className="text-center">
-                              <p className="text-xs text-red-500 mb-2">
-                                ⚠️ Archivo de cotización no disponible
-                              </p>
-                              {/* Botón para subir archivo a cotización existente */}
-                              {(user.role === 'ADMIN' || user.role === 'COMPRAS') && (
-                                <div>
-                                  <input
-                                    type="file"
-                                    accept=".pdf,.png,.jpg,.jpeg"
-                                    id={`upload-file-${quote.id}`}
-                                    onChange={(e) => {
-                                      const file = e.target.files[0];
-                                      if (file) handleFileUpload(quote.id, file);
-                                    }}
-                                    className="hidden"
-                                  />
-                                  <label
-                                    htmlFor={`upload-file-${quote.id}`}
-                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium cursor-pointer"
+                              <div className="flex items-center justify-center gap-2">
+                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                                  {formatCurrency(quote.monto)}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Botón para ver/descargar archivo */}
+                            <div className="mt-4">
+                              {quote.archivoUrl ? (
+                                <>
+                                  <button
+                                    onClick={() => handleViewQuote(quote)}
+                                    className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium flex items-center justify-center gap-2"
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                     </svg>
-                                    Subir archivo
-                                  </label>
+                                    Ver Cotización
+                                  </button>
+                                  <p className="text-xs text-gray-500 mt-1 text-center">
+                                    Se abrirá en modal
+                                  </p>
+                                </>
+                              ) : (
+                                <div className="text-center">
+                                  <p className="text-xs text-red-500 mb-2">
+                                    ⚠️ Archivo de cotización no disponible
+                                  </p>
+                                  {/* Botón para subir archivo a cotización existente */}
+                                  {canEdit && (
+                                    <div>
+                                      <input
+                                        type="file"
+                                        accept=".pdf,.png,.jpg,.jpeg"
+                                        id={`upload-file-${quote.id}`}
+                                        onChange={(e) => {
+                                          const file = e.target.files[0];
+                                          if (file) handleFileUpload(quote.id, file);
+                                        }}
+                                        className="hidden"
+                                      />
+                                      <label
+                                        htmlFor={`upload-file-${quote.id}`}
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium cursor-pointer"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                        </svg>
+                                        Subir archivo
+                                      </label>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
-                          )}
-                        </div>
+                            
+                            {/* Botón de editar cotización (solo Admin/Compras) */}
+                            {canEdit && !quote.isSelected && (
+                              <button
+                                onClick={() => startEditingQuote(quote)}
+                                className="w-full mt-2 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-50 flex items-center justify-center gap-1"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                Editar
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
+
 
                 {/* Información de cotización ya seleccionada */}
                 {selectedQuote && (

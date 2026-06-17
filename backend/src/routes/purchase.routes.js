@@ -135,12 +135,20 @@ router.post('/purchases/:id/upload-quote-file',
   PurchaseController.uploadQuoteFileForNewQuote
 );
 
-// Ruta para actualizar el monto de una cotización (solo Admin/Compras)
+// Ruta para actualizar una cotización (proveedor, monto, archivo) — solo Admin/Compras
+router.put('/purchases/:id/quotes/:quoteId',
+  AuthMiddleware.requireModule('COMPRAS'),
+  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
+  PurchaseController.updateQuote
+);
+
+// Mantener compatibilidad con la ruta anterior (solo monto)
 router.put('/purchases/:id/quotes/:quoteId/amount',
   AuthMiddleware.requireModule('COMPRAS'),
   AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
-  PurchaseController.updateQuoteAmount
+  PurchaseController.updateQuote
 );
+
 
 // Ruta para obtener la comparativa de cotizaciones de una solicitud
 router.get('/purchases/:id/comparison',

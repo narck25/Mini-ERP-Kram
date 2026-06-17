@@ -338,13 +338,9 @@ exports.uploadQuoteFileForNewQuote = async (requestId, filename, quoteIndex) => 
 };
 
 // ─────────────────────────────────────────────────────────────
-// 9. Actualizar monto de una cotización
+// 9. Actualizar datos de una cotización (proveedor, monto, archivo)
 // ─────────────────────────────────────────────────────────────
-exports.updateQuoteAmount = async (requestId, quoteId, monto) => {
-  if (!monto || isNaN(parseFloat(monto)) || parseFloat(monto) <= 0) {
-    throw { status: 400, error: 'Monto inválido', message: 'El monto debe ser un número mayor a 0' };
-  }
-
+exports.updateQuote = async (requestId, quoteId, data) => {
   const request = await prisma.purchaseRequest.findUnique({ where: { id: requestId } });
   if (!request) {
     throw { status: 404, error: 'Solicitud no encontrada', message: 'La solicitud de compra no existe' };
@@ -362,17 +358,45 @@ exports.updateQuoteAmount = async (requestId, quoteId, monto) => {
     throw { status: 404, error: 'Cotización no encontrada', message: 'La cotización no existe o no pertenece a esta solicitud' };
   }
 
-  const nuevoMonto = parseFloat(monto);
-  const UMBRAL = 50000;
+  // Construir objeto de actualización solo con campos proporcionados
+  const updateData = {};
 
-  // Actualizar monto y fecha de cotización
+  if (data.proveedor !== undefined) {
+    if (!data.proveedor || !data.proveedor.trim()) {
+      throw { status: 400, error: 'Datos inválidos', message: 'El nombre del proveedor no puede estar vacío' };
+    }
+    updateData.proveedor = data.proveedor.trim();
+  }
+
+  if (data.monto !== undefined) {
+    const nuevoMonto = parseFloat(data.monto);
+    if (isNaN(nuevoMonto) || nuevoMonto <= 0) {
+      throw { status: 400, error: 'Monto inválido', message: 'El monto debe ser un número mayor a 0' };
+    }
+    updateData.monto = nuevoMonto;
+  }
+
+  if (data.archivoUrl !== undefined) {
+    updateData.archivoUrl = data.archivoUrl || null;
+  }
+
+  // Si no hay nada que actualizar, devolver la cotización actual
+  if (Object.keys(updateData).length === 0) {
+    return quote;
+  }
+
+  // Siempre actualizar fecha de cotización al editar
+  updateData.fechaCotizacion = new Date();
+
   const updatedQuote = await prisma.purchaseQuote.update({
     where: { id: quoteId },
-    data: { monto: nuevoMonto, fechaCotizacion: new Date() }
+    data: updateData
   });
 
-  // Si la cotización está seleccionada, reevaluar estado
-  if (updatedQuote.isSelected) {
+  // Si se actualizó el monto y la cotización está seleccionada, reevaluar estado
+  if (data.monto !== undefined && updatedQuote.isSelected) {
+    const nuevoMonto = parseFloat(data.monto);
+    const UMBRAL = 50000;
     let nuevoEstatus = request.estatus;
     let requiereAutorizacion = request.requiereAutorizacion;
 
@@ -394,6 +418,10 @@ exports.updateQuoteAmount = async (requestId, quoteId, monto) => {
 
   return updatedQuote;
 };
+
+// Mantener compatibilidad con el nombre anterior
+exports.updateQuoteAmount = exports.updateQuote;
+
 
 // ─────────────────────────────────────────────────────────────
 // 10. Obtener detalles de solicitud (público, sin validación de módulo)

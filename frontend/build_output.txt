@@ -1,0 +1,104 @@
+
+> kram-erp-frontend@1.0.0 build
+> next build
+
+  Ôû▓ Next.js 14.2.21
+
+   Creating an optimized production build ...
+
+warn - The `darkMode` option in your Tailwind CSS configuration is set to `false`, which now behaves the same as `media`.
+warn - Change `darkMode` to `media` or remove it entirely.
+warn - https://tailwindcss.com/docs/upgrade-guide#remove-dark-mode-configuration
+ Ô£ô Compiled successfully
+   Linting and checking validity of types ...
+
+./app/compras/mis-solicitudes/[id]/page.js
+36:6  Warning: React Hook useEffect has a missing dependency: 'fetchRequestDetails'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./app/dashboard/compras/page.js
+28:6  Warning: React Hook useEffect has a missing dependency: 'fetchAllRequests'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./app/dashboard/compras/[id]/page.js
+59:6  Warning: React Hook useEffect has a missing dependency: 'fetchRequestDetails'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+254:6  Warning: React Hook useEffect has a missing dependency: 'fetchPurchaseOrder'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./app/reclutamiento/mis-solicitudes/page.js
+27:6  Warning: React Hook useEffect has a missing dependency: 'fetchMyVacancies'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./app/reclutamiento/vacantes/[id]/CandidatesTab.js
+309:6  Warning: React Hook useCallback has missing dependencies: 'handleVote' and 'onRefresh'. Either include them or remove the dependency array. If 'onRefresh' changes too often, find the parent component that defines it and wrap that definition in useCallback.  react-hooks/exhaustive-deps
+
+./app/reclutamiento/vacantes/[id]/page.js
+27:6  Warning: React Hook useEffect has a missing dependency: 'fetchVacancy'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./app/reclutamiento/vacantes/[id]/perfil-tecnico/page.js
+35:6  Warning: React Hook useEffect has a missing dependency: 'fetchVacancy'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./app/rh/empleados/[id]/page.js
+148:6  Warning: React Hook useEffect has a missing dependency: 'fetchEmployee'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+593:17  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/rh/reclutamiento/page.js
+41:6  Warning: React Hook useEffect has a missing dependency: 'fetchVacancies'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./app/vacancies/[id]/activities/page.js
+29:6  Warning: React Hook useEffect has missing dependencies: 'fetchActivities' and 'fetchVacancy'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/PurchaseComments.js
+25:6  Warning: React Hook useEffect has a missing dependency: 'fetchComments'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+312:23  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/RoleManager.js
+45:38  Warning: React Hook useEffect has a missing dependency: 'fetchRoles'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/SendAuthorizationModal.js
+19:6  Warning: React Hook useEffect has a missing dependency: 'fetchPotentialApprovers'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules
+   Collecting page data ...
+   Generating static pages (0/24) ...
+   Generating static pages (6/24) 
+   Generating static pages (12/24) 
+   Generating static pages (18/24) 
+ Ô£ô Generating static pages (24/24)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                      Size     First Load JS
+Ôöî ãÆ /                                            190 B          99.6 kB
+Ôö£ Ôùï /_not-found                                  880 B          88.4 kB
+Ôö£ Ôùï /compras/mis-solicitudes                     2.88 kB         130 kB
+Ôö£ ãÆ /compras/mis-solicitudes/[id]                5.04 kB         135 kB
+Ôö£ Ôùï /compras/nueva-solicitud                     3.04 kB         130 kB
+Ôö£ Ôùï /dashboard                                   2.55 kB         129 kB
+Ôö£ Ôùï /dashboard/accesos                           5.93 kB         133 kB
+Ôö£ Ôùï /dashboard/compras                           99.3 kB         339 kB
+Ôö£ ãÆ /dashboard/compras/[id]                      11.1 kB         145 kB
+Ôö£ Ôùï /dashboard/mi-espacio                        4.2 kB          234 kB
+Ôö£ Ôùï /dashboard/organizacion                      5.11 kB         132 kB
+Ôö£ Ôùï /dashboard/profile                           4.89 kB         132 kB
+Ôö£ Ôùï /dashboard/usuarios                          4.69 kB         131 kB
+Ôö£ Ôùï /login                                       3.37 kB         153 kB
+Ôö£ Ôùï /my-vacancies                                3.84 kB         130 kB
+Ôö£ Ôùï /reclutamiento/mis-solicitudes               2.89 kB         130 kB
+Ôö£ Ôùï /reclutamiento/solicitar-vacante             5.53 kB         132 kB
+Ôö£ ãÆ /reclutamiento/vacantes/[id]                 35.1 kB         166 kB
+Ôö£ ãÆ /reclutamiento/vacantes/[id]/perfil-tecnico  4.09 kB         131 kB
+Ôö£ Ôùï /register                                    3.43 kB         153 kB
+Ôö£ Ôùï /rh-dashboard                                700 B           127 kB
+Ôö£ Ôùï /rh/dashboard-completo                       5.91 kB         249 kB
+Ôö£ Ôùï /rh/empleados                                11.4 kB         138 kB
+Ôö£ ãÆ /rh/empleados/[id]                           150 kB          277 kB
+Ôö£ Ôùï /rh/incidencias                              5.11 kB         132 kB
+Ôö£ Ôùï /rh/reclutamiento                            4.38 kB         131 kB
+Ôö£ Ôùï /rh/reclutamiento/crear-vacante              5.58 kB         132 kB
+Ôöö ãÆ /vacancies/[id]/activities                   2.7 kB          129 kB
++ First Load JS shared by all                    87.5 kB
+  Ôö£ chunks/2117-9c9327e7bccb675c.js              31.8 kB
+  Ôö£ chunks/fd9d1056-5528b707a3de9c43.js          53.6 kB
+  Ôöö other shared chunks (total)                  2.1 kB
+
+
+Ôùï  (Static)   prerendered as static content
+ãÆ  (Dynamic)  server-rendered on demand
+

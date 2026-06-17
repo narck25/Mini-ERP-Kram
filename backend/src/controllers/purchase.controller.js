@@ -423,33 +423,48 @@ class PurchaseController {
   }
 
   // ───────────────────────────────────────────────────────────
-  // REFACTORIZADO → purchase.service.js :: updateQuoteAmount
-  // AUDITORÍA: MONTO_EDITADO
+  // REFACTORIZADO → purchase.service.js :: updateQuote
+  // AUDITORÍA: COTIZACION_EDITADA (proveedor, monto, archivo)
   // ───────────────────────────────────────────────────────────
-  static async updateQuoteAmount(req, res) {
+  static async updateQuote(req, res) {
     try {
       const { id, quoteId } = req.params;
-      const { monto } = req.body;
+      const { proveedor, monto, archivoUrl } = req.body;
 
       // Obtener valor anterior antes de actualizar
       const { PrismaClient } = require('@prisma/client');
       const prisma = new PrismaClient();
       const quoteAnterior = await prisma.purchaseQuote.findUnique({ where: { id: quoteId } });
 
-      const updatedQuote = await PurchaseService.updateQuoteAmount(id, quoteId, monto);
+      const updatedQuote = await PurchaseService.updateQuote(id, quoteId, { proveedor, monto, archivoUrl });
 
-      // Auditoría: edición de monto
+      // Auditoría: edición de cotización
+      const valorAnterior = {};
+      const valorNuevo = {};
+      if (proveedor !== undefined) {
+        valorAnterior.proveedor = quoteAnterior?.proveedor;
+        valorNuevo.proveedor = updatedQuote.proveedor;
+      }
+      if (monto !== undefined) {
+        valorAnterior.monto = quoteAnterior?.monto;
+        valorNuevo.monto = updatedQuote.monto;
+      }
+      if (archivoUrl !== undefined) {
+        valorAnterior.archivoUrl = quoteAnterior?.archivoUrl;
+        valorNuevo.archivoUrl = updatedQuote.archivoUrl;
+      }
+
       await audit.logWithReq(
         id,
         req.user.id,
         audit.ACCIONES.MONTO_EDITADO,
-        { quoteId, montoAnterior: quoteAnterior?.monto, proveedor: quoteAnterior?.proveedor },
-        { quoteId, montoNuevo: updatedQuote.monto, proveedor: updatedQuote.proveedor },
+        { quoteId, ...valorAnterior },
+        { quoteId, ...valorNuevo },
         req
       );
 
       res.json({
-        message: 'Monto actualizado exitosamente',
+        message: 'Cotización actualizada exitosamente',
         data: updatedQuote
       });
     } catch (error) {
@@ -459,10 +474,14 @@ class PurchaseController {
       console.error("🔥 ERROR PRISMA:", error);
       res.status(500).json({
         error: 'Error interno del servidor',
-        message: 'No se pudo actualizar el monto'
+        message: 'No se pudo actualizar la cotización'
       });
     }
   }
+
+  // Mantener compatibilidad con el nombre anterior
+  static get updateQuoteAmount() { return PurchaseController.updateQuote; }
+
 
   // ───────────────────────────────────────────────────────────
   // REFACTORIZADO → comparison.service.js :: getQuoteComparison

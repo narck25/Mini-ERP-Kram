@@ -1,0 +1,15 @@
+
+FullName
+--------
+C:\Users\Sistemas\Documents\GitHub\Mini-ERP-Kram\frontend\components\DashboardLayout.js
+C:\Users\Sistemas\Documents\GitHub\Mini-ERP-Kram\frontend\components\EmployeeForm.js
+C:\Users\Sistemas\Documents\GitHub\Mini-ERP-Kram\frontend\components\EmployeeImport.js
+C:\Users\Sistemas\Documents\GitHub\Mini-ERP-Kram\frontend\components\EmployeeTable.js
+C:\Users\Sistemas\Documents\GitHub\Mini-ERP-Kram\frontend\components\ProtectedRoute.js
+C:\Users\Sistemas\Documents\GitHub\Mini-ERP-Kram\frontend\components\PurchaseComments.js
+C:\Users\Sistemas\Documents\GitHub\Mini-ERP-Kram\frontend\components\PurchaseOrderModal.js
+C:\Users\Sistemas\Documents\GitHub\Mini-ERP-Kram\frontend\components\QuoteSelectionModal.js
+C:\Users\Sistemas\Documents\GitHub\Mini-ERP-Kram\frontend\components\RoleManager.js
+C:\Users\Sistemas\Documents\GitHub\Mini-ERP-Kram\frontend\components\SendAuthorizationModal.js
+C:\Users\Sistemas\Documents\GitHub\Mini-ERP-Kram\frontend\components\UpcomingEventsWidget.js
+

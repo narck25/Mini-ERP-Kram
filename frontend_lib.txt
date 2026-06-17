@@ -1,0 +1,8 @@
+
+FullName
+--------
+C:\Users\Sistemas\Documents\GitHub\Mini-ERP-Kram\frontend\lib\api.js
+C:\Users\Sistemas\Documents\GitHub\Mini-ERP-Kram\frontend\lib\auth.js
+C:\Users\Sistemas\Documents\GitHub\Mini-ERP-Kram\frontend\lib\employeePdfExport.js
+C:\Users\Sistemas\Documents\GitHub\Mini-ERP-Kram\frontend\lib\rolesConfig.js
+
