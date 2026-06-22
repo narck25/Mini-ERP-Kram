@@ -38,8 +38,14 @@ export default function ComprasDetailPage() {
   const [editingQuoteData, setEditingQuoteData] = useState({ proveedor: '', monto: '' });
   const [updatingAmount, setUpdatingAmount] = useState(false);
 
+  // Estado para edición de items
+  const [editingItems, setEditingItems] = useState(false);
+  const [editedItems, setEditedItems] = useState([]);
+  const [savingItems, setSavingItems] = useState(false);
+
   
   // Estado para el modal de selección de cotización
+
   const [showQuoteSelectionModal, setShowQuoteSelectionModal] = useState(false);
   
   // Estado para la comparativa de cotizaciones
@@ -407,8 +413,78 @@ export default function ComprasDetailPage() {
     }
   };
 
+  // ── Funciones para edición de items ──
+  const startEditingItems = () => {
+    setEditedItems(request.items?.map(item => ({
+      id: item.id,
+      productoServicio: item.productoServicio,
+      cantidad: item.cantidad.toString(),
+      descripcion: item.descripcion || ''
+    })) || []);
+    setEditingItems(true);
+  };
+
+  const cancelEditingItems = () => {
+    setEditingItems(false);
+    setEditedItems([]);
+  };
+
+  const handleItemChange = (index, field, value) => {
+    const newItems = [...editedItems];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setEditedItems(newItems);
+  };
+
+  const addItemRow = () => {
+    setEditedItems(prev => [...prev, { id: null, productoServicio: '', cantidad: '', descripcion: '' }]);
+  };
+
+  const removeItemRow = (index) => {
+    if (editedItems.length <= 1) {
+      toast.error('Debe haber al menos un ítem');
+      return;
+    }
+    setEditedItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const saveEditedItems = async () => {
+    // Validar items
+    for (let i = 0; i < editedItems.length; i++) {
+      const item = editedItems[i];
+      if (!item.productoServicio?.trim()) {
+        toast.error(`El ítem ${i + 1} debe tener un producto/servicio`);
+        return;
+      }
+      if (!item.cantidad || isNaN(parseFloat(item.cantidad)) || parseFloat(item.cantidad) <= 0) {
+        toast.error(`El ítem ${i + 1} debe tener una cantidad válida`);
+        return;
+      }
+    }
+
+    try {
+      setSavingItems(true);
+      const itemsToSend = editedItems.map(item => ({
+        productoServicio: item.productoServicio.trim(),
+        cantidad: parseFloat(item.cantidad),
+        descripcion: item.descripcion?.trim() || null
+      }));
+
+      await api.put(`/purchases/${requestId}/items`, { items: itemsToSend });
+      toast.success('Items actualizados exitosamente');
+      setEditingItems(false);
+      setEditedItems([]);
+      fetchRequestDetails();
+    } catch (error) {
+      console.error('Error saving items:', error);
+      toast.error(error.response?.data?.message || 'Error al actualizar los items');
+    } finally {
+      setSavingItems(false);
+    }
+  };
+
   // Función para iniciar la edición de una cotización (proveedor + monto)
   const startEditingQuote = (quote) => {
+
 
     setEditingQuoteId(quote.id);
     setEditingQuoteData({
@@ -736,40 +812,159 @@ export default function ComprasDetailPage() {
 
             {/* Ítems solicitados */}
             <div className="bg-white border border-gray-200 rounded-lg p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Ítems solicitados</h2>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Producto/Servicio
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Cantidad
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Descripción
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {request.items?.map((item, index) => (
-                      <tr key={index}>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                          {item.productoServicio}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                          {item.cantidad}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {item.descripcion || '-'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Ítems solicitados</h2>
+                {/* Botón para editar items - solo en estado NUEVO */}
+                {request.estatus === 'NUEVO' && !editingItems && (
+                  <button
+                    onClick={startEditingItems}
+                    className="px-3 py-1.5 border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md text-sm font-medium flex items-center gap-1"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Editar items
+                  </button>
+                )}
               </div>
+
+              {editingItems ? (
+                /* ── MODO EDICIÓN DE ITEMS ── */
+                <div className="space-y-4">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto/Servicio</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {editedItems.map((item, index) => (
+                          <tr key={index}>
+                            <td className="px-4 py-2 text-sm text-gray-500">{index + 1}</td>
+                            <td className="px-4 py-2">
+                              <input
+                                type="text"
+                                value={item.productoServicio}
+                                onChange={(e) => handleItemChange(index, 'productoServicio', e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                placeholder="Producto o servicio"
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              <input
+                                type="number"
+                                value={item.cantidad}
+                                onChange={(e) => handleItemChange(index, 'cantidad', e.target.value)}
+                                className="w-24 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                min="0.01"
+                                step="0.01"
+                                placeholder="0"
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              <input
+                                type="text"
+                                value={item.descripcion}
+                                onChange={(e) => handleItemChange(index, 'descripcion', e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                placeholder="Descripción (opcional)"
+                              />
+                            </td>
+                            <td className="px-4 py-2 text-center">
+                              <button
+                                onClick={() => removeItemRow(index)}
+                                className="text-red-500 hover:text-red-700 p-1"
+                                title="Eliminar ítem"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={addItemRow}
+                      className="px-3 py-1.5 border border-dashed border-gray-400 text-gray-600 hover:text-gray-800 hover:border-gray-600 rounded-md text-sm font-medium flex items-center gap-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                      </svg>
+                      Agregar ítem
+                    </button>
+                  </div>
+
+                  <div className="flex gap-2 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={saveEditedItems}
+                      disabled={savingItems}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {savingItems ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Guardando...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                          </svg>
+                          Guardar cambios
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={cancelEditingItems}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-50"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* ── MODO VISUALIZACIÓN ── */
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto/Servicio</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {request.items?.map((item, index) => (
+                        <tr key={index}>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{index + 1}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                            {item.productoServicio}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                            {item.cantidad}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {item.descripcion || '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
+
 
             {/* Subir cotizaciones (para estados NUEVO o PENDIENTE con menos de 3 cotizaciones) - Solo Admin/Compras */}
             {(request.estatus === 'NUEVO' || request.estatus === 'PENDIENTE') && (!request.quotes || request.quotes.length < 3) && (user.role === 'ADMIN' || user.role === 'COMPRAS') && (

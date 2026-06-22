@@ -770,9 +770,49 @@ class PurchaseController {
 
 
   // ───────────────────────────────────────────────────────────
+  // ACTUALIZAR ITEMS de una solicitud (solicitante o Admin/Compras)
+  // → Solo en estado NUEVO
+  // ───────────────────────────────────────────────────────────
+  static async updateItems(req, res) {
+    try {
+      const { id } = req.params;
+      const { items } = req.body;
+      const result = await PurchaseService.updateItems(req.user.id, req.user.role, id, items);
+
+      // Auditoría
+      await audit.logWithReq(
+        id,
+        req.user.id,
+        audit.ACCIONES.ACTUALIZACION,
+        null,
+        {
+          accion: 'ITEMS_ACTUALIZADOS',
+          items: items.map(i => ({ productoServicio: i.productoServicio, cantidad: i.cantidad }))
+        },
+        req
+      );
+
+      res.json({
+        message: 'Items actualizados exitosamente',
+        data: { items: result }
+      });
+    } catch (error) {
+      if (error.status) {
+        return res.status(error.status).json({ error: error.error, message: error.message });
+      }
+      console.error("🔥 ERROR al actualizar items:", error);
+      res.status(500).json({
+        error: 'Error interno del servidor',
+        message: 'No se pudieron actualizar los items'
+      });
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────
   // ELIMINAR solicitud de compra (Admin/Compras)
   // ───────────────────────────────────────────────────────────
   static async deleteRequest(req, res) {
+
     try {
       const { id } = req.params;
       const result = await PurchaseService.deleteRequest(req.user.id, req.user.role, id);

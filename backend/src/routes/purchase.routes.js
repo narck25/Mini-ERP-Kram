@@ -104,11 +104,18 @@ router.delete('/purchases/:id',
   PurchaseController.deleteRequest
 );
 
+// Ruta para actualizar items de una solicitud (solicitante o Admin/Compras, solo NUEVO)
+router.put('/purchases/:id/items',
+  AuthMiddleware.requireModule('COMPRAS'),
+  PurchaseController.updateItems
+);
+
 // Ruta para cancelar una solicitud
 router.post('/purchases/:id/cancel',
   AuthMiddleware.requireModule('COMPRAS'),
   PurchaseController.cancelRequest
 );
+
 
 
 // Ruta para subir archivo a una cotización existente (solo Admin/Compras)

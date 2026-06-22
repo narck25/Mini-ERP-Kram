@@ -521,9 +521,71 @@ exports.deleteRequest = async (userId, userRole, requestId) => {
 };
 
 // ─────────────────────────────────────────────────────────────
+// 12. Actualizar items de una solicitud (solicitante o Admin/Compras)
+//     → Solo en estado NUEVO
+//     → Reemplaza todos los items existentes
+// ─────────────────────────────────────────────────────────────
+exports.updateItems = async (userId, userRole, requestId, items) => {
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    throw { status: 400, error: 'Datos inválidos', message: 'Debe incluir al menos un ítem en la solicitud' };
+  }
+
+  for (const item of items) {
+    if (!item.productoServicio || !item.cantidad) {
+      throw { status: 400, error: 'Datos inválidos', message: 'Cada ítem debe tener productoServicio y cantidad' };
+    }
+  }
+
+  const employee = await getEmployeeByUserId(userId);
+  if (!employee) {
+    throw { status: 404, error: 'Empleado no encontrado', message: 'El usuario no tiene un empleado asociado' };
+  }
+
+  const request = await prisma.purchaseRequest.findUnique({ where: { id: requestId } });
+  if (!request) {
+    throw { status: 404, error: 'Solicitud no encontrada', message: 'La solicitud de compra no existe' };
+  }
+
+  // Validar permisos: solo el solicitante o Admin/Compras
+  const isSolicitante = request.solicitanteId === employee.id;
+  const isAdminOrCompras = ['ADMIN', 'COMPRAS'].includes(userRole);
+
+  if (!isSolicitante && !isAdminOrCompras) {
+    throw { status: 403, error: 'Acceso denegado', message: 'No tiene permisos para modificar esta solicitud' };
+  }
+
+  // Solo permitir en estado NUEVO
+  if (request.estatus !== 'NUEVO') {
+    throw { status: 400, error: 'Estado inválido', message: 'Solo se pueden modificar items en solicitudes en estado NUEVO' };
+  }
+
+  return prisma.$transaction(async (tx) => {
+    // Eliminar items existentes
+    await tx.purchaseItem.deleteMany({ where: { requestId } });
+
+    // Crear nuevos items
+    const newItems = await Promise.all(
+      items.map(item =>
+        tx.purchaseItem.create({
+          data: {
+            requestId,
+            productoServicio: item.productoServicio,
+            cantidad: parseFloat(item.cantidad),
+            descripcion: item.descripcion || null
+          }
+        })
+      )
+    );
+
+    return newItems;
+  });
+};
+
+// ─────────────────────────────────────────────────────────────
 // Exportar helpers para uso en otros servicios
 // ─────────────────────────────────────────────────────────────
 exports._helpers = {
+
 
   buildFileUrl,
   getEmployeeByUserId,
