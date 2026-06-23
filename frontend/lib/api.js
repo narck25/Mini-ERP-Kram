@@ -219,4 +219,40 @@ export const systemApi = {
   getRolePresets: () => api.get('/roles/presets'),
 }
 
+// Módulo de Papelería
+export const stationeryApi = {
+  // Mis solicitudes (usuario)
+  getMyRequests: () => api.get('/stationery/my'),
+  createRequest: (data) => api.post('/stationery', data),
+  cancelRequest: (id) => api.post(`/stationery/${id}/cancel`),
+
+  // Gestión (Admin/Compras)
+  getAllRequests: (params) => api.get('/stationery', { params }),
+  getRequestById: (id) => api.get(`/stationery/${id}`),
+  deliverRequest: (id) => api.post(`/stationery/${id}/deliver`),
+
+  // Inventario
+  getInventory: (params) => api.get('/stationery/inventory', { params }),
+  addInventoryItem: (data) => api.post('/stationery/inventory', data),
+  updateInventoryItem: (id, data) => api.put(`/stationery/inventory/${id}`, data),
+  deleteInventoryItem: (id) => api.delete(`/stationery/inventory/${id}`),
+}
+
+// Módulo de Uniformes
+export const uniformApi = {
+  // Inventario
+  getInventory: (params) => api.get('/uniforms/inventory', { params }),
+  addInventoryItem: (data) => api.post('/uniforms/inventory', data),
+  updateInventoryItem: (id, data) => api.put(`/uniforms/inventory/${id}`, data),
+  deleteInventoryItem: (id) => api.delete(`/uniforms/inventory/${id}`),
+
+  // Entregas
+  createDelivery: (data) => api.post('/uniforms/deliveries', data),
+  getDeliveries: (params) => api.get('/uniforms/deliveries', { params }),
+  getDeliveryById: (id) => api.get(`/uniforms/deliveries/${id}`),
+
+  // Historial por empleado
+  getEmployeeHistory: (empleadoId) => api.get(`/uniforms/employees/${empleadoId}/history`),
+}
+
 export default api

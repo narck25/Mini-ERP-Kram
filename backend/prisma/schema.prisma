@@ -122,6 +122,10 @@ model Employee {
   puesto                JobPosition?       @relation(fields: [puestoId], references: [id])
   salaryHistory         SalaryHistory[]
   notificationLogs      NotificationLog[]
+  stationeryRequests    StationeryRequest[] @relation("PapeleriaSolicitante")
+  stationeryDeliveries  StationeryRequest[] @relation("PapeleriaEntregador")
+  uniformDeliveries     UniformDelivery[]   @relation("UniformeEmpleado")
+  uniformDeliveriesMade UniformDelivery[]   @relation("UniformeEntregador")
 
   @@map("employees")
 }
@@ -212,6 +216,7 @@ model Department {
   jobVacancies JobVacancy[]
   jobPositions JobPosition[]
   purchaseRequests PurchaseRequest[] @relation("ComprasDepartamento")
+  stationeryRequests StationeryRequest[] @relation("PapeleriaDepartamento")
 
   @@map("departments")
 }
@@ -358,6 +363,12 @@ enum ModuleType {
   DASHBOARD
   REPORTES
   COMPRAS
+}
+
+enum StationeryStatus {
+  PENDIENTE
+  ENTREGADO
+  CANCELADO
 }
 
 enum PurchaseStatus {
@@ -562,4 +573,81 @@ model PurchaseAuditLog {
   @@index([accion])
   @@index([createdAt])
   @@map("purchase_audit_logs")
+}
+
+// ─── PAPELERÍA Y PERIFÉRICOS ───
+
+model StationeryRequest {
+  id              String            @id @default(cuid())
+  solicitanteId   String
+  departamentoId  String
+  estatus         StationeryStatus  @default(PENDIENTE)
+  justificacion   String?
+  fechaSolicitud  DateTime          @default(now())
+  fechaEntrega    DateTime?
+  entregadoPorId  String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  solicitante     Employee          @relation("PapeleriaSolicitante", fields: [solicitanteId], references: [id])
+  departamento    Department        @relation("PapeleriaDepartamento", fields: [departamentoId], references: [id])
+  entregadoPor    Employee?         @relation("PapeleriaEntregador", fields: [entregadoPorId], references: [id])
+  items           StationeryItem[]
+
+  @@map("stationery_requests")
+}
+
+model StationeryItem {
+  id              String            @id @default(cuid())
+  requestId       String
+  producto        String
+  cantidad        Int
+  unidad          String            @default("pzas")
+  request         StationeryRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("stationery_items")
+}
+
+model StationeryInventory {
+  id              String   @id @default(cuid())
+  producto        String   @unique
+  categoria       String   @default("PAPELERIA") // PAPELERIA | PERIFERICO | OTRO
+  cantidadActual  Int      @default(0)
+  cantidadMinima  Int      @default(5)
+  unidad          String   @default("pzas")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("stationery_inventory")
+}
+
+// ─── UNIFORMES ───
+
+model UniformInventory {
+  id              String   @id @default(cuid())
+  tipo            String   // CAMISA | PANTALON | PLAYERA | ZAPATOS | CHALECO | MANDIL | GORRA
+  talla           String
+  genero          String?  // HOMBRE | MUJER | UNISEX
+  cantidadActual  Int      @default(0)
+  cantidadMinima  Int      @default(2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([tipo, talla, genero])
+  @@map("uniform_inventory")
+}
+
+model UniformDelivery {
+  id              String   @id @default(cuid())
+  empleadoId      String
+  items           Json     // [{tipo, talla, cantidad}]
+  fechaEntrega    DateTime @default(now())
+  entregadoPorId  String
+  observaciones   String?
+  createdAt       DateTime @default(now())
+
+  empleado        Employee @relation("UniformeEmpleado", fields: [empleadoId], references: [id])
+  entregadoPor    Employee @relation("UniformeEntregador", fields: [entregadoPorId], references: [id])
+
+  @@map("uniform_deliveries")
 }
