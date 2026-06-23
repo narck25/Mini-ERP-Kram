@@ -19,26 +19,8 @@ router.post('/stationery/:id/cancel',
   StationeryController.cancelRequest
 );
 
-// ─── Rutas de gestión (Admin/Compras) ───
-router.get('/stationery',
-  AuthMiddleware.verifyToken,
-  AuthMiddleware.requireModule('COMPRAS'),
-  StationeryController.getAllRequests
-);
-
-router.get('/stationery/:id',
-  AuthMiddleware.verifyToken,
-  AuthMiddleware.requireModule('COMPRAS'),
-  StationeryController.getRequestById
-);
-
-router.post('/stationery/:id/deliver',
-  AuthMiddleware.verifyToken,
-  AuthMiddleware.requireModule('COMPRAS'),
-  StationeryController.deliverRequest
-);
-
 // ─── Rutas de inventario (Admin/Compras) ───
+// IMPORTANTE: Las rutas fijas (/inventory) deben ir ANTES que las rutas con parámetros (/:id)
 router.get('/stationery/inventory',
   AuthMiddleware.verifyToken,
   AuthMiddleware.requireModule('COMPRAS'),
@@ -61,6 +43,25 @@ router.delete('/stationery/inventory/:id',
   AuthMiddleware.verifyToken,
   AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
   StationeryController.deleteInventoryItem
+);
+
+// ─── Rutas de gestión (Admin/Compras) - con parámetro :id ───
+router.get('/stationery',
+  AuthMiddleware.verifyToken,
+  AuthMiddleware.requireModule('COMPRAS'),
+  StationeryController.getAllRequests
+);
+
+router.get('/stationery/:id',
+  AuthMiddleware.verifyToken,
+  AuthMiddleware.requireModule('COMPRAS'),
+  StationeryController.getRequestById
+);
+
+router.post('/stationery/:id/deliver',
+  AuthMiddleware.verifyToken,
+  AuthMiddleware.requireModule('COMPRAS'),
+  StationeryController.deliverRequest
 );
 
 module.exports = router;
