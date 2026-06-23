@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { uniformApi } from '@/lib/api'
+import DashboardLayout from '@/components/DashboardLayout'
 
 const TIPOS = ['CAMISA', 'PLAYERA', 'PANTALON', 'CHALECO', 'CHAQUETA', 'GORRA', 'MANDIL', 'BATA', 'ZAPATOS', 'BOTAS', 'OTRO']
 
@@ -73,9 +74,10 @@ export default function InventarioUniformes() {
     }
   }
 
-  if (loading) return <div className="p-6 text-center">Cargando...</div>
+  if (loading) return <DashboardLayout><div className="p-6 text-center">Cargando...</div></DashboardLayout>
 
   return (
+    <DashboardLayout>
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -215,5 +217,6 @@ export default function InventarioUniformes() {
         </div>
       )}
     </div>
+    </DashboardLayout>
   )
 }

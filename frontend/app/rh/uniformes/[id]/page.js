@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { uniformApi, employeeApi } from '@/lib/api'
+import DashboardLayout from '@/components/DashboardLayout'
 
 export default function HistorialUniformesEmpleado() {
   const { id } = useParams()
@@ -33,11 +34,12 @@ export default function HistorialUniformesEmpleado() {
     }
   }
 
-  if (loading) return <div className="p-6 text-center">Cargando...</div>
-  if (error) return <div className="p-6 text-red-600">{error}</div>
-  if (!employee) return <div className="p-6 text-center">Empleado no encontrado</div>
+  if (loading) return <DashboardLayout><div className="p-6 text-center">Cargando...</div></DashboardLayout>
+  if (error) return <DashboardLayout><div className="p-6 text-red-600">{error}</div></DashboardLayout>
+  if (!employee) return <DashboardLayout><div className="p-6 text-center">Empleado no encontrado</div></DashboardLayout>
 
   return (
+    <DashboardLayout>
     <div className="p-6 max-w-5xl mx-auto">
       <button onClick={() => router.back()} className="text-blue-600 hover:underline mb-4 block">
         &larr; Regresar
@@ -142,5 +144,6 @@ export default function HistorialUniformesEmpleado() {
         </div>
       )}
     </div>
+    </DashboardLayout>
   )
 }

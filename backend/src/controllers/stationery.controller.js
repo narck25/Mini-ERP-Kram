@@ -7,7 +7,8 @@ class StationeryController {
     try {
       const employeeId = req.user.employeeId;
       if (!employeeId) {
-        return res.status(400).json({ error: 'No tienes un empleado asociado' });
+        // Si es ADMIN/RH sin empleado asociado, devolver array vacío
+        return res.json({ data: [] });
       }
       const requests = await StationeryService.getMyRequests(employeeId);
       res.json({ data: requests });
@@ -21,7 +22,7 @@ class StationeryController {
     try {
       const employeeId = req.user.employeeId;
       if (!employeeId) {
-        return res.status(400).json({ error: 'No tienes un empleado asociado' });
+        return res.status(400).json({ error: 'No tienes un empleado asociado. Contacta a RH para que te asignen uno.' });
       }
       const request = await StationeryService.createRequest(req.body, employeeId);
       res.status(201).json({ data: request, message: 'Solicitud creada exitosamente' });
@@ -35,7 +36,7 @@ class StationeryController {
     try {
       const employeeId = req.user.employeeId;
       if (!employeeId) {
-        return res.status(400).json({ error: 'No tienes un empleado asociado' });
+        return res.status(400).json({ error: 'No tienes un empleado asociado. Contacta a RH para que te asignen uno.' });
       }
       const request = await StationeryService.cancelRequest(req.params.id, employeeId);
       res.json({ data: request, message: 'Solicitud cancelada' });

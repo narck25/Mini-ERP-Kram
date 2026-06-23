@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { employeeApi } from '@/lib/api'
+import DashboardLayout from '@/components/DashboardLayout'
 
 export default function HistorialUniformesRH() {
   const router = useRouter()
@@ -36,9 +37,10 @@ export default function HistorialUniformesRH() {
     )
   })
 
-  if (loading) return <div className="p-6 text-center">Cargando...</div>
+  if (loading) return <DashboardLayout><div className="p-6 text-center">Cargando...</div></DashboardLayout>
 
   return (
+    <DashboardLayout>
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Historial de Uniformes</h1>
@@ -93,5 +95,6 @@ export default function HistorialUniformesRH() {
         </table>
       </div>
     </div>
+    </DashboardLayout>
   )
 }

@@ -50,7 +50,7 @@ class UniformController {
     try {
       const entregadoPorId = req.user.employeeId;
       if (!entregadoPorId) {
-        return res.status(400).json({ error: 'No tienes un empleado asociado' });
+        return res.status(400).json({ error: 'No tienes un empleado asociado. Contacta a RH para que te asignen uno.' });
       }
       const delivery = await UniformService.createDelivery(req.body, entregadoPorId);
       res.status(201).json({ data: delivery, message: 'Entrega registrada exitosamente' });

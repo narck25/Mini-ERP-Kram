@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { stationeryApi } from '@/lib/api'
+import DashboardLayout from '@/components/DashboardLayout'
 
 export default function InventarioPapeleria() {
   const [items, setItems] = useState([])
@@ -71,9 +72,10 @@ export default function InventarioPapeleria() {
     }
   }
 
-  if (loading) return <div className="p-6 text-center">Cargando...</div>
+  if (loading) return <DashboardLayout><div className="p-6 text-center">Cargando...</div></DashboardLayout>
 
   return (
+    <DashboardLayout>
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -211,5 +213,6 @@ export default function InventarioPapeleria() {
         </div>
       )}
     </div>
+    </DashboardLayout>
   )
 }

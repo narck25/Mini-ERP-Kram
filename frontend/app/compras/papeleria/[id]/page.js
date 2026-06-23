@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { stationeryApi } from '@/lib/api'
+import DashboardLayout from '@/components/DashboardLayout'
 
 export default function DetalleSolicitudPapeleria() {
   const { id } = useParams()
@@ -37,11 +38,12 @@ export default function DetalleSolicitudPapeleria() {
     return colors[estatus] || 'bg-gray-100 text-gray-800'
   }
 
-  if (loading) return <div className="p-6 text-center">Cargando...</div>
-  if (error) return <div className="p-6 text-red-600">{error}</div>
-  if (!request) return <div className="p-6 text-center">Solicitud no encontrada</div>
+  if (loading) return <DashboardLayout><div className="p-6 text-center">Cargando...</div></DashboardLayout>
+  if (error) return <DashboardLayout><div className="p-6 text-red-600">{error}</div></DashboardLayout>
+  if (!request) return <DashboardLayout><div className="p-6 text-center">Solicitud no encontrada</div></DashboardLayout>
 
   return (
+    <DashboardLayout>
     <div className="p-6 max-w-4xl mx-auto">
       <button onClick={() => router.back()} className="text-blue-600 hover:underline mb-4 block">
         &larr; Regresar
@@ -111,5 +113,6 @@ export default function DetalleSolicitudPapeleria() {
         </div>
       </div>
     </div>
+    </DashboardLayout>
   )
 }

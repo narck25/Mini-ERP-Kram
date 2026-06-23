@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { stationeryApi } from '@/lib/api'
+import DashboardLayout from '@/components/DashboardLayout'
 
 const CATEGORIAS = [
   'HOJAS',
@@ -71,6 +72,7 @@ export default function NuevaSolicitudPapeleria() {
   }
 
   return (
+    <DashboardLayout>
     <div className="p-6 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-2">Nueva Solicitud de Papelería</h1>
       <p className="text-gray-500 mb-6">Solicita los artículos que necesitas</p>
@@ -177,5 +179,6 @@ export default function NuevaSolicitudPapeleria() {
         </div>
       </form>
     </div>
+    </DashboardLayout>
   )
 }

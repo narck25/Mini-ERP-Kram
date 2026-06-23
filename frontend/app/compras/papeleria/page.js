@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { stationeryApi } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
+import DashboardLayout from '@/components/DashboardLayout'
 
 export default function MisSolicitudesPapeleria() {
   const router = useRouter()
@@ -48,9 +49,10 @@ export default function MisSolicitudesPapeleria() {
     return colors[estatus] || 'bg-gray-100 text-gray-800'
   }
 
-  if (loading) return <div className="p-6 text-center">Cargando...</div>
+  if (loading) return <DashboardLayout><div className="p-6 text-center">Cargando...</div></DashboardLayout>
 
   return (
+    <DashboardLayout>
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -120,5 +122,6 @@ export default function MisSolicitudesPapeleria() {
         </div>
       )}
     </div>
+    </DashboardLayout>
   )
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { uniformApi } from '@/lib/api'
+import DashboardLayout from '@/components/DashboardLayout'
 
 export default function DetalleEntregaUniforme() {
   const { id } = useParams()
@@ -28,11 +29,12 @@ export default function DetalleEntregaUniforme() {
     }
   }
 
-  if (loading) return <div className="p-6 text-center">Cargando...</div>
-  if (error) return <div className="p-6 text-red-600">{error}</div>
-  if (!delivery) return <div className="p-6 text-center">Entrega no encontrada</div>
+  if (loading) return <DashboardLayout><div className="p-6 text-center">Cargando...</div></DashboardLayout>
+  if (error) return <DashboardLayout><div className="p-6 text-red-600">{error}</div></DashboardLayout>
+  if (!delivery) return <DashboardLayout><div className="p-6 text-center">Entrega no encontrada</div></DashboardLayout>
 
   return (
+    <DashboardLayout>
     <div className="p-6 max-w-4xl mx-auto">
       <button onClick={() => router.back()} className="text-blue-600 hover:underline mb-4 block">
         &larr; Regresar
@@ -102,5 +104,6 @@ export default function DetalleEntregaUniforme() {
         </div>
       </div>
     </div>
+    </DashboardLayout>
   )
 }
