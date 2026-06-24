@@ -110,12 +110,12 @@ export default function AdminUniformes() {
       {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
 
       {deliveries.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">
           <p className="text-lg">No hay entregas registradas</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <table className="w-full">
             <thead>
               <tr className="bg-gray-100">
                 <th className="p-3 text-left">Fecha</th>
