@@ -12,19 +12,19 @@ router.get('/uniforms/inventory',
 
 router.post('/uniforms/inventory',
   AuthMiddleware.verifyToken,
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
+  AuthMiddleware.requireModule('COMPRAS'),
   UniformController.addInventoryItem
 );
 
 router.put('/uniforms/inventory/:id',
   AuthMiddleware.verifyToken,
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
+  AuthMiddleware.requireModule('COMPRAS'),
   UniformController.updateInventoryItem
 );
 
 router.delete('/uniforms/inventory/:id',
   AuthMiddleware.verifyToken,
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
+  AuthMiddleware.requireModule('COMPRAS'),
   UniformController.deleteInventoryItem
 );
 
@@ -47,10 +47,10 @@ router.get('/uniforms/deliveries/:id',
   UniformController.getDeliveryById
 );
 
-// ─── Historial por empleado (Admin/Compras/RH) ───
+// ─── Historial por empleado (módulo COMPRAS) ───
 router.get('/uniforms/employees/:empleadoId/history',
   AuthMiddleware.verifyToken,
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS', 'RH']),
+  AuthMiddleware.requireModule('COMPRAS'),
   UniformController.getEmployeeHistory
 );
 

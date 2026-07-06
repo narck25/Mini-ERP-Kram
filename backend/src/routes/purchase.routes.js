@@ -36,10 +36,9 @@ router.get('/purchases/my',
   PurchaseController.getMyRequests
 );
 
-// Ruta para obtener todas las solicitudes (solo Admin/Compras)
+// Ruta para obtener todas las solicitudes (requiere módulo COMPRAS)
 router.get('/purchases',
   AuthMiddleware.requireModule('COMPRAS'),
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
   PurchaseController.getAllRequests
 );
 
@@ -49,24 +48,21 @@ router.get('/purchases/details/:id',
   PurchaseController.getRequestDetails
 );
 
-// Ruta para subir cotizaciones a una solicitud (solo Admin/Compras)
+// Ruta para subir cotizaciones a una solicitud (requiere módulo COMPRAS)
 router.post('/purchases/:id/quotes',
   AuthMiddleware.requireModule('COMPRAS'),
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
   PurchaseController.uploadQuotes
 );
 
-// Ruta para seleccionar una cotización (solo Admin/Compras)
+// Ruta para seleccionar una cotización (requiere módulo COMPRAS)
 router.post('/purchases/:id/select-quote',
   AuthMiddleware.requireModule('COMPRAS'),
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
   PurchaseController.selectQuote
 );
 
-// Ruta para autorizar una solicitud (solo Admin/Gerente)
+// Ruta para autorizar una solicitud (requiere módulo COMPRAS)
 router.post('/purchases/:id/authorize',
   AuthMiddleware.requireModule('COMPRAS'),
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
   PurchaseController.authorizeRequest
 );
 
@@ -79,28 +75,24 @@ router.post('/purchases/:id/deliver',
 // Ruta para obtener aprobadores potenciales (empleados con roles gerenciales)
 router.get('/purchases/:id/potential-approvers',
   AuthMiddleware.requireModule('COMPRAS'),
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
   PurchaseController.getPotentialApprovers
 );
 
 // Ruta para asignar aprobadores a una solicitud
 router.post('/purchases/:id/assign-approvers',
   AuthMiddleware.requireModule('COMPRAS'),
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
   PurchaseController.assignApprovers
 );
 
-// Ruta para enviar autorización manual (solo Admin/Compras)
+// Ruta para enviar autorización manual (requiere módulo COMPRAS)
 router.post('/purchases/:id/send-authorization',
   AuthMiddleware.requireModule('COMPRAS'),
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
   PurchaseController.sendAuthorization
 );
 
-// Ruta para eliminar una solicitud (Admin/Compras)
+// Ruta para eliminar una solicitud (requiere módulo COMPRAS)
 router.delete('/purchases/:id',
   AuthMiddleware.requireModule('COMPRAS'),
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
   PurchaseController.deleteRequest
 );
 
@@ -118,10 +110,9 @@ router.post('/purchases/:id/cancel',
 
 
 
-// Ruta para subir archivo a una cotización existente (solo Admin/Compras)
+// Ruta para subir archivo a una cotización existente (requiere módulo COMPRAS)
 router.post('/purchases/:id/quotes/:quoteId/upload',
   AuthMiddleware.requireModule('COMPRAS'),
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
   UploadMiddleware.uploadPurchaseQuotes.single('file'),
   PurchaseController.uploadQuoteFile
 );
@@ -129,7 +120,6 @@ router.post('/purchases/:id/quotes/:quoteId/upload',
 // Ruta para subir cotización con archivo en una sola llamada (multipart)
 router.post('/purchases/:id/quotes/upload-with-file',
   AuthMiddleware.requireModule('COMPRAS'),
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
   UploadMiddleware.uploadPurchaseQuotes.single('file'),
   PurchaseController.uploadQuoteWithFile
 );
@@ -137,22 +127,19 @@ router.post('/purchases/:id/quotes/upload-with-file',
 // Ruta para subir archivo para una nueva cotización (antes de crear la cotización)
 router.post('/purchases/:id/upload-quote-file',
   AuthMiddleware.requireModule('COMPRAS'),
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
   UploadMiddleware.uploadPurchaseQuotes.single('file'),
   PurchaseController.uploadQuoteFileForNewQuote
 );
 
-// Ruta para actualizar una cotización (proveedor, monto, archivo) — solo Admin/Compras
+// Ruta para actualizar una cotización (proveedor, monto, archivo) — requiere módulo COMPRAS
 router.put('/purchases/:id/quotes/:quoteId',
   AuthMiddleware.requireModule('COMPRAS'),
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
   PurchaseController.updateQuote
 );
 
 // Mantener compatibilidad con la ruta anterior (solo monto)
 router.put('/purchases/:id/quotes/:quoteId/amount',
   AuthMiddleware.requireModule('COMPRAS'),
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
   PurchaseController.updateQuote
 );
 
@@ -174,21 +161,18 @@ router.get('/purchases/:id/purchase-order',
 // Generar orden de compra manual (POST, con partidas)
 router.post('/purchases/:id/purchase-order',
   AuthMiddleware.requireModule('COMPRAS'),
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
   PurchaseController.generatePurchaseOrder
 );
 
 // Listar todas las órdenes de compra
 router.get('/purchase-orders',
   AuthMiddleware.requireModule('COMPRAS'),
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
   PurchaseController.getAllPurchaseOrders
 );
 
 // Regenerar orden de compra manualmente (legacy)
 router.post('/purchases/:id/regenerate-order',
   AuthMiddleware.requireModule('COMPRAS'),
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
   PurchaseController.regeneratePurchaseOrder
 );
 
@@ -198,7 +182,6 @@ router.post('/purchases/:id/regenerate-order',
 // Ruta para obtener el historial de auditoría de una solicitud
 router.get('/purchases/:id/audit',
   AuthMiddleware.requireModule('COMPRAS'),
-  AuthMiddleware.requireRole(['ADMIN', 'COMPRAS']),
   PurchaseController.getAuditHistory
 );
 
