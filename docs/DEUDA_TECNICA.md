@@ -1,408 +1,307 @@
 # DEUDA TÉCNICA — ERP KRAM
 
-> **Versión**: 1.0  
-> **Fecha**: 13/06/2026  
-> **Propósito**: Identificar, clasificar y priorizar la deuda técnica acumulada en el sistema ERP KRAM para planificar su remediación.
+> **Última actualización**: 06/07/2026  
+> **Versión del documento**: 2.1  
+> **Propósito**: Inventario centralizado de deuda técnica clasificada por prioridad (P0-P3) con plan de remediación.  
+> **Último cambio**: Fase 0 completada — 3 items resueltos (P2-008, P2-009, P3-005)
 
 ---
 
-## 1. RESUMEN EJECUTIVO
+## Prioridades
 
-| Métrica | Valor |
-|---------|-------|
-| **Archivos analizados** | ~120 (backend + frontend) |
-| **Ítems de deuda identificados** | 28 |
-| **Críticos (P0)** | 5 |
-| **Altos (P1)** | 9 |
-| **Medios (P2)** | 8 |
-| **Bajos (P3)** | 6 |
-| **Esfuerzo estimado** | ~3-4 sprints (2 desarrolladores) |
+| Prioridad | Significado | Plazo sugerido |
+|-----------|-------------|----------------|
+| **P0** | Crítica — bug en producción, seguridad, datos corruptos | Inmediato |
+| **P1** | Alta — impacto significativo en mantenibilidad, rendimiento o escalabilidad | Próximo sprint |
+| **P2** | Media — violación de estándares, deuda que crecerá si no se atiende | Próximos 2-3 sprints |
+| **P3** | Baja — mejora deseable, código funcional pero mejorable | Backlog |
 
 ---
 
-## 2. CLASIFICACIÓN
+## P1 — Alta Prioridad
 
-| Prioridad | Significado | Plazo |
-|-----------|-------------|-------|
-| **P0 — Crítico** | Bug en producción, seguridad, datos inconsistentes | Inmediato |
-| **P1 — Alto** | Impacto significativo en mantenibilidad, rendimiento | Próximo sprint |
-| **P2 — Medio** | Mejora importante, código duplicado | Backlog próximo |
-| **P3 — Bajo** | Refactor cosmético, documentación | Cuando se toque el área |
+### P1-001: `employee-core.controller.js` — God Object (1057 líneas)
 
----
-
-## 3. INVENTARIO DETALLADO DE DEUDA TÉCNICA
-
-### 3.1 BACKEND — Controladores (Peso: Alto)
-
-#### 🔴 P0-001: `employee-core.controller.js` — 1123 líneas (God Object)
-
-| Atributo | Valor |
-|----------|-------|
+| Campo | Valor |
+|-------|-------|
 | **Archivo** | `backend/src/controllers/employee-core.controller.js` |
-| **Líneas** | 1123 |
-| **Métodos** | ~20 (CRUD empleados, historial sueldos, búsqueda, etc.) |
-| **Problema** | Violación SRP (Single Responsibility Principle). Mezcla lógica de negocio, acceso a datos, formateo de respuestas y manejo de errores en un solo archivo. |
-| **Impacto** | Difícil de testear, modificar o extender. Cualquier cambio en empleados requiere tocar este archivo. |
-| **Solución** | Extraer a servicios: `employee.service.js`, `employee-search.service.js`, `salary-history.service.js` |
-| **Esfuerzo** | 3-4 días |
+| **Líneas** | 1057 |
+| **Problema** | Concentra lógica de empleados, usuarios, auth, documentos, CSV, fotos. Viola SRP. |
+| **Impacto** | Difícil de mantener, probar y extender. Cualquier cambio en empleados requiere tocar este archivo. |
+| **Solución propuesta** | Dividir en controladores especializados: `employee-crud.controller.js`, `employee-document.controller.js`, `employee-photo.controller.js`, `employee-csv.controller.js`. Ya existen algunos (employee-csv.controller.js, employeeDocument.controller.js, employee-photo.controller.js) pero el core sigue siendo monolítico. |
+| **Dependencias** | `employee.routes.js`, `employee-csv.controller.js`, `employeeDocument.controller.js`, `employee-photo.controller.js` |
+| **Bloqueante** | No — se puede refactorizar de forma incremental |
+| **Estado** | 🔴 Pendiente |
 
-#### 🔴 P0-002: `recruitment.controller.js` — 1550 líneas (God Object)
+### P1-002: `recruitment.controller.js` — God Object (1384 líneas)
 
-| Atributo | Valor |
-|----------|-------|
+| Campo | Valor |
+|-------|-------|
 | **Archivo** | `backend/src/controllers/recruitment.controller.js` |
-| **Líneas** | 1550 |
-| **Métodos** | ~25 (vacantes, candidatos, comentarios, actividades, documentos) |
-| **Problema** | Mismo problema que P0-001. El controlador de reclutamiento es el archivo más grande del backend. |
-| **Impacto** | Altísimo acoplamiento. Cualquier cambio en el flujo de reclutamiento requiere modificar este monstruo. |
-| **Solución** | Extraer a servicios: `vacancy.service.js`, `candidate.service.js`, `recruitment-comment.service.js`, `recruitment-activity.service.js` |
-| **Esfuerzo** | 4-5 días |
+| **Líneas** | 1384 |
+| **Problema** | Concentra lógica de vacantes, candidatos, etapas, entrevistas, ofertas, PDF, email. Viola SRP. |
+| **Impacto** | Difícil de mantener. Mezcla lógica de negocio con controladores. |
+| **Solución propuesta** | Dividir en: `vacancy.controller.js`, `candidate.controller.js`, `interview.controller.js`, `offer.controller.js`. Mover lógica de negocio a `services/reclutamiento/`. |
+| **Dependencias** | `recruitment.routes.js`, `services/email.service.js` |
+| **Bloqueante** | No — refactorización incremental posible |
+| **Estado** | 🔴 Pendiente |
 
-#### 🟡 P1-001: `purchase.controller.js` — 772 líneas (Orquestador)
+### P1-003: `purchase.controller.js` — God Object (781 líneas)
 
-| Atributo | Valor |
-|----------|-------|
+| Campo | Valor |
+|-------|-------|
 | **Archivo** | `backend/src/controllers/purchase.controller.js` |
-| **Líneas** | 772 |
-| **Problema** | Aunque ya se refactorizó parcialmente (delegó a servicios), el controlador sigue siendo grande y orquesta demasiadas responsabilidades. |
-| **Impacto** | Medio. Ya tiene buena separación, pero aún se puede mejorar. |
-| **Solución** | Continuar refactor: separar rutas de compras en submódulos (quotes, approvals, orders). |
-| **Esfuerzo** | 1-2 días |
+| **Líneas** | 781 |
+| **Problema** | Concentra lógica de solicitudes, cotizaciones, aprobaciones, autorizaciones, comentarios, items. |
+| **Impacto** | Difícil de mantener. Aunque delega a servicios, el controller sigue siendo muy grande. |
+| **Solución propuesta** | Dividir en: `purchase-request.controller.js`, `purchase-quote.controller.js`, `purchase-approval.controller.js`, `purchase-comment.controller.js` (ya existe parcialmente). |
+| **Dependencias** | `purchase.routes.js`, `services/purchases/*` |
+| **Bloqueante** | No |
+| **Estado** | 🔴 Pendiente |
+
+### P1-004: `employee.controller.js` — God Object oculto (1581 líneas)
+
+| Campo | Valor |
+|-------|-------|
+| **Archivo** | `backend/src/controllers/employee.controller.js` |
+| **Líneas** | 1581 |
+| **Problema** | Controller más grande del sistema. No estaba documentado en el inventario original de deuda. Contiene lógica de empleados, relaciones organizacionales, búsquedas, reportes. |
+| **Impacto** | El archivo más grande del backend. Viola SRP gravemente. |
+| **Solución propuesta** | Auditar contenido y dividir en controladores especializados. Revisar si parte de su lógica duplica a `employee-core.controller.js`. |
+| **Dependencias** | `employee.routes.js` |
+| **Bloqueante** | No |
+| **Estado** | 🔴 Pendiente (nuevo) |
 
 ---
 
-### 3.2 BACKEND — Middlewares de Autorización (Peso: Alto)
+## P2 — Prioridad Media
 
-#### 🔴 P0-003: Middlewares hardcodeados por rol (`requireRHOrAdmin`, `requireSistemasOrAdmin`, etc.)
+### P2-001: `auth.middleware.js` — Crecimiento descontrolado (370+ líneas)
 
-| Atributo | Valor |
-|----------|-------|
-| **Archivos** | `backend/src/middlewares/auth.middleware.js`, `backend/src/routes/employee.routes.js`, `backend/src/routes/recruitment.routes.js` |
-| **Problema** | Existen middlewares como `requireRHOrAdmin()`, `requireSistemasOrAdmin()`, `requireComprasOrAdmin()`, `requireProduccionOrAdmin()` que hardcodean roles específicos. Esto viola la Regla de Oro del sistema (Nivel A: usar `accessibleModules`, no roles). |
-| **Impacto** | Si se agrega un nuevo rol (ej. VENTAS), estos middlewares no lo cubren y hay que modificarlos manualmente. |
-| **Solución** | Reemplazar por `requireModule('MODULO')` + bypass ADMIN/RH. Los middlewares hardcodeados por rol solo deben existir para operaciones Nivel C (ADMIN). |
-| **Esfuerzo** | 2-3 días (afecta ~30 rutas) |
+| Campo | Valor |
+|-------|-------|
+| **Archivo** | `backend/src/middlewares/auth.middleware.js` |
+| **Líneas** | ~370 |
+| **Problema** | Ha crecido con múltiples responsabilidades: verifyToken, requireModule, requireRole, verifyTokenFromQuery, _sendSSEAwareError, helpers de roles específicos. |
+| **Impacto** | Viola SRP. Mezcla autenticación, autorización y formato de respuestas SSE. |
+| **Solución propuesta** | Extraer a: `auth.middleware.js` (solo verifyToken), `permission.middleware.js` (requireModule, requireRole), `sse.middleware.js` (verifyTokenFromQuery, _sendSSEAwareError). |
+| **Dependencias** | Todas las rutas del backend |
+| **Bloqueante** | Sí — requiere actualizar imports en TODAS las rutas |
+| **Estado** | 🟡 Pendiente |
 
-#### 🟡 P1-002: `requireRole(['ADMIN', 'COMPRAS'])` en rutas de compras
+### P2-002: `ProtectedRoute.js` — Lógica de roles hardcodeada (195 líneas)
 
-| Atributo | Valor |
-|----------|-------|
-| **Archivo** | `backend/src/routes/purchase.routes.js` |
-| **Problema** | Las rutas de compras usan `requireRole(['ADMIN', 'COMPRAS'])` en lugar de `requireModule('COMPRAS')`. Aunque COMPRAS es un rol de negocio, la validación debería ser por módulo. |
-| **Impacto** | Si un usuario RH necesita acceder a compras (con el módulo asignado), no podrá porque el rol no es COMPRAS. |
-| **Solución** | Cambiar a `requireModule('COMPRAS')` y usar `requireRole(['ADMIN'])` solo para operaciones críticas. |
-| **Esfuerzo** | 1 día |
-
----
-
-### 3.3 BACKEND — Rutas Duplicadas (Peso: Medio)
-
-#### 🟡 P1-003: Rutas de empleados duplicadas
-
-| Atributo | Valor |
-|----------|-------|
-| **Archivos** | `backend/src/routes/employee.routes.js` (96 líneas) vs `backend/src/routes/organization.routes.js` (84 líneas) |
-| **Problema** | Ambos archivos definen rutas para departamentos y puestos de trabajo. `employee.routes.js` tiene rutas como `GET /departments`, `GET /job-positions`, etc., y `organization.routes.js` tiene las mismas rutas pero con controladores diferentes. |
-| **Impacto** | Inconsistencia: ¿qué archivo es la fuente de verdad? Posibles conflictos de rutas y comportamiento inesperado. |
-| **Solución** | Unificar en un solo archivo (`organization.routes.js`) y eliminar las rutas duplicadas de `employee.routes.js`. |
-| **Esfuerzo** | 0.5 días |
-
-#### 🟢 P2-001: Endpoints legacy de vacantes (`vacancyApi` en frontend)
-
-| Atributo | Valor |
-|----------|-------|
-| **Archivo** | `frontend/lib/api.js` (líneas 99-120) |
-| **Problema** | Existe `vacancyApi` que apunta a `/vacancies/*` (endpoints legacy), pero el backend ya no tiene `vacancy.routes.js` (fue eliminado según comentario en `index.js` línea 48). |
-| **Impacto** | Dead code en frontend. Si alguien usa `vacancyApi`, obtendrá 404. |
-| **Solución** | Eliminar `vacancyApi` de `api.js` y migrar cualquier consumo a `recruitmentApi`. |
-| **Esfuerzo** | 0.5 días |
-
----
-
-### 3.4 FRONTEND — Componentes (Peso: Alto)
-
-#### 🔴 P0-004: `DashboardLayout.js` — Navegación hardcodeada con roles
-
-| Atributo | Valor |
-|----------|-------|
-| **Archivo** | `frontend/components/DashboardLayout.js` |
-| **Problema** | La navegación de "Administración Global" usa `roles: ['ADMIN', 'RH']` hardcodeados para filtrar items. Esto viola la Regla de Oro (Nivel A: usar `accessibleModules`). Aunque también verifica módulos, el filtro de roles es restrictivo. |
-| **Impacto** | Si un usuario SISTEMAS tiene el módulo EMPLEADOS, no verá "Mi Equipo" porque el item `{ name: 'Mi Equipo', href: '/rh/empleados', icon: '👥', module: 'EMPLEADOS' }` está en `myPortalNavigation` (bien), pero items como "Dashboard RH" requieren rol RH explícito. |
-| **Solución** | Refactorizar para que la navegación se base 100% en `accessibleModules` y solo use roles para items de Nivel C (Gestión de Usuarios, Accesos). |
-| **Esfuerzo** | 1-2 días |
-
-#### 🟡 P1-004: `ProtectedRoute.js` — Componentes hardcodeados por rol
-
-| Atributo | Valor |
-|----------|-------|
+| Campo | Valor |
+|-------|-------|
 | **Archivo** | `frontend/components/ProtectedRoute.js` |
-| **Problema** | Existen `RHProtectedRoute`, `SistemasProtectedRoute`, `ComprasProtectedRoute`, `ProduccionProtectedRoute`, `AdminProtectedRoute` que hardcodean roles. |
-| **Impacto** | Mismo problema que P0-003: no escalan con nuevos roles. |
-| **Solución** | Eliminar componentes helpers hardcodeados. Usar solo `ProtectedRoute` con `requiredModule` y `allowedRoles` solo para Nivel C. |
-| **Esfuerzo** | 1 día |
+| **Líneas** | 195 |
+| **Problema** | Contiene lógica de verificación de roles y módulos que debería estar en un hook o contexto. Mezcla responsabilidades de UI y autorización. |
+| **Impacto** | Dificulta la reutilización y prueba de la lógica de autorización. |
+| **Solución propuesta** | Extraer lógica de autorización a un hook `useAuthorization()` o al `AuthContext`. Dejar ProtectedRoute como wrapper delgado. |
+| **Dependencias** | `AuthContext.js` |
+| **Bloqueante** | No |
+| **Estado** | 🟡 Pendiente |
 
-#### 🟡 P1-005: `AuthContext.js` — Helpers de rol hardcodeados
+### P2-003: `AuthContext.js` — Lógica de redirección por rol (180 líneas)
 
-| Atributo | Valor |
-|----------|-------|
-| **Archivo** | `frontend/contexts/AuthContext.js` (líneas 151-155) |
-| **Problema** | Existen `isAdmin()`, `isRH()`, `isSistemas()`, `isCompras()`, `isProduccion()` que hardcodean roles. |
-| **Impacto** | Fomentan el mal uso (Nivel A con roles en vez de módulos). |
-| **Solución** | Eliminar helpers específicos de rol. Dejar solo `hasRole()` genérico para Nivel C. |
-| **Esfuerzo** | 0.5 días |
+| Campo | Valor |
+|-------|-------|
+| **Archivo** | `frontend/contexts/AuthContext.js` |
+| **Líneas** | 180 |
+| **Problema** | Contiene lógica de redirección basada en rol (`if role === 'ADMIN'`), lo que contradice el modelo de permisos basado en `accessibleModules`. |
+| **Impacto** | Si se agregan nuevos roles, hay que modificar este archivo. |
+| **Solución propuesta** | Usar `accessibleModules` para determinar la ruta por defecto en lugar de hardcodear roles. |
+| **Dependencias** | `api.js`, `DashboardLayout.js` |
+| **Bloqueante** | No |
+| **Estado** | 🟡 Pendiente |
 
----
+### P2-004: `DashboardLayout.js` — Navegación hardcodeada (~250 líneas)
 
-### 3.5 FRONTEND — Páginas (Peso: Medio)
+| Campo | Valor |
+|-------|-------|
+| **Archivo** | `frontend/components/DashboardLayout.js` |
+| **Líneas** | ~250 |
+| **Problema** | Los menús de navegación están hardcodeados con arrays de objetos. Para agregar un nuevo módulo hay que modificar este archivo. |
+| **Impacto** | Viola el principio de "Configuración sobre código". Cada nuevo módulo requiere modificar este archivo. |
+| **Solución propuesta** | Consumir menús desde `GET /api/modules` o desde un archivo de configuración centralizado. Generar navegación dinámicamente. |
+| **Dependencias** | `api.js`, `modules.config.js` |
+| **Bloqueante** | No — pero requeriría refactorizar cómo se construye el sidebar |
+| **Estado** | 🟡 Pendiente |
 
-#### 🟡 P1-006: `dashboard/usuarios/page.js` — Validación por rol ADMIN
+### P2-005: `frontend/lib/api.js` — Crecimiento lineal sin separación
 
-| Atributo | Valor |
-|----------|-------|
-| **Archivo** | `frontend/app/dashboard/usuarios/page.js` (línea 200) |
-| **Problema** | `if (!user || user.role !== 'ADMIN')` — Esto es correcto para Nivel C (gestión de usuarios es operación crítica), pero la página también usa `getAllRoles()` del frontend en vez de consumir `GET /api/roles`. |
-| **Impacto** | Si se agrega un rol personalizado desde la UI de Accesos, la página de usuarios no lo mostrará porque usa el fallback local. |
-| **Solución** | Consumir `systemApi.getRoles()` para obtener roles dinámicos. |
-| **Esfuerzo** | 0.5 días |
+| Campo | Valor |
+|-------|-------|
+| **Archivo** | `frontend/lib/api.js` |
+| **Líneas** | ~260 |
+| **Problema** | Todos los APIs están en un solo archivo. Ya se agregaron `stationeryApi` y `uniformApi` como objetos separados, pero siguen en el mismo archivo. |
+| **Impacto** | Archivo crece con cada nuevo módulo. Dificulta encontrar APIs específicos. |
+| **Solución propuesta** | Dividir en `lib/api/` con archivos por módulo: `api/empleados.js`, `api/compras.js`, `api/reclutamiento.js`, etc. |
+| **Dependencias** | Todos los componentes que importan de `@/lib/api` |
+| **Bloqueante** | No — pero requeriría actualizar imports en muchos archivos |
+| **Estado** | 🟡 Pendiente |
 
-#### 🟢 P2-002: `dashboard/accesos/page.js` — Dependencia de `rolesConfig` para nombres
+### P2-006: `docker-compose.yml` — Sin healthchecks ni redes definidas
 
-| Atributo | Valor |
-|----------|-------|
-| **Archivo** | `frontend/app/dashboard/accesos/page.js` |
-| **Problema** | Usa `getRoleName()` y `getRoleColor()` de `rolesConfig.js` (fallback local) en lugar de usar los nombres/colores que vienen de la API. |
-| **Impacto** | Si se personaliza el color o nombre de un rol desde el backend, el frontend no lo reflejará. |
-| **Solución** | Usar `role.name` y `role.color` directamente de la respuesta de la API, con fallback a `rolesConfig`. |
-| **Esfuerzo** | 0.5 días |
-
----
-
-### 3.6 SEGURIDAD (Peso: Alto)
-
-#### 🔴 P0-005: Tokens JWT sin `accessibleModules` en payload
-
-| Atributo | Valor |
-|----------|-------|
-| **Archivo** | `backend/src/controllers/auth.controller.js` (asumido) |
-| **Problema** | Según las reglas del sistema, el JWT debe incluir `accessibleModules` y `role` en el payload. Si no se incluye, el frontend no puede validar módulos sin hacer una llamada API adicional. |
-| **Impacto** | El frontend podría mostrar módulos que el usuario ya no tiene acceso (si se cambiaron los permisos y el token no se refrescó). |
-| **Solución** | Verificar que el JWT incluya `accessibleModules` y forzar regeneración del token al cambiar permisos. |
-| **Esfuerzo** | 1 día |
-
-#### 🟡 P1-007: Contraseñas hardcodeadas en docker-compose
-
-| Atributo | Valor |
-|----------|-------|
+| Campo | Valor |
+|-------|-------|
 | **Archivo** | `docker-compose.yml` |
-| **Problema** | `POSTGRES_PASSWORD: krampassword123` y `PGADMIN_DEFAULT_PASSWORD: admin123` están en texto plano. |
-| **Impacto** | Riesgo de seguridad si el repositorio es público o accesible. |
-| **Solución** | Usar variables de entorno (`.env`) como ya se hace en `docker-compose.prod.yml`. |
-| **Esfuerzo** | 0.5 días |
+| **Problema** | Los servicios no tienen healthchecks. No hay redes definidas explícitamente. |
+| **Impacto** | En producción, si un servicio falla, Docker no lo reinicia automáticamente. |
+| **Solución propuesta** | Agregar healthchecks a cada servicio. Definir redes explícitas. |
+| **Bloqueante** | No |
+| **Estado** | 🟡 Pendiente |
 
----
+### P2-007: `schema.prisma` — Sin índices en campos de búsqueda frecuente
 
-### 3.7 PRISMA / BASE DE DATOS (Peso: Medio)
-
-#### 🟢 P2-003: Modelo `Role` duplicado con enum `RoleType`
-
-| Atributo | Valor |
-|----------|-------|
+| Campo | Valor |
+|-------|-------|
 | **Archivo** | `backend/prisma/schema.prisma` |
-| **Problema** | Existe tanto el enum `RoleType` como el modelo `Role` (tabla). El enum define los roles del sistema, pero la tabla `Role` permite roles personalizados. Hay duplicación conceptual. |
-| **Impacto** | Confusión: ¿los roles se validan contra el enum o contra la tabla? |
-| **Solución** | Documentar claramente que `RoleType` enum es para roles del sistema y la tabla `Role` es para roles personalizados. Considerar eliminar el enum y usar solo la tabla. |
-| **Esfuerzo** | 1 día (requiere migración) |
+| **Problema** | Tablas grandes (Employee, JobVacancy, PurchaseRequest) no tienen índices en campos usados frecuentemente en búsquedas (estatus, fechas, departamento_id). |
+| **Impacto** | Consultas lentas a medida que crecen los datos. |
+| **Solución propuesta** | Agregar índices compuestos en: `Employee(departamento_id, estatus)`, `JobVacancy(estatus, fechaCreacion)`, `PurchaseRequest(estatus, fechaSolicitud)`. |
+| **Bloqueante** | No — pero requiere migración de BD |
+| **Estado** | 🟡 Pendiente |
 
-#### 🟢 P2-004: Falta de índices en tablas grandes
+### P2-008: `stationery.routes.js` — Uso de `requireRole` en lugar de `requireModule` — ✅ RESUELTO
 
-| Atributo | Valor |
-|----------|-------|
-| **Archivo** | `backend/prisma/schema.prisma` |
-| **Problema** | Tablas como `AttendanceRecord`, `PurchaseRequest`, `JobVacancy` no tienen índices explícitos en campos de búsqueda frecuente (fechas, estatus, userId). |
-| **Impacto** | Degradación de rendimiento conforme crecen los datos. |
-| **Solución** | Agregar índices compuestos en campos de filtrado común. |
-| **Esfuerzo** | 0.5 días |
+| Campo | Valor |
+|-------|-------|
+| **Archivo** | `backend/src/routes/stationery.routes.js` |
+| **Líneas** | 67 |
+| **Problema** | Las rutas de inventario (POST, PUT, DELETE) usaban `requireRole(['ADMIN', 'COMPRAS'])` en lugar de `requireModule('COMPRAS')`. |
+| **Impacto** | Violaba la regla de Nivel A del modelo de seguridad. |
+| **Solución aplicada** | Reemplazado `requireRole(['ADMIN', 'COMPRAS'])` por `requireModule('COMPRAS')` en 3 rutas de inventario. |
+| **Dependencias** | `auth.middleware.js` |
+| **Bloqueante** | No |
+| **Estado** | ✅ Resuelto (06/07/2026) — Fase 0. Commit `4b17bba`. |
 
----
+### P2-009: `uniform.routes.js` — Uso de `requireRole` en lugar de `requireModule` — ✅ RESUELTO
 
-### 3.8 INFRAESTRUCTURA (Peso: Bajo)
-
-#### 🟢 P2-005: Docker Compose de desarrollo sin healthcheck
-
-| Atributo | Valor |
-|----------|-------|
-| **Archivo** | `docker-compose.yml` |
-| **Problema** | El docker-compose de desarrollo no tiene healthchecks ni depends_on condition, lo que puede causar que la app inicie antes que PostgreSQL. |
-| **Impacto** | Errores intermitentes al levantar el entorno con `docker-compose up`. |
-| **Solución** | Agregar healthchecks (como ya se hizo en `docker-compose.prod.yml`). |
-| **Esfuerzo** | 0.5 días |
-
-#### 🟢 P3-001: Scripts batch sin verificación de errores
-
-| Atributo | Valor |
-|----------|-------|
-| **Archivos** | `start-backend.bat`, `start-frontend.bat` |
-| **Problema** | Los scripts batch no verifican si los directorios existen, si las dependencias están instaladas, etc. |
-| **Impacto** | Bajo. Solo afecta desarrollo local. |
-| **Solución** | Agregar verificaciones básicas. |
-| **Esfuerzo** | 0.5 días |
+| Campo | Valor |
+|-------|-------|
+| **Archivo** | `backend/src/routes/uniform.routes.js` |
+| **Líneas** | 57 |
+| **Problema** | Las rutas de inventario (POST, PUT, DELETE) y la ruta de historial por empleado usaban `requireRole(['ADMIN', 'COMPRAS'])` y `requireRole(['ADMIN', 'COMPRAS', 'RH'])` en lugar de `requireModule('COMPRAS')`. |
+| **Impacto** | Violaba el modelo de seguridad de Nivel A. |
+| **Solución aplicada** | Reemplazado `requireRole` por `requireModule('COMPRAS')` en 4 rutas (3 inventory + 1 history). |
+| **Dependencias** | `auth.middleware.js` |
+| **Bloqueante** | No |
+| **Estado** | ✅ Resuelto (06/07/2026) — Fase 0. Commit `4b17bba`. |
 
 ---
 
-### 3.9 CÓDIGO MUERTO (Peso: Medio)
+## P3 — Prioridad Baja
 
-#### 🟡 P1-008: Endpoints de prueba en auth.routes.js
+### P3-001: `auth.routes.js` — Ruta `/api/me` duplicada
 
-| Atributo | Valor |
-|----------|-------|
-| **Archivo** | `backend/src/routes/auth.routes.js` (líneas 51-89) |
-| **Problema** | Existen 4 endpoints de test (`/test/admin`, `/test/rh`, `/test/sistemas`, `/test/compras`, `/test/produccion`) que solo devuelven un mensaje. |
-| **Impacto** | Código muerto en producción. Posible superficie de ataque. |
-| **Solución** | Eliminar o mover a un archivo de desarrollo condicional (`if (NODE_ENV !== 'production')`). |
-| **Esfuerzo** | 0.5 días |
+| Campo | Valor |
+|-------|-------|
+| **Archivo** | `backend/src/routes/auth.routes.js` |
+| **Problema** | La ruta `GET /api/me` podría estar definida también en `employee.routes.js` o `user.routes.js`. |
+| **Impacto** | Confusión sobre dónde está la fuente de verdad para obtener el perfil del usuario autenticado. |
+| **Solución propuesta** | Unificar en una sola ruta, preferiblemente en `auth.routes.js`. |
+| **Estado** | ⚪ Pendiente |
 
-#### 🟢 P2-006: Ruta admin/users sin implementar
+### P3-002: `start-backend.bat` y `start-frontend.bat` — Scripts sin validación
 
-| Atributo | Valor |
-|----------|-------|
-| **Archivo** | `backend/src/routes/auth.routes.js` (líneas 41-48) |
-| **Problema** | `GET /auth/admin/users` existe pero solo devuelve un mensaje placeholder. |
-| **Impacto** | Confusión: parece un endpoint funcional pero no lo es. |
-| **Solución** | Implementar o eliminar. |
-| **Esfuerzo** | 0.5 días |
+| Campo | Valor |
+|-------|-------|
+| **Archivo** | `start-backend.bat`, `start-frontend.bat` |
+| **Problema** | Scripts simples que asumen que las dependencias están instaladas y los puertos disponibles. |
+| **Impacto** | Si falta una dependencia, el error no es claro. |
+| **Solución propuesta** | Agregar validaciones básicas (verificar node_modules, puerto disponible). |
+| **Estado** | ⚪ Pendiente |
 
-#### 🟢 P3-002: `statsApi` con endpoints que pueden no existir
+### P3-003: `organization.routes.js` — Rutas sin agrupar
 
-| Atributo | Valor |
-|----------|-------|
-| **Archivo** | `frontend/lib/api.js` (líneas 174-183) |
-| **Problema** | `statsApi.getRHStats()` apunta a `/stats/rh` y `statsApi.getDepartmentStats()` a `/stats/department`, pero las rutas reales en `stats.routes.js` son `/stats/rh/dashboard` y `/stats/my-dashboard`. |
-| **Impacto** | Dead code o errores 404 si alguien usa estos métodos. |
-| **Solución** | Actualizar o eliminar. |
-| **Esfuerzo** | 0.5 días |
+| Campo | Valor |
+|-------|-------|
+| **Archivo** | `backend/src/routes/organization.routes.js` |
+| **Problema** | Las rutas de organización (departamentos, puestos) están mezcladas sin agrupación clara. |
+| **Impacto** | Bajo — solo organizativo. |
+| **Solución propuesta** | Agrupar por recurso: `/departamentos/*`, `/puestos/*`, `/jerarquias/*`. |
+| **Estado** | ⚪ Pendiente |
 
----
+### P3-004: `employee.routes.js` — Ruta `GET /api/employees` sin paginación por defecto
 
-### 3.10 FRONTEND — Estructura de Archivos (Peso: Bajo)
+| Campo | Valor |
+|-------|-------|
+| **Archivo** | `backend/src/routes/employee.routes.js` |
+| **Problema** | El endpoint `GET /api/employees` acepta `page` y `limit` como query params, pero no tienen valores por defecto obligatorios. |
+| **Impacto** | Si se omite la paginación, puede devolver miles de registros. |
+| **Solución propuesta** | Establecer valores por defecto (page=1, limit=20) a nivel de ruta o controller. |
+| **Estado** | ⚪ Pendiente |
 
-#### 🟢 P3-003: Convención de nombres inconsistente
+### P3-005: `purchase.routes.js` — Mezcla de estilos de autorización — ✅ RESUELTO
 
-| Atributo | Valor |
-|----------|-------|
-| **Problema** | Mezcla de convenciones: `kebab-case` (ej. `rolesConfig.js`), `PascalCase` (ej. `DashboardLayout.js`, `RoleManager.js`), `camelCase` (ej. `api.js`). |
-| **Impacto** | Bajo. No afecta funcionalidad, pero dificulta la navegación. |
-| **Solución** | Estandarizar a `kebab-case` para archivos de utilería y `PascalCase` para componentes React. |
-| **Esfuerzo** | 1 día (refactor cosmético) |
-
-#### 🟢 P3-004: Componentes en `frontend/components/` sin subdirectorios
-
-| Atributo | Valor |
-|----------|-------|
-| **Problema** | Los 11 componentes están en la raíz de `components/` sin organización por módulo. |
-| **Impacto** | A medida que crecen los componentes, se vuelve difícil encontrar el correcto. |
-| **Solución** | Organizar en subdirectorios: `components/layout/`, `components/rh/`, `components/compras/`, `components/common/`. |
-| **Esfuerzo** | 1 día |
-
----
-
-## 4. MAPA DE CALOR POR MÓDULO
-
-| Módulo | Deuda Crítica (P0) | Deuda Alta (P1) | Deuda Media (P2) | Deuda Baja (P3) | Prioridad |
-|--------|-------------------|-----------------|------------------|-----------------|-----------|
-| **Empleados** | P0-001 (God Object) | P1-003 (rutas duplicadas) | — | — | 🔴 Alta |
-| **Reclutamiento** | P0-002 (God Object) | P0-003 (middlewares) | P2-001 (legacy) | — | 🔴 Alta |
-| **Compras** | — | P1-001, P1-002 | — | — | 🟡 Media |
-| **Auth/Seguridad** | P0-005 (JWT) | P1-007 (passwords) | — | P1-008 (tests) | 🔴 Alta |
-| **Frontend (Layout)** | P0-004 (nav hardcodeada) | P1-004, P1-005 | — | P3-003, P3-004 | 🔴 Alta |
-| **Frontend (Páginas)** | — | P1-006 | P2-002 | — | 🟡 Media |
-| **Base de Datos** | — | — | P2-003, P2-004 | — | 🟢 Baja |
-| **Infraestructura** | — | — | P2-005 | P3-001 | 🟢 Baja |
-| **Código Muerto** | — | P1-008 | P2-006 | P3-002 | 🟡 Media |
+| Campo | Valor |
+|-------|-------|
+| **Archivo** | `backend/src/routes/purchase.routes.js` |
+| **Líneas** | 223 |
+| **Problema** | Algunas rutas usaban `requireModule('COMPRAS')`, otras usaban `requireRole(['ADMIN', 'COMPRAS'])`. Inconsistencia en el modelo de autorización. |
+| **Impacto** | Bajo — funcionalmente ambas funcionan, pero era inconsistente con el estándar. |
+| **Solución aplicada** | Unificado a `requireModule('COMPRAS')` en las 17 rutas que usaban `requireRole` redundante. |
+| **Estado** | ✅ Resuelto (06/07/2026) — Fase 0. Commit `4b17bba`. |
 
 ---
 
-## 5. PLAN DE REMEDIACIÓN SUGERIDO
+## Resumen de Deuda
 
-### Sprint 1: Seguridad y Middlewares (P0 + P1 críticos)
+| Prioridad | Pendientes | Resueltos | Total |
+|-----------|-----------|-----------|-------|
+| **P1** | 4 | 0 | 4 |
+| **P2** | 7 | 2 | 9 |
+| **P3** | 4 | 1 | 5 |
+| **Total** | **15** | **3** | **18** |
 
-| ID | Ítem | Días |
-|----|------|------|
-| P0-003 | Refactor middlewares hardcodeados → `requireModule()` | 2-3 |
-| P0-005 | JWT con `accessibleModules` + regeneración al cambiar permisos | 1 |
-| P1-007 | Mover passwords a variables de entorno | 0.5 |
-| P1-008 | Eliminar endpoints de test | 0.5 |
-| **Total** | | **4-5 días** |
+### Progreso desde v1.0 (13/06/2026)
 
-### Sprint 2: Refactor Backend (God Objects)
+| Indicador | v1.0 | v2.0 | v2.1 (actual) |
+|-----------|------|------|---------------|
+| Items P1 | 3 | 4 | 4 (sin cambios) |
+| Items P2 | 7 | 9 | 9 (2 resueltos, 7 pendientes) |
+| Items P3 | 5 | 5 | 5 (1 resuelto, 4 pendientes) |
+| **Total** | **15** | **18** | **18 (3 resueltos)** |
 
-| ID | Ítem | Días |
-|----|------|------|
-| P0-001 | Extraer `employee-core.controller.js` a servicios | 3-4 |
-| P0-002 | Extraer `recruitment.controller.js` a servicios | 4-5 |
-| P1-001 | Refactor parcial `purchase.controller.js` | 1-2 |
-| **Total** | | **8-11 días** |
+### Notas de la revisión del 06/07/2026 (Fase 0 completada)
 
-### Sprint 3: Frontend y Rutas
+- **Primeros 3 items de deuda resueltos**: P2-008, P2-009, P3-005.
+- Se unificó el modelo de autorización en 3 archivos de rutas (`stationery`, `uniform`, `purchase`).
+- Se eliminaron 24 instancias de `requireRole` redundante, reemplazadas por `requireModule('COMPRAS')`.
+- El middleware `requireModule` ya da bypass automático a ADMIN y RH, por lo que el cambio es funcionalmente equivalente.
+- Se creó `docs/PLAN_REMEDIACION_DEUDA_TECNICA.md` como guía oficial de implementación.
+- Se detectaron 16 hallazgos nuevos no documentados previamente (páginas frontend >200 líneas, servicios >500 líneas).
 
-| ID | Ítem | Días |
-|----|------|------|
-| P0-004 | Refactor `DashboardLayout.js` (navegación por módulos) | 1-2 |
-| P1-003 | Unificar rutas duplicadas de empleados/organización | 0.5 |
-| P1-004 | Eliminar componentes ProtectedRoute hardcodeados | 1 |
-| P1-005 | Eliminar helpers de rol en AuthContext | 0.5 |
-| P1-006 | Consumir roles desde API en página de usuarios | 0.5 |
-| P2-001 | Eliminar `vacancyApi` legacy | 0.5 |
-| P2-002 | Usar datos de API en página de accesos | 0.5 |
-| **Total** | | **4.5-6 días** |
+### Notas de la revisión del 26/06/2026
 
-### Sprint 4: Limpieza y Calidad
-
-| ID | Ítem | Días |
-|----|------|------|
-| P2-003 | Documentar/refactor modelo Role vs enum | 1 |
-| P2-004 | Agregar índices a tablas grandes | 0.5 |
-| P2-005 | Healthchecks en docker-compose dev | 0.5 |
-| P2-006 | Implementar o eliminar ruta admin/users | 0.5 |
-| P3-001 | Mejorar scripts batch | 0.5 |
-| P3-002 | Actualizar/eliminar statsApi | 0.5 |
-| P3-003 | Estandarizar convención de nombres | 1 |
-| P3-004 | Organizar componentes en subdirectorios | 1 |
-| **Total** | | **5.5 días** |
+- **Ningún item de deuda existente fue resuelto** desde la última actualización.
+- Se descubrió `employee.controller.js` (1581 líneas) como un God Object no documentado previamente.
+- Los nuevos módulos (Papelería y Uniformes) introdujeron 2 nuevos items de deuda P2 por uso incorrecto de `requireRole` en rutas.
+- Los nuevos controllers (stationery.controller.js: 119 líneas, uniform.controller.js: 89 líneas) y servicios (stationery.service.js: 146 líneas, uniform.service.js: 95 líneas) son ejemplares: delgados, con separación de capas correcta.
+- La deuda total aumentó de 15 a 18 items.
 
 ---
 
-## 6. RIESGOS Y DEPENDENCIAS
+## Plan de remediación sugerido
 
-| Riesgo | Impacto | Mitigación |
-|--------|---------|------------|
-| **Refactor de middlewares (P0-003)** puede romper rutas existentes | Alto | Agregar tests de integración antes de refactorizar |
-| **Extraer God Objects (P0-001, P0-002)** puede introducir bugs | Alto | Refactor incremental, no reescribir todo de golpe |
-| **Cambio de JWT (P0-005)** puede dejar sesiones inválidas | Medio | Forzar logout de todos los usuarios al hacer deploy |
-| **Refactor DashboardLayout (P0-004)** puede cambiar navegación | Medio | Validar con usuarios RH y ADMIN antes del deploy |
+### Fase 0 ✅ Completada (06/07/2026)
+1. ~~**P2-008** y **P2-009**: Corregir `stationery.routes.js` y `uniform.routes.js` para usar `requireModule('COMPRAS')`~~ ✅ Resuelto.
+2. ~~**P3-005**: Unificar `purchase.routes.js` a `requireModule('COMPRAS')`~~ ✅ Resuelto.
 
----
+### Sprint actual (prioridad inmediata)
+3. **P2-002**: Refactorizar `ProtectedRoute.js` para extraer lógica de autorización a un hook.
 
-## 7. MÉTRICAS DE CÓDIGO
+### Próximo sprint
+4. **P1-004**: Auditar `employee.controller.js` y dividir en controladores especializados.
+5. **P2-001**: Dividir `auth.middleware.js` en middlewares especializados.
 
-| Métrica | Backend | Frontend |
-|---------|---------|----------|
-| **Archivos totales** | ~40 | ~80 |
-| **Líneas totales** | ~8,500 | ~12,000 |
-| **God Objects (>500 líneas)** | 2 (employee-core: 1123, recruitment: 1550) | 0 |
-| **Archivos grandes (>300 líneas)** | 4 | 3 |
-| **Middlewares hardcodeados** | 5 | 5 helpers |
-| **Endpoints de prueba** | 5 | 0 |
-| **Código muerto (estimado)** | ~150 líneas | ~200 líneas |
+### Próximos 2-3 sprints
+6. **P1-001**: Refactorizar `employee-core.controller.js`.
+7. **P1-002**: Refactorizar `recruitment.controller.js`.
+8. **P1-003**: Refactorizar `purchase.controller.js`.
+9. **P2-004**: Hacer dinámica la navegación del DashboardLayout.
 
----
-
-## 8. NOTAS ADICIONALES
-
-- **Deuda aceptada conscientemente**: Los God Objects de empleados y reclutamiento se crearon en fases tempranas del proyecto cuando la prioridad era la velocidad de entrega. Ahora que el sistema está estable, es momento de refactorizar.
-- **Deuda heredada**: Los middlewares hardcodeados (`requireRHOrAdmin`, etc.) son de una versión anterior del sistema de permisos. La migración a `requireModule()` ya comenzó pero no se completó.
-- **Deuda por crecimiento**: La falta de índices en BD y la organización plana de componentes son consecuencias del crecimiento orgánico del proyecto.
-
----
-
-*Documento generado el 13/06/2026 basado en análisis estático del código fuente.*
+### Backlog
+10. Items P3 restantes.
+11. **P2-007**: Agregar índices a schema.prisma (requiere migración).
