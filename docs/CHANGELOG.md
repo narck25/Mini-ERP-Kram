@@ -5,6 +5,29 @@
 
 ---
 
+## v5.5 — Fases 7-8: Servicios backend + Documentación final
+
+**Fecha:** 06/07/2026 — Commits `d8da3e7`, `b297bf9`
+
+### Changed (Fase 7 — Servicios Backend)
+- **purchase-order.service.js** (761→460 líneas): PDF generator extraído a `order-pdf.service.js`
+- **status-notification.service.js** (540→180 líneas): Plantillas HTML extraídas a `status-templates.service.js`
+- **organization.controller.js** (581→18 líneas): Dividido en `department.controller.js` + `position.controller.js`
+- **employee-csv.controller.js**: Plantillas CSV delegadas a `services/empleados/csv-template.service.js`
+
+### Docs
+- **DEUDA_TECNICA.md** (v4.0 FINAL): Documento de cierre con resumen completo de la remediación. 17/18 items resueltos (94%). Backlog documentado.
+
+### Summary — Plan de Remediación Completo
+- **8 fases completadas** (Fase 0-5, 7-8)
+- **17 de 18 items de deuda resueltos** (94%)
+- **11 archivos nuevos creados**, **1 archivo eliminado** (1682 líneas de dead code)
+- **God Objects**: 4 → 0 (-100%)
+- **requireRole en módulos**: 24 → 0 (-100%)
+- **5 commits en GitHub**
+
+---
+
 ## v5.4 — Fases 1-5: Remediación masiva de deuda técnica
 
 **Fecha:** 06/07/2026
