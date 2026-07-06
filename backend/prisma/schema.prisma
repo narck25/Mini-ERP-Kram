@@ -127,6 +127,7 @@ model Employee {
   uniformDeliveries     UniformDelivery[]   @relation("UniformeEmpleado")
   uniformDeliveriesMade UniformDelivery[]   @relation("UniformeEntregador")
 
+  @@index([departamento_id, estatus])
   @@map("employees")
 }
 
@@ -186,6 +187,7 @@ model JobVacancy {
   jobPosition             JobPosition?     @relation(fields: [jobPositionId], references: [id])
   comments                VacancyComment[]
 
+  @@index([estatus, fechaSolicitud])
   @@map("job_vacancies")
 }
 
@@ -403,6 +405,7 @@ model PurchaseRequest {
 
   updatedAt       DateTime       @updatedAt
 
+  @@index([estatus, fechaSolicitud])
   @@map("purchase_requests")
 }
 

@@ -5,6 +5,45 @@
 
 ---
 
+## v5.4 — Fases 1-5: Remediación masiva de deuda técnica
+
+**Fecha:** 06/07/2026
+
+### Changed (Fase 1 — Autorización)
+- **ProtectedRoute.js**: Lógica de autorización extraída a `hooks/useAuthorization.js` (hasRole, hasModule, helpers semánticos). Wrapper delgado.
+- **AuthContext.js**: Eliminados 5 helpers por rol hardcodeados (`isAdmin`, `isRH`, etc.). Movidos a `useAuthorization.js`.
+
+### Changed (Fase 2 — Middlewares)
+- **auth.middleware.js**: Reducido de 370 a 117 líneas (-68%). Dividido en 3 archivos especializados: `auth.middleware.js` (verifyToken), `permission.middleware.js` (requireModule, requireRole), `sse.middleware.js` (verifyTokenFromQuery). 0 cambios en rutas gracias a re-exports.
+
+### Changed (Fase 3 — God Objects)
+- **employee.controller.js**: Eliminado (1682 líneas de dead code — 0 referencias).
+- **employee-core.controller.js**: Reducido de 1124 a 120 líneas (-89%). CRUD extraído a `employee-crud.controller.js` (290 líneas).
+- **recruitment.controller.js**: Reducido de 1550 a 1069 líneas (-31%). Candidatos extraídos a `candidate.controller.js` (528 líneas).
+- **purchase.controller.js**: Verificado — ya cumple SRP con controllers delgados que delegan en servicios.
+
+### Changed (Fase 4 — Frontend)
+- **DashboardLayout.js**: Navegación extraída a `constants/navigation.js`. Reducido de 340 a 305 líneas.
+- **start-backend.bat / start-frontend.bat**: Agregada validación de `node_modules` con mensajes de error claros.
+- **Paginación empleados**: Defaults `page=1, limit=20` implementados en `employee-crud.controller.js`.
+
+### Changed (Fase 5 — Infraestructura)
+- **docker-compose.yml**: Healthcheck `pg_isready` agregado a servicio postgres.
+- **schema.prisma**: 3 índices compuestos agregados: `Employee(departamento_id, estatus)`, `JobVacancy(estatus, fechaSolicitud)`, `PurchaseRequest(estatus, fechaSolicitud)`.
+
+### Fixed
+- **P1-001, P1-002, P1-004**: God Objects eliminados o reducidos.
+- **P2-001, P2-002, P2-003, P2-004**: SRP aplicado a middlewares, ProtectedRoute, AuthContext, DashboardLayout.
+- **P2-006, P2-007**: Infraestructura optimizada.
+- **P3-002, P3-004**: Scripts y paginación corregidos.
+- **17 de 18 items de deuda documentada resueltos (94%)**.
+
+### Docs
+- **DEUDA_TECNICA.md** (v3.1): 17 items marcados como resueltos. Métricas de reducción documentadas.
+- **PLAN_REMEDIACION_DEUDA_TECNICA.md**: Plan maestro de 9 fases.
+
+---
+
 ## v5.3 — Fase 0: Unificación de autorización en rutas de Compras
 
 **Fecha:** 06/07/2026 — Commit `4b17bba`

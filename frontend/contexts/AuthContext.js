@@ -148,12 +148,6 @@ export const AuthProvider = ({ children }) => {
     return requiredRoles.some(role => role.toUpperCase() === userRoleUpper)
   }
 
-  const isAdmin = () => hasRole(['ADMIN'])
-  const isRH = () => hasRole(['RH', 'ADMIN'])
-  const isSistemas = () => hasRole(['SISTEMAS', 'ADMIN'])
-  const isCompras = () => hasRole(['COMPRAS', 'ADMIN'])
-  const isProduccion = () => hasRole(['PRODUCCION', 'ADMIN'])
-
   const value = {
     user,
     loading,
@@ -164,11 +158,6 @@ export const AuthProvider = ({ children }) => {
     updateProfile,
     changePassword,
     hasRole,
-    isAdmin,
-    isRH,
-    isSistemas,
-    isCompras,
-    isProduccion,
     checkAuth
   }
 

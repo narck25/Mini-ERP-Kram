@@ -1,16 +1,18 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
+import { useAuthorization } from '@/hooks/useAuthorization'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
 /**
- * Componente para proteger rutas basadas en roles de usuario y módulos accesibles
+ * Componente para proteger rutas basadas en módulos accesibles.
+ * Delega la lógica de autorización al hook useAuthorization().
  * 
  * @param {Object} props
  * @param {React.ReactNode} props.children - Contenido a renderizar si el usuario tiene acceso
- * @param {string[]} props.allowedRoles - Array de roles permitidos para acceder a la ruta
- * @param {string} props.requiredModule - Nombre del módulo requerido para acceder a la ruta
+ * @param {string} props.requiredModule - Nombre del módulo requerido (Nivel A)
+ * @param {string[]} props.allowedRoles - [DEPRECADO] Usar requiredModule en su lugar. Solo para Nivel C.
  * @param {boolean} props.requireAuth - Si es true, requiere autenticación (por defecto: true)
  * @param {string} props.redirectTo - Ruta a la que redirigir si no tiene acceso (por defecto: '/')
  * @param {React.ReactNode} props.loadingComponent - Componente a mostrar mientras se verifica autenticación
@@ -25,33 +27,32 @@ export default function ProtectedRoute({
   loadingComponent = null,
   unauthorizedComponent = null
 }) {
-  const { user, loading, authChecked, hasRole } = useAuth()
+  const { user, loading, authChecked } = useAuth()
+  const { hasRole, hasModule } = useAuthorization()
   const router = useRouter()
 
   useEffect(() => {
-    // Solo redirigir cuando la autenticación ya se verificó
     if (!authChecked || loading) return
 
-    // Si requiere autenticación y no hay usuario, redirigir
     if (requireAuth && !user) {
       router.push(redirectTo)
       return
     }
 
-    // Si hay roles específicos y el usuario no tiene ninguno, redirigir
+    // Nivel C: verificación por rol (solo para operaciones críticas)
     if (user && allowedRoles.length > 0 && !hasRole(allowedRoles)) {
       if (unauthorizedComponent) return
       router.push(redirectTo)
+      return
     }
 
-    // Si se requiere un módulo específico y el usuario no lo tiene, redirigir
-    if (user && requiredModule && !user.accessibleModules?.includes(requiredModule)) {
+    // Nivel A: verificación por módulo (método principal de control de acceso)
+    if (user && requiredModule && !hasModule(requiredModule)) {
       if (unauthorizedComponent) return
       router.push(redirectTo)
     }
-  }, [user, loading, authChecked, allowedRoles, requiredModule, requireAuth, redirectTo, hasRole, router, unauthorizedComponent])
+  }, [user, loading, authChecked, allowedRoles, requiredModule, requireAuth, redirectTo, hasRole, hasModule, router, unauthorizedComponent])
 
-  // Mostrar componente de carga mientras se verifica autenticación
   if (loading || !authChecked) {
     return loadingComponent || (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -63,39 +64,22 @@ export default function ProtectedRoute({
     )
   }
 
-  // Si no requiere autenticación, mostrar contenido
-  if (!requireAuth) {
-    return <>{children}</>
-  }
+  if (!requireAuth) return <>{children}</>
+  if (!user) return null
 
-  // Si requiere autenticación pero no hay usuario, ya se redirigió
-  if (!user) {
-    return null
-  }
-
-  // Si hay roles específicos y el usuario no tiene permisos
   if (allowedRoles.length > 0 && !hasRole(allowedRoles)) {
-    if (unauthorizedComponent) {
-      return <>{unauthorizedComponent}</>
-    }
-    return null
+    return unauthorizedComponent ? <>{unauthorizedComponent}</> : null
   }
 
-  // Si se requiere un módulo específico y el usuario no lo tiene
-  if (requiredModule && !user.accessibleModules?.includes(requiredModule)) {
-    if (unauthorizedComponent) {
-      return <>{unauthorizedComponent}</>
-    }
-    return null
+  if (requiredModule && !hasModule(requiredModule)) {
+    return unauthorizedComponent ? <>{unauthorizedComponent}</> : null
   }
 
-  // Usuario autenticado y con permisos
   return <>{children}</>
 }
 
-/**
- * Componente de ayuda para mostrar mensaje de acceso denegado
- */
+// ─── Componentes de ayuda (wrappers delgados) ───
+
 export function UnauthorizedMessage({ message = 'Acceso denegado', details = '' }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -120,75 +104,59 @@ export function UnauthorizedMessage({ message = 'Acceso denegado', details = '' 
 }
 
 /**
- * Componente de ayuda para proteger rutas específicas de RH
+ * Wrapper para rutas de RH (Nivel C).
+ * @deprecated Preferir requiredModule sobre allowedRoles para Nivel A.
  */
 export function RHProtectedRoute({ children, ...props }) {
   return (
-    <ProtectedRoute
-      allowedRoles={['RH', 'ADMIN']}
-      unauthorizedComponent={<UnauthorizedMessage message="Acceso restringido a RH" />}
-      {...props}
-    >
+    <ProtectedRoute allowedRoles={['RH', 'ADMIN']} unauthorizedComponent={<UnauthorizedMessage message="Acceso restringido a RH" />} {...props}>
       {children}
     </ProtectedRoute>
   )
 }
 
 /**
- * Componente de ayuda para proteger rutas específicas de Sistemas
+ * Wrapper para rutas de Sistemas (Nivel C).
+ * @deprecated Preferir requiredModule sobre allowedRoles para Nivel A.
  */
 export function SistemasProtectedRoute({ children, ...props }) {
   return (
-    <ProtectedRoute
-      allowedRoles={['SISTEMAS', 'ADMIN']}
-      unauthorizedComponent={<UnauthorizedMessage message="Acceso restringido a Sistemas" />}
-      {...props}
-    >
+    <ProtectedRoute allowedRoles={['SISTEMAS', 'ADMIN']} unauthorizedComponent={<UnauthorizedMessage message="Acceso restringido a Sistemas" />} {...props}>
       {children}
     </ProtectedRoute>
   )
 }
 
 /**
- * Componente de ayuda para proteger rutas específicas de Compras
+ * Wrapper para rutas de Compras (Nivel C).
+ * @deprecated Preferir requiredModule='COMPRAS' para Nivel A.
  */
 export function ComprasProtectedRoute({ children, ...props }) {
   return (
-    <ProtectedRoute
-      allowedRoles={['COMPRAS', 'ADMIN']}
-      unauthorizedComponent={<UnauthorizedMessage message="Acceso restringido a Compras" />}
-      {...props}
-    >
+    <ProtectedRoute allowedRoles={['COMPRAS', 'ADMIN']} unauthorizedComponent={<UnauthorizedMessage message="Acceso restringido a Compras" />} {...props}>
       {children}
     </ProtectedRoute>
   )
 }
 
 /**
- * Componente de ayuda para proteger rutas específicas de Producción
+ * Wrapper para rutas de Producción (Nivel C).
+ * @deprecated Preferir requiredModule sobre allowedRoles para Nivel A.
  */
 export function ProduccionProtectedRoute({ children, ...props }) {
   return (
-    <ProtectedRoute
-      allowedRoles={['PRODUCCION', 'ADMIN']}
-      unauthorizedComponent={<UnauthorizedMessage message="Acceso restringido a Producción" />}
-      {...props}
-    >
+    <ProtectedRoute allowedRoles={['PRODUCCION', 'ADMIN']} unauthorizedComponent={<UnauthorizedMessage message="Acceso restringido a Producción" />} {...props}>
       {children}
     </ProtectedRoute>
   )
 }
 
 /**
- * Componente de ayuda para proteger rutas específicas de Admin
+ * Wrapper para rutas de Admin (Nivel C).
  */
 export function AdminProtectedRoute({ children, ...props }) {
   return (
-    <ProtectedRoute
-      allowedRoles={['ADMIN']}
-      unauthorizedComponent={<UnauthorizedMessage message="Acceso restringido a Administradores" />}
-      {...props}
-    >
+    <ProtectedRoute allowedRoles={['ADMIN']} unauthorizedComponent={<UnauthorizedMessage message="Acceso restringido a Administradores" />} {...props}>
       {children}
     </ProtectedRoute>
   )
