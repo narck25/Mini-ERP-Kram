@@ -1,0 +1,17 @@
+import api from './client'
+
+export const uniformApi = {
+  // Inventario
+  getInventory: (params) => api.get('/uniforms/inventory', { params }),
+  addInventoryItem: (data) => api.post('/uniforms/inventory', data),
+  updateInventoryItem: (id, data) => api.put(`/uniforms/inventory/${id}`, data),
+  deleteInventoryItem: (id) => api.delete(`/uniforms/inventory/${id}`),
+
+  // Entregas
+  createDelivery: (data) => api.post('/uniforms/deliveries', data),
+  getDeliveries: (params) => api.get('/uniforms/deliveries', { params }),
+  getDeliveryById: (id) => api.get(`/uniforms/deliveries/${id}`),
+
+  // Historial por empleado
+  getEmployeeHistory: (empleadoId) => api.get(`/uniforms/employees/${empleadoId}/history`),
+}

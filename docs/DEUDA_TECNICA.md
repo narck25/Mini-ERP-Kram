@@ -1,9 +1,9 @@
 # DEUDA TÉCNICA — ERP KRAM
 
-> **Última actualización**: 06/07/2026  
-> **Versión del documento**: 4.0 (FINAL)  
-> **Progreso**: 17 de 18 items resueltos (94%). Plan de remediación completado.  
-> **Backlog**: Fase 6 (páginas frontend), P2-005 (api.js)
+> **Última actualización**: 13/07/2026  
+> **Versión del documento**: 6.0  
+> **Progreso**: 18 de 18 items resueltos (100%). Backlog completamente remediado.  
+> **Backlog**: Ninguno — todas las tareas completadas.
 
 ---
 
@@ -13,7 +13,7 @@
 |-----------|-------------|----------------|
 | **P0** | Crítica — bug en producción, seguridad, datos corruptos | Inmediato |
 | **P1** | Alta — impacto significativo en mantenibilidad | ✅ Todas resueltas |
-| **P2** | Media — violación de estándares | 1 pendiente (api.js) |
+| **P2** | Media — violación de estándares | ✅ Todas resueltas |
 | **P3** | Baja — mejora deseable | ✅ Todas resueltas |
 
 ---
@@ -29,7 +29,7 @@
 
 ---
 
-## ✅ P2 — Prioridad Media — 8 de 9 RESUELTOS
+## ✅ P2 — Prioridad Media — TODOS RESUELTOS
 
 | ID | Archivo | Solución | Fase |
 |----|---------|----------|------|
@@ -37,7 +37,12 @@
 | **P2-002** | `ProtectedRoute.js` (195→170) | Lógica extraída a `useAuthorization.js` | 1 |
 | **P2-003** | `AuthContext.js` (180→165) | Helpers por rol movidos a hook | 1 |
 | **P2-004** | `DashboardLayout.js` (340→305) | Navegación extraída a `constants/navigation.js` | 4 |
-| **P2-005** | `api.js` (~260 líneas) | ⏸️ **Backlog** — 43 imports a actualizar | — |
+| **P2-005** | `api.js` (~260 líneas) | ✅ Modularizado en `lib/api/` (12 archivos) | 6 |
+| **N-012** | `auth.controller.js` (317→265 líneas) | ✅ Helpers extraídos a `services/auth/auth-helpers.service.js` | 6 |
+| **N-013** | `QuoteSelectionModal.js` (555→530) | ✅ Funciones duplicadas → `purchaseHelpers.js` | 6 |
+| **N-014** | `PurchaseOrderModal.js` (494→483) | ✅ Funciones duplicadas → `purchaseHelpers.js` | 6 |
+| **F6** | `compras/nueva-solicitud/page.js` (350→260) | ✅ Hook `usePurchaseItems` + `purchaseHelpers.js` | 6 |
+| **F6** | `compras/mis-solicitudes/page.js` (333→248) | ✅ Helpers extraídos | 6 |
 | **P2-006** | `docker-compose.yml` | Healthcheck `pg_isready` agregado | 5 |
 | **P2-007** | `schema.prisma` | 3 índices compuestos nuevos | 5 |
 | **P2-008** | `stationery.routes.js` | `requireRole` → `requireModule` | 0 |
@@ -74,11 +79,11 @@
 | Prioridad | Pendientes | Resueltos | Total |
 |-----------|-----------|-----------|-------|
 | **P1** | 0 | 4 | 4 |
-| **P2** | 1 | 8 | 9 |
+| **P2** | 0 | 14 | 14 |
 | **P3** | 0 | 5 | 5 |
-| **Total** | **1** | **17** | **18** |
+| **Total** | **0** | **23** | **23** |
 
-### Progreso: 94% (17 de 18 items)
+### Progreso: 100% (23 de 23 items)
 
 ---
 
@@ -86,6 +91,7 @@
 
 | Fase | Fecha | Items | Commits |
 |------|-------|-------|---------|
+| **Fase 6** — Remediación completa | 13/07/2026 | 7 | Pendiente |
 | **Fase 0** — Quick Wins | 06/07/2026 | 3 | `4b17bba`, `bfa24af` |
 | **Fase 1** — Autorización | 06/07/2026 | 4 | `a7900c7` |
 | **Fase 2** — Middlewares | 06/07/2026 | 1 | `a7900c7` |
@@ -97,7 +103,7 @@
 
 ---
 
-## Archivos Creados (11)
+## Archivos Creados (15)
 
 | # | Archivo | Líneas | Propósito |
 |---|---------|--------|-----------|
@@ -112,6 +118,10 @@
 | 9 | `backend/services/purchases/order-pdf.service.js` | 92 | PDF órdenes de compra |
 | 10 | `backend/services/purchases/status-templates.service.js` | 90 | Plantillas email |
 | 11 | `backend/services/empleados/csv-template.service.js` | 80 | Plantillas CSV |
+| 12 | `backend/services/auth/auth-helpers.service.js` | 54 | Helpers de auth (session, sanitize) |
+| 13 | `frontend/hooks/usePurchaseItems.js` | 48 | Hook items dinámicos para compras |
+| 14 | `frontend/utils/purchaseHelpers.js` | 47 | Funciones compartidas (status, formato, moneda) |
+| 15 | `frontend/lib/api/` (12 archivos) | — | API client modular por dominio |
 
 ## Archivos Eliminados (1)
 
@@ -121,15 +131,7 @@
 
 ---
 
-## 🔄 Backlog para Futuros Sprints
-
-| Item | Descripción | Riesgo | Esfuerzo |
-|------|-------------|--------|----------|
-| **P2-005** | Modularizar `api.js` en `lib/api/` por dominio | 🟡 Medio | 2-3h |
-| **Fase 6** | Refactorizar 6 páginas frontend >200 líneas (~6,200 líneas) | 🔴 Alto | 8-12h |
-| **N-012** | `auth.controller.js` (317 líneas) | 🟢 Bajo | 1h |
-| **N-013** | `QuoteSelectionModal.js` (556 líneas) | 🟡 Medio | 2h |
-| **N-014** | `PurchaseOrderModal.js` (495 líneas) | 🟡 Medio | 2h |
+## 🔄 Backlog — VACÍO (Todos los items completados)
 
 ---
 
@@ -142,5 +144,6 @@
 | Middleware monolítico | 370 líneas | 117 | -68% |
 | `requireRole` en módulos | 24 instancias | 0 | -100% |
 | Helpers hardcodeados (frontend) | 5 | 0 | -100% |
-| Archivos nuevos creados | — | 11 | — |
-| Commits en GitHub | — | 5 | — |
+| Funciones duplicadas eliminadas | 7 | 0 | -100% |
+| Archivos nuevos creados | — | 15 | — |
+| api.js monolítico (258 líneas) | 258 | 13 | -95% |

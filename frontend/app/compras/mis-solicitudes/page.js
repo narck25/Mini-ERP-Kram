@@ -4,23 +4,14 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
+import { getStatusColor, getStatusText, formatDate, formatCurrency } from '@/utils/purchaseHelpers';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 
-/**
- * Vista simplificada de "Mis Solicitudes de Compra".
- * Muestra solo la información relevante para el solicitante:
- *   - Folio, estado, fecha, justificación
- *   - Monto total y proveedor seleccionado
- *   - Aprobadores y su estatus individual
- *   - Acciones principales (Ver Detalle, Cancelar)
- * 
- * Oculta información operativa que solo necesita COMPRAS/ADMIN:
- *   - Tabla detallada de ítems (se ve en el detalle)
- *   - Lista completa de cotizaciones (solo la seleccionada)
- *   - Botón Eliminar
- *   - Botón Marcar como Entregado
- */
+const STATUS_ICONS = {
+  NUEVO: '🆕', PENDIENTE: '⏳', EN_AUTORIZACION: '📋', APROBADO: '✅', ENTREGADO: '📦', CANCELADO: '❌'
+};
+
 export default function MisSolicitudesComprasPage() {
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
@@ -44,60 +35,6 @@ export default function MisSolicitudesComprasPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const getStatusColor = (estatus) => {
-    switch (estatus) {
-      case 'NUEVO': return 'bg-red-100 text-red-800';
-      case 'PENDIENTE': return 'bg-yellow-100 text-yellow-800';
-      case 'EN_AUTORIZACION': return 'bg-blue-100 text-blue-800';
-      case 'APROBADO': return 'bg-green-100 text-green-800';
-      case 'ENTREGADO': return 'bg-green-100 text-green-800';
-      case 'CANCELADO': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusText = (estatus) => {
-    switch (estatus) {
-      case 'NUEVO': return 'Nuevo';
-      case 'PENDIENTE': return 'Pendiente de cotización';
-      case 'EN_AUTORIZACION': return 'En autorización';
-      case 'APROBADO': return 'Aprobado';
-      case 'ENTREGADO': return 'Entregado';
-      case 'CANCELADO': return 'Cancelado';
-      default: return estatus;
-    }
-  };
-
-  const getStatusIcon = (estatus) => {
-    switch (estatus) {
-      case 'NUEVO': return '🆕';
-      case 'PENDIENTE': return '⏳';
-      case 'EN_AUTORIZACION': return '📋';
-      case 'APROBADO': return '✅';
-      case 'ENTREGADO': return '📦';
-      case 'CANCELADO': return '❌';
-      default: return '📄';
-    }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-MX', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  };
-
-  const formatCurrency = (amount) => {
-    if (!amount) return '$0.00';
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN'
-    }).format(amount);
   };
 
   const calculateTotal = (request) => {
@@ -191,13 +128,13 @@ export default function MisSolicitudesComprasPage() {
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-4 flex-1">
                         {/* Icono de estado */}
-                        <div className={`hidden sm:flex w-12 h-12 rounded-full items-center justify-center text-2xl ${
-                          request.estatus === 'APROBADO' || request.estatus === 'ENTREGADO' ? 'bg-green-100' :
-                          request.estatus === 'CANCELADO' ? 'bg-gray-100' :
-                          request.estatus === 'EN_AUTORIZACION' ? 'bg-blue-100' :
-                          'bg-yellow-100'
-                        }`}>
-                          {getStatusIcon(request.estatus)}
+                          <div className={`hidden sm:flex w-12 h-12 rounded-full items-center justify-center text-2xl ${
+                            request.estatus === 'APROBADO' || request.estatus === 'ENTREGADO' ? 'bg-green-100' :
+                            request.estatus === 'CANCELADO' ? 'bg-gray-100' :
+                            request.estatus === 'EN_AUTORIZACION' ? 'bg-blue-100' :
+                            'bg-yellow-100'
+                          }`}>
+                            {STATUS_ICONS[request.estatus] || '📄'}
                         </div>
 
                         {/* Información principal */}

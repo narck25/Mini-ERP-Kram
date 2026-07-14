@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatCurrency } from '@/utils/purchaseHelpers';
 
 /**
  * PurchaseOrderModal
@@ -176,15 +177,6 @@ export default function PurchaseOrderModal({ request, onClose, onSuccess }) {
     } finally {
       setGenerating(false);
     }
-  };
-
-  // ── Formateo de moneda ──
-  const formatCurrency = (amount) => {
-    if (amount == null || isNaN(amount)) return '$0.00';
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN'
-    }).format(amount);
   };
 
   // ── Obtener la cotización seleccionada ──

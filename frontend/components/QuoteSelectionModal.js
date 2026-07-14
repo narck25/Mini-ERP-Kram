@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatCurrency, formatDate } from '@/utils/purchaseHelpers';
 
 export default function QuoteSelectionModal({ request, onClose, onSuccess }) {
   const { user } = useAuth();
@@ -31,28 +32,9 @@ export default function QuoteSelectionModal({ request, onClose, onSuccess }) {
       toast.error('Archivo de cotización no disponible');
       return;
     }
-    const encodedUrl = encodeURI(quote.archivoUrl);
-    setPdfUrl(encodedUrl);
+    setPdfUrl(encodeURI(quote.archivoUrl));
     setPdfTitle(`Cotización - ${quote.proveedor} - ${formatCurrency(quote.monto)}`);
     setShowPdfModal(true);
-  };
-
-  const formatCurrency = (amount) => {
-    if (!amount) return '$0.00';
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN'
-    }).format(amount);
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-MX', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
   };
 
   const handleSelectQuote = async () => {

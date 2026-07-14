@@ -4,110 +4,39 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
+import usePurchaseItems from '@/hooks/usePurchaseItems';
 import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 
 export default function NuevaSolicitudComprasPage() {
   const { user } = useAuth();
   const router = useRouter();
-  
-  // Estado inicial con un ítem vacío
-  const [formData, setFormData] = useState({
-    justificacion: '',
-    items: [
-      { productoServicio: '', cantidad: '', descripcion: '' }
-    ]
-  });
-  
+  const { items, handleItemChange, addItem, removeItem, validateItems, getItemsPayload } = usePurchaseItems();
+
+  const [formData, setFormData] = useState({ justificacion: '' });
   const [loading, setLoading] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleItemChange = (index, field, value) => {
-    const newItems = [...formData.items];
-    newItems[index] = {
-      ...newItems[index],
-      [field]: value
-    };
-    setFormData(prev => ({
-      ...prev,
-      items: newItems
-    }));
-  };
-
-  const addItem = () => {
-    setFormData(prev => ({
-      ...prev,
-      items: [...prev.items, { productoServicio: '', cantidad: '', descripcion: '' }]
-    }));
-  };
-
-  const removeItem = (index) => {
-    if (formData.items.length <= 1) {
-      toast.error('Debe haber al menos un ítem en la solicitud');
-      return;
-    }
-    
-    const newItems = formData.items.filter((_, i) => i !== index);
-    setFormData(prev => ({
-      ...prev,
-      items: newItems
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validaciones
     if (!formData.justificacion.trim()) {
       toast.error('La justificación es requerida');
       return;
     }
-
-    // Validar que todos los ítems tengan producto/servicio y cantidad
-    const invalidItems = formData.items.filter(item => 
-      !item.productoServicio.trim() || !item.cantidad.trim()
-    );
-    
-    if (invalidItems.length > 0) {
-      toast.error('Todos los ítems deben tener Producto/Servicio y Cantidad');
-      return;
-    }
-
-    // Validar que las cantidades sean números válidos
-    const invalidQuantities = formData.items.filter(item => 
-      isNaN(parseFloat(item.cantidad)) || parseFloat(item.cantidad) <= 0
-    );
-    
-    if (invalidQuantities.length > 0) {
-      toast.error('Las cantidades deben ser números mayores a 0');
-      return;
-    }
+    if (!validateItems()) return;
 
     try {
       setLoading(true);
-      
-      // Preparar datos para enviar
-      const dataToSend = {
+      await api.post('/purchases', {
         justificacion: formData.justificacion,
-        items: formData.items.map(item => ({
-          productoServicio: item.productoServicio.trim(),
-          cantidad: parseFloat(item.cantidad),
-          descripcion: item.descripcion.trim() || null
-        }))
-      };
-
-      await api.post('/purchases', dataToSend);
-      
+        items: getItemsPayload()
+      });
       toast.success('Solicitud de compra creada exitosamente');
       router.push('/compras/mis-solicitudes');
-      
     } catch (error) {
       console.error('Error creating purchase request:', error);
       toast.error(error.response?.data?.message || 'Error al crear la solicitud de compra');
@@ -210,11 +139,11 @@ export default function NuevaSolicitudComprasPage() {
               </div>
 
               <div className="space-y-6">
-                {formData.items.map((item, index) => (
+                {items.map((item, index) => (
                   <div key={index} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="font-medium text-gray-900">Ítem #{index + 1}</h3>
-                      {formData.items.length > 1 && (
+                      {items.length > 1 && (
                         <button
                           type="button"
                           onClick={() => removeItem(index)}
@@ -285,7 +214,7 @@ export default function NuevaSolicitudComprasPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-600">Total de ítems:</p>
-                  <p className="font-medium">{formData.items.length}</p>
+                  <p className="font-medium">{items.length}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Estado inicial:</p>

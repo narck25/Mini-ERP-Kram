@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const { validationResult } = require('express-validator');
 const AuthUtils = require('../utils/auth.utils');
+const { sanitizeUserData, createSession } = require('../services/auth/auth-helpers.service');
 
 const prisma = new PrismaClient();
 
@@ -10,24 +11,22 @@ class AuthController {
    */
   static async register(req, res) {
     try {
-      // Validate request
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { email, password, name, role } = req.body;
+      const { email, password, name } = req.body;
 
       // Check if user already exists
       const existingUser = await prisma.user.findUnique({
         where: { email }
       });
-
       if (existingUser) {
         return res.status(400).json({ error: 'User already exists' });
       }
 
-      // Buscar empleado con el mismo correo (correoElectronico o correoEmpresa)
+      // Buscar empleado con el mismo correo
       const employee = await prisma.employee.findFirst({
         where: {
           OR: [
@@ -37,19 +36,17 @@ class AuthController {
         }
       });
 
-      // Hash password
       const hashedPassword = await AuthUtils.hashPassword(password);
 
-      // Preparar datos del usuario
       const userData = {
         email,
         password: hashedPassword,
         name,
-        role: 'EMPLEADO_BASICO', // Rol por defecto para nuevos usuarios
-        accessibleModules: [] // Array vacío, RH/Admin asignará módulos después
+        role: 'EMPLEADO_BASICO',
+        accessibleModules: []
       };
 
-      // Si se encontró un empleado, vincularlo
+      // Vincular empleado si existe
       if (employee) {
         userData.employee = {
           connect: { id: employee.id }
@@ -57,7 +54,6 @@ class AuthController {
         console.log(`✅ Usuario vinculado automáticamente al empleado: ${employee.nombres || employee.nombre || 'Sin nombre'} (ID: ${employee.id})`);
       }
 
-      // Create user
       const user = await prisma.user.create({
         data: userData,
         select: {
@@ -77,7 +73,6 @@ class AuthController {
         }
       });
 
-      // Generate JWT token
       const token = AuthUtils.generateToken({ userId: user.id, role: user.role });
 
       res.status(201).json({
@@ -96,7 +91,6 @@ class AuthController {
    */
   static async login(req, res) {
     try {
-      // Validate request
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -104,7 +98,6 @@ class AuthController {
 
       const { email, password } = req.body;
 
-      // Find user with accessibleModules
       const user = await prisma.user.findUnique({
         where: { email },
         select: {
@@ -127,51 +120,23 @@ class AuthController {
         return res.status(401).json({ error: 'Account is deactivated' });
       }
 
-      // Check password
-      console.log('🔍 DEBUG LOGIN - Email:', email);
-      console.log('🔍 DEBUG LOGIN - Password provided:', password);
-      console.log('🔍 DEBUG LOGIN - Hash from DB:', user.password);
-      console.log('🔍 DEBUG LOGIN - Hash prefix:', user.password.substring(0, 4));
       const isValidPassword = await AuthUtils.comparePassword(password, user.password);
-      console.log('🔍 DEBUG LOGIN - isValidPassword:', isValidPassword);
       if (!isValidPassword) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
       // Generate JWT token with accessibleModules
-      const token = AuthUtils.generateToken({ 
-        userId: user.id, 
+      const token = AuthUtils.generateToken({
+        userId: user.id,
         role: user.role,
         accessibleModules: user.accessibleModules || ['DASHBOARD']
       });
 
-      // Create session
-      const sessionToken = AuthUtils.generateSessionToken();
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
-
-      await prisma.session.create({
-        data: {
-          userId: user.id,
-          token: sessionToken,
-          expiresAt
-        }
-      });
-
-      // Return user data (excluding password)
-      const userData = {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        isActive: user.isActive,
-        accessibleModules: user.accessibleModules || ['DASHBOARD'],
-        createdAt: user.createdAt
-      };
+      const sessionToken = await createSession(user.id);
 
       res.json({
         message: 'Login successful',
-        user: userData,
+        user: sanitizeUserData(user),
         token,
         sessionToken
       });
@@ -220,7 +185,6 @@ class AuthController {
       const token = AuthUtils.extractToken(authHeader);
 
       if (token) {
-        // Find and delete session by token
         await prisma.session.deleteMany({
           where: { token }
         });
@@ -277,25 +241,20 @@ class AuthController {
       const { currentPassword, newPassword } = req.body;
       const userId = req.user.id;
 
-      // Get current user with password
       const user = await prisma.user.findUnique({
         where: { id: userId }
       });
-
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      // Verify current password
       const isValidPassword = await AuthUtils.comparePassword(currentPassword, user.password);
       if (!isValidPassword) {
         return res.status(401).json({ error: 'Current password is incorrect' });
       }
 
-      // Hash new password
       const hashedPassword = await AuthUtils.hashPassword(newPassword);
 
-      // Update password
       await prisma.user.update({
         where: { id: userId },
         data: { password: hashedPassword }
