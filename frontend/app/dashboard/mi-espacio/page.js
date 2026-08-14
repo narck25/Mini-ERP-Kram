@@ -15,8 +15,10 @@ function MiEspacioPage() {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
 
+  const hasAccess = user?.accessibleModules?.some(m => ['EMPLEADOS', 'RECLUTAMIENTO', 'COMPRAS'].includes(m))
+
   useEffect(() => {
-    if (user?.id && user.accessibleModules?.includes('EMPLEADOS')) {
+    if (user?.id && hasAccess) {
       if (!dashboardData) {
         fetchDashboardData();
       }
@@ -63,6 +65,9 @@ function MiEspacioPage() {
 
   const COLORS = ['#F59E0B', '#10B981', '#3B82F6', '#6B7280'];
 
+  const hasReclutamiento = user?.accessibleModules?.includes('RECLUTAMIENTO');
+  const hasCompras = user?.accessibleModules?.includes('COMPRAS');
+
   if (authLoading) {
     return (
       <DashboardLayout>
@@ -76,7 +81,7 @@ function MiEspacioPage() {
     );
   }
 
-  if (!user || !user.accessibleModules?.includes('EMPLEADOS')) {
+  if (!user || !hasAccess) {
     return (
       <DashboardLayout>
         <div className="p-6">
@@ -125,7 +130,8 @@ function MiEspacioPage() {
           <>
             {/* Tarjetas de métricas */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {/* Mis Vacantes */}
+              {/* Mis Vacantes — solo si tiene módulo RECLUTAMIENTO */}
+              {hasReclutamiento && (
               <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500">
                 <div className="flex items-center justify-between mb-4">
                   <div>
@@ -153,8 +159,10 @@ function MiEspacioPage() {
                   </Link>
                 </div>
               </div>
+              )}
 
-              {/* Mis Compras */}
+              {/* Mis Compras — solo si tiene módulo COMPRAS */}
+              {hasCompras && (
               <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-yellow-500">
                 <div className="flex items-center justify-between mb-4">
                   <div>
@@ -182,29 +190,10 @@ function MiEspacioPage() {
                   </Link>
                 </div>
               </div>
+              )}
 
-              {/* Actividades Pendientes */}
-              <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Actividades</h3>
-                    <p className="text-sm text-gray-600">Pendientes por realizar</p>
-                  </div>
-                  <div className="p-3 bg-purple-100 rounded-lg">
-                    <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="text-3xl font-bold text-gray-900 mb-2">
-                  {dashboardData?.pendingActivities?.total || 0}
-                </div>
-                <div className="text-sm text-gray-600">
-                  Actividades del puesto
-                </div>
-              </div>
-
-              {/* Candidatos */}
+              {/* Candidatos — solo si tiene módulo RECLUTAMIENTO */}
+              {hasReclutamiento && (
               <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500">
                 <div className="flex items-center justify-between mb-4">
                   <div>
@@ -224,9 +213,11 @@ function MiEspacioPage() {
                   de {dashboardData?.candidates?.total || 0} totales
                 </div>
               </div>
+              )}
             </div>
 
-            {/* Gráfica y lista de últimas vacantes */}
+            {/* Gráfica y lista de últimas vacantes — solo RECLUTAMIENTO */}
+            {hasReclutamiento && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               {/* Gráfica de vacantes */}
               <div className="bg-white rounded-xl shadow-md p-6">
@@ -300,38 +291,13 @@ function MiEspacioPage() {
                 )}
               </div>
             </div>
-
-            {/* Actividades pendientes */}
-            <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Actividades Pendientes</h2>
-              {dashboardData?.pendingActivities?.activities?.length > 0 ? (
-                <div className="space-y-3">
-                  {dashboardData.pendingActivities.activities.map((activity) => (
-                    <div key={activity.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                      <div className="p-2 bg-purple-100 rounded-lg">
-                        <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V8a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{activity.description}</p>
-                        <p className="text-sm text-gray-600">Vacante: {activity.vacancyTitle}</p>
-                        <p className="text-xs text-gray-500">Tipo: {activity.activityType}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <p>No tienes actividades pendientes</p>
-                </div>
-              )}
-            </div>
+            )}
 
             {/* Acciones rápidas */}
             <div className="bg-white rounded-xl shadow-md p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Acciones Rápidas</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {hasReclutamiento && (
                 <Link
                   href="/reclutamiento/solicitar-vacante"
                   className="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg p-4 flex flex-col items-center justify-center text-center transition-colors"
@@ -344,7 +310,9 @@ function MiEspacioPage() {
                   <h3 className="font-medium text-gray-900 mb-1">Solicitar Vacante</h3>
                   <p className="text-sm text-gray-600">Nueva solicitud de personal</p>
                 </Link>
+                )}
 
+                {hasCompras && (
                 <Link
                   href="/compras/nueva-solicitud"
                   className="bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 rounded-lg p-4 flex flex-col items-center justify-center text-center transition-colors"
@@ -357,7 +325,9 @@ function MiEspacioPage() {
                   <h3 className="font-medium text-gray-900 mb-1">Nueva Compra</h3>
                   <p className="text-sm text-gray-600">Solicitar una compra</p>
                 </Link>
+                )}
 
+                {hasReclutamiento && (
                 <Link
                   href="/reclutamiento/mis-solicitudes"
                   className="bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg p-4 flex flex-col items-center justify-center text-center transition-colors"
@@ -370,6 +340,7 @@ function MiEspacioPage() {
                   <h3 className="font-medium text-gray-900 mb-1">Mis Solicitudes</h3>
                   <p className="text-sm text-gray-600">Ver historial completo</p>
                 </Link>
+                )}
               </div>
             </div>
           </>
@@ -381,7 +352,7 @@ function MiEspacioPage() {
 
 export default function MiEspacioPageWrapper() {
   return (
-    <ProtectedRoute requiredModule="EMPLEADOS">
+    <ProtectedRoute requiredModule="DASHBOARD">
       <MiEspacioPage />
     </ProtectedRoute>
   );

@@ -12,9 +12,9 @@ router.get('/stats/rh/dashboard',
   statsController.getRHDashboardStats
 );
 
-// Estadísticas para jefes de departamento (Mi Espacio)
+// Estadísticas para Mi Espacio (accesible desde EMPLEADOS, RECLUTAMIENTO, o COMPRAS)
 router.get('/stats/my-dashboard',
-  authMiddleware.requireModule('EMPLEADOS'),
+  authMiddleware.verifyToken,
   statsController.getMyDashboardStats
 );
 

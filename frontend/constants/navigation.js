@@ -10,7 +10,6 @@
 
 // Sección 1: "Mi Portal" (Autoservicio y Equipo)
 export const myPortalNavigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: '🏠', module: 'DASHBOARD' },
   { name: 'Mi Espacio', href: '/dashboard/mi-espacio', icon: '🌟', module: 'EMPLEADOS' },
   { name: 'Mi Equipo', href: '/rh/empleados', icon: '👥', module: 'EMPLEADOS' },
   { name: 'Mis Vacantes', href: '/reclutamiento/mis-solicitudes', icon: '📝', module: 'RECLUTAMIENTO' },
@@ -18,20 +17,17 @@ export const myPortalNavigation = [
   { name: 'Papelería', href: '/compras/papeleria', icon: '📄', module: 'COMPRAS' },
 ]
 
-// Sección 2: "Administración Global" (Gestión Total)
+// Sección 2: "Administración" (Gestión Total)
 // Nota: Se usa module para control de acceso (Nivel A) y roles como filtro adicional (Nivel C)
 export const adminNavigation = [
   { name: 'Dashboard RH', href: '/rh/dashboard-completo', icon: '📊', module: 'EMPLEADOS', roles: ['ADMIN', 'RH'] },
-  { name: 'Reclutamiento RH', href: '/rh/reclutamiento', icon: '📋', module: 'RECLUTAMIENTO', roles: ['ADMIN', 'RH'] },
-  { name: 'Crear Vacante HR', href: '/rh/reclutamiento/crear-vacante', icon: '➕', module: 'RECLUTAMIENTO', roles: ['ADMIN', 'RH'] },
+  { name: 'Reclutamiento', href: '/rh/reclutamiento', icon: '📋', module: 'RECLUTAMIENTO', roles: ['ADMIN', 'RH'] },
   { name: 'Incidencias', href: '/rh/incidencias', icon: '⏰', module: 'INCIDENCIAS', roles: ['ADMIN', 'RH'] },
-  { name: 'Uniformes (RH)', href: '/rh/uniformes', icon: '👕', module: 'COMPRAS', roles: ['ADMIN', 'RH'] },
-  { name: 'Gestión de Compras', href: '/dashboard/compras', icon: '📊', module: 'COMPRAS', roles: ['ADMIN', 'COMPRAS'] },
-  { name: 'Papelería (Admin)', href: '/dashboard/compras/papeleria', icon: '📄', module: 'COMPRAS', roles: ['ADMIN', 'COMPRAS'] },
-  { name: 'Uniformes (Admin)', href: '/dashboard/compras/uniformes', icon: '👕', module: 'COMPRAS', roles: ['ADMIN', 'COMPRAS'] },
+  { name: 'Gestión de Compras', href: '/dashboard/compras', icon: '🛒', module: 'COMPRAS', roles: ['ADMIN', 'COMPRAS'] },
+  { name: 'Uniformes', href: '/dashboard/compras/uniformes', icon: '👕', module: 'COMPRAS', roles: ['ADMIN', 'RH', 'COMPRAS'] },
   { name: 'Organización', href: '/dashboard/organizacion', icon: '🏢', module: 'EMPLEADOS', roles: ['ADMIN'] },
-  { name: 'Gestión de Accesos', href: '/dashboard/accesos', icon: '🔐', module: 'CONFIGURACION', roles: ['ADMIN'] },
-  { name: 'Gestión de Usuarios', href: '/dashboard/usuarios', icon: '👤', module: 'CONFIGURACION', roles: ['ADMIN'] },
+  { name: 'Permisos y Roles', href: '/dashboard/accesos', icon: '🔐', module: 'CONFIGURACION', roles: ['ADMIN'] },
+  { name: 'Usuarios', href: '/dashboard/usuarios', icon: '👤', module: 'CONFIGURACION', roles: ['ADMIN'] },
 ]
 
 // Navegación del menú desplegable del usuario

@@ -63,7 +63,7 @@ export const AuthProvider = ({ children }) => {
       setUser(user)
       
       toast.success('¡Inicio de sesión exitoso!')
-      router.push('/dashboard')
+      router.push('/dashboard/mi-espacio')
       
       return { success: true }
     } catch (error) {
@@ -86,7 +86,7 @@ export const AuthProvider = ({ children }) => {
       setUser(user)
       
       toast.success('¡Registro exitoso!')
-      router.push('/dashboard')
+      router.push('/dashboard/mi-espacio')
       
       return { success: true }
     } catch (error) {

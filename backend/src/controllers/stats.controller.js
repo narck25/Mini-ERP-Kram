@@ -4,9 +4,10 @@ const prisma = new PrismaClient();
 // Obtener estadísticas para RH (endpoint antiguo - mantener compatibilidad)
 exports.getRHStats = async (req, res) => {
   try {
-    // Verificar que el usuario tenga acceso al módulo EMPLEADOS
-    if (!req.user.accessibleModules?.includes('EMPLEADOS')) {
-      return res.status(403).json({ error: 'Acceso denegado. No tienes acceso al módulo de Empleados.' });
+    // Verificar que el usuario tenga acceso a al menos uno de los módulos relevantes
+    const hasAccess = req.user.accessibleModules?.some(m => ['EMPLEADOS', 'RECLUTAMIENTO', 'COMPRAS'].includes(m));
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Acceso denegado. No tienes acceso a este panel.' });
     }
 
     // Estadísticas de empleados
@@ -184,15 +185,20 @@ exports.getRHDashboardStats = async (req, res) => {
   }
 };
 
-// Obtener estadísticas para el dashboard "Mi Espacio" (jefes de área)
+// Obtener estadísticas para el dashboard "Mi Espacio" (panel personal)
 exports.getMyDashboardStats = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Verificar que el usuario tenga acceso al módulo EMPLEADOS
-    if (!req.user.accessibleModules?.includes('EMPLEADOS')) {
-      return res.status(403).json({ error: 'Acceso denegado. No tienes acceso al módulo de Empleados.' });
+    // Verificar que el usuario tenga acceso a al menos uno de los módulos relevantes
+    const hasAccess = req.user.accessibleModules?.some(m => ['EMPLEADOS', 'RECLUTAMIENTO', 'COMPRAS'].includes(m));
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Acceso denegado. No tienes acceso a este panel.' });
     }
+
+    // ── Nivel B: Scoping de datos por jerarquía ──
+    const userRole = req.user.role;
+    const isAdminOrRH = ['ADMIN', 'RH'].includes(userRole);
 
     // Buscar el empleado asociado al usuario
     const employee = await prisma.employee.findUnique({
@@ -209,30 +215,64 @@ exports.getMyDashboardStats = async (req, res) => {
       });
     }
 
-    // 1. Mis vacantes
+    // Determinar el alcance de datos según jerarquía (Nivel B)
+    // ADMIN y RH: bypass total — ven todos los datos
+    // PRESIDENTE, DIRECTOR, GERENTE, JEFE, COORDINADOR: ven todo su departamento
+    // Otros niveles (ANALISTA, SUPERVISOR, AUX_ADMINISTRATIVO): solo sus propios datos
+    const NIVELES_DEPARTAMENTO = ['PRESIDENTE', 'DIRECTOR', 'GERENTE', 'JEFE', 'COORDINADOR'];
+    const veTodoDepartamento = NIVELES_DEPARTAMENTO.includes(employee.nivelJerarquico);
+
+    let vacancyWhere = {};
+    let purchaseWhere = {};
+
+    if (isAdminOrRH) {
+      // ADMIN/RH: sin filtro — ven todo
+      vacancyWhere = {};
+      purchaseWhere = {};
+    } else if (veTodoDepartamento) {
+      // Jefes/Gerentes: ven todas las solicitudes de su departamento
+      vacancyWhere = { departamento_id: employee.departamento_id };
+      purchaseWhere = { departamentoId: employee.departamento_id };
+    } else {
+      // Empleados regulares: solo sus propias solicitudes
+      vacancyWhere = { solicitanteId: employee.id };
+      purchaseWhere = { solicitanteId: employee.id };
+    }
+
+    // 1. Vacantes
     const myJobVacancies = await prisma.jobVacancy.findMany({
-      where: { solicitanteId: employee.id },
+      where: vacancyWhere,
       orderBy: { createdAt: 'desc' },
       include: {
-        departamento: { select: { nombre: true } }
+        departamento: { select: { nombre: true } },
+        solicitante: { select: { id: true, nombre: true } }
       }
     });
 
     const activeVacancies = myJobVacancies.filter(v => v.estatus !== 'Cerrada');
 
-    // 2. Mis solicitudes de compra (si existe el modelo)
+    // 2. Solicitudes de compra
     let myPurchases = { total: 0, active: 0, latest: [] };
     try {
       if (prisma.purchaseRequest) {
         const purchaseRequests = await prisma.purchaseRequest.findMany({
-          where: { solicitanteId: employee.id },
+          where: purchaseWhere,
           orderBy: { createdAt: 'desc' },
-          take: 5
+          take: 5,
+          include: {
+            solicitante: { select: { id: true, nombre: true } }
+          }
         });
         myPurchases = {
           total: purchaseRequests.length,
           active: purchaseRequests.filter(p => !['ENTREGADO', 'CANCELADO'].includes(p.estatus)).length,
-          latest: purchaseRequests.slice(0, 3)
+          latest: purchaseRequests.slice(0, 3).map(p => ({
+            id: p.id,
+            folio: p.folio,
+            estatus: p.estatus,
+            createdAt: p.createdAt,
+            solicitante: p.solicitante?.nombre
+          }))
         };
       }
     } catch (e) {
