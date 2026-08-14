@@ -90,14 +90,14 @@ Definidos en `backend/src/config/modules.config.js`. El módulo `DASHBOARD` es i
 |--------|-------|---------|-------------|
 | `EMPLEADOS` | Empleados | ✅ `true` | Gestión de empleados y expedientes |
 | `RECLUTAMIENTO` | Reclutamiento | ✅ `true` | Gestión de vacantes y candidatos |
-| `VACACIONES` | Vacaciones | ✅ `true` | Solicitud y aprobación de vacaciones |
+| `VACACIONES` | Vacaciones | ❌ `false` | Solicitud y aprobación de vacaciones |
 | `INCIDENCIAS` | Incidencias | ✅ `true` | Reporte y seguimiento de incidencias |
 | `CONFIGURACION` | Configuración | ✅ `true` | Configuración del sistema |
-| `REPORTES` | Reportes | ✅ `true` | Generación de reportes y estadísticas |
+| `REPORTES` | Reportes | ❌ `false` | Generación de reportes y estadísticas |
 | `COMPRAS` | Compras | ✅ `true` | Gestión de compras |
 | `DASHBOARD` | Dashboard | ✅ *(implícito)* | Panel principal (siempre activo) |
 
-**Total de módulos: 8** (7 en `modules.config.js` + `DASHBOARD` implícito)
+**Módulos habilitados: 6** (5 en `modules.config.js` + `DASHBOARD` implícito). VACACIONES y REPORTES deshabilitados (sin implementación).
 
 ---
 
@@ -107,11 +107,11 @@ Definidos en `backend/src/config/roles.config.js`. Determinan qué módulos tien
 
 | Rol | Módulos incluidos |
 |-----|-------------------|
-| `ADMIN` | `DASHBOARD`, `EMPLEADOS`, `RECLUTAMIENTO`, `VACACIONES`, `INCIDENCIAS`, `CONFIGURACION`, `REPORTES`, `COMPRAS` |
-| `RH` | `DASHBOARD`, `EMPLEADOS`, `RECLUTAMIENTO`, `VACACIONES`, `INCIDENCIAS`, `REPORTES` |
-| `SISTEMAS` | `DASHBOARD`, `CONFIGURACION`, `REPORTES` |
-| `COMPRAS` | `DASHBOARD`, `COMPRAS`, `REPORTES` |
-| `PRODUCCION` | `DASHBOARD`, `REPORTES` |
+| `ADMIN` | `DASHBOARD`, `EMPLEADOS`, `RECLUTAMIENTO`, `INCIDENCIAS`, `CONFIGURACION`, `COMPRAS` |
+| `RH` | `DASHBOARD`, `EMPLEADOS`, `RECLUTAMIENTO`, `INCIDENCIAS` |
+| `SISTEMAS` | `DASHBOARD`, `CONFIGURACION` |
+| `COMPRAS` | `DASHBOARD`, `COMPRAS` |
+| `PRODUCCION` | `DASHBOARD` |
 | `EMPLEADO_BASICO` | `DASHBOARD` |
 
 **Total de presets: 6** (uno por cada rol del sistema)
@@ -127,10 +127,8 @@ Construida a partir de los presets definidos en `roles.config.js`.
 | `DASHBOARD` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `EMPLEADOS` | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
 | `RECLUTAMIENTO` | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
-| `VACACIONES` | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
 | `INCIDENCIAS` | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ |
 | `CONFIGURACION` | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ |
-| `REPORTES` | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `COMPRAS` | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ |
 
 > **Leyenda:** ✅ = incluido en preset / ❌ = no incluido

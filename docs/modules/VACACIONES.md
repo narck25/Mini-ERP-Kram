@@ -16,7 +16,7 @@ Módulo de vacaciones. Actualmente **registrado en el sistema pero sin implement
 
 | Componente | Estado | Detalle |
 |------------|--------|---------|
-| `modules.config.js` | ✅ Registrado | key: `VACACIONES`, enabled: true |
+| `modules.config.js` | ⛔ Deshabilitado | key: `VACACIONES`, enabled: false (sin implementación) |
 | `ModuleType` enum | ✅ Registrado | `VACACIONES` en schema.prisma |
 | Rutas backend | ❌ No existen | No hay `vacation.routes.js` |
 | Controlador | ❌ No existe | No hay `vacation.controller.js` |

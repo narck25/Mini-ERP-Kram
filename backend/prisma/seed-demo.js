@@ -136,7 +136,7 @@ async function main() {
       password: hashedPassword,
       name: 'Elizabeth Zurita Luna',
       role: 'RH',
-      accessibleModules: ['DASHBOARD', 'EMPLEADOS', 'RECLUTAMIENTO', 'VACACIONES', 'INCIDENCIAS', 'REPORTES'],
+      accessibleModules: ['DASHBOARD', 'EMPLEADOS', 'RECLUTAMIENTO', 'INCIDENCIAS'],
       isActive: true
     }
   });
@@ -171,7 +171,7 @@ async function main() {
       password: hashedPassword,
       name: 'Cristina Garduño Servin',
       role: 'ADMIN',
-      accessibleModules: ['DASHBOARD', 'EMPLEADOS', 'RECLUTAMIENTO', 'VACACIONES', 'INCIDENCIAS', 'CONFIGURACION', 'REPORTES', 'COMPRAS'],
+      accessibleModules: ['DASHBOARD', 'EMPLEADOS', 'RECLUTAMIENTO', 'INCIDENCIAS', 'CONFIGURACION', 'COMPRAS'],
       isActive: true
     }
   });

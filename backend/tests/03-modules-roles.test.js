@@ -17,7 +17,7 @@ describe('📦 Módulos y Roles', () => {
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('modules');
       expect(Array.isArray(res.body.modules)).toBe(true);
-      expect(res.body.modules.length).toBeGreaterThanOrEqual(7);
+      expect(res.body.modules.length).toBeGreaterThanOrEqual(5);
     });
 
     test('GET /api/modules - cada módulo tiene id, name, description', async () => {
@@ -80,7 +80,7 @@ describe('📦 Módulos y Roles', () => {
       // presets es un objeto { ADMIN: [...], RH: [...], ... }
       expect(presets).toHaveProperty('ADMIN');
       expect(Array.isArray(presets.ADMIN)).toBe(true);
-      expect(presets.ADMIN.length).toBeGreaterThanOrEqual(7);
+      expect(presets.ADMIN.length).toBeGreaterThanOrEqual(6);
     });
   });
 

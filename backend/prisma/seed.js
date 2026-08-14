@@ -45,9 +45,9 @@ async function main() {
   const getDefaultModulesByRole = (role) => {
     switch(role) {
       case 'ADMIN':
-        return ['DASHBOARD', 'EMPLEADOS', 'RECLUTAMIENTO', 'VACACIONES', 'INCIDENCIAS', 'CONFIGURACION', 'REPORTES'];
+        return ['DASHBOARD', 'EMPLEADOS', 'RECLUTAMIENTO', 'INCIDENCIAS', 'CONFIGURACION'];
       case 'RH':
-        return ['DASHBOARD', 'EMPLEADOS', 'RECLUTAMIENTO', 'VACACIONES', 'INCIDENCIAS', 'REPORTES'];
+        return ['DASHBOARD', 'EMPLEADOS', 'RECLUTAMIENTO', 'INCIDENCIAS'];
       case 'SISTEMAS':
         return ['DASHBOARD', 'RECLUTAMIENTO', 'CONFIGURACION'];
       case 'COMPRAS':

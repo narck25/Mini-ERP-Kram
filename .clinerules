@@ -352,10 +352,10 @@ Este archivo centraliza la definición de todos los módulos (key, label, descri
 | `DASHBOARD` | Dashboard | Panel principal (siempre activo) | ✅ enabled |
 | `EMPLEADOS` | Empleados | Gestión de empleados y expedientes | ✅ enabled |
 | `RECLUTAMIENTO` | Reclutamiento | Gestión de vacantes y candidatos | ✅ enabled |
-| `VACACIONES` | Vacaciones | Solicitud y aprobación de vacaciones | ✅ enabled |
+| `VACACIONES` | Vacaciones | Solicitud y aprobación de vacaciones | ❌ disabled (sin implementación) |
 | `INCIDENCIAS` | Incidencias | Reporte y seguimiento de incidencias | ✅ enabled |
 | `CONFIGURACION` | Configuración | Configuración del sistema | ✅ enabled |
-| `REPORTES` | Reportes | Generación de reportes y estadísticas | ✅ enabled |
+| `REPORTES` | Reportes | Generación de reportes y estadísticas | ❌ disabled (sin implementación) |
 | `COMPRAS` | Compras | Gestión de compras | ✅ enabled |
 
 ### 6.3 Persistencia en Base de Datos
@@ -487,11 +487,11 @@ Definidos en `backend/src/config/roles.config.js`:
 
 | Rol | Módulos asignados por defecto |
 |-----|-------------------------------|
-| `ADMIN` | DASHBOARD, EMPLEADOS, RECLUTAMIENTO, VACACIONES, INCIDENCIAS, CONFIGURACION, REPORTES, COMPRAS |
-| `RH` | DASHBOARD, EMPLEADOS, RECLUTAMIENTO, VACACIONES, INCIDENCIAS, REPORTES |
-| `SISTEMAS` | DASHBOARD, CONFIGURACION, REPORTES |
-| `COMPRAS` | DASHBOARD, COMPRAS, REPORTES |
-| `PRODUCCION` | DASHBOARD, REPORTES |
+| `ADMIN` | DASHBOARD, EMPLEADOS, RECLUTAMIENTO, INCIDENCIAS, CONFIGURACION, COMPRAS |
+| `RH` | DASHBOARD, EMPLEADOS, RECLUTAMIENTO, INCIDENCIAS |
+| `SISTEMAS` | DASHBOARD, CONFIGURACION |
+| `COMPRAS` | DASHBOARD, COMPRAS |
+| `PRODUCCION` | DASHBOARD |
 | `EMPLEADO_BASICO` | DASHBOARD |
 
 #### Cómo agregar un nuevo rol

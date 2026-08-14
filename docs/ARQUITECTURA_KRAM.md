@@ -254,16 +254,16 @@ Mini-ERP-Kram/
 |---|-----|---------------|--------|-------------|
 | 1 | `EMPLEADOS` | Empleados | ✅ `enabled: true` | Gestión de empleados y expedientes |
 | 2 | `RECLUTAMIENTO` | Reclutamiento | ✅ `enabled: true` | Gestión de vacantes y candidatos |
-| 3 | `VACACIONES` | Vacaciones | ✅ `enabled: true` | Solicitud y aprobación de vacaciones |
+| 3 | `VACACIONES` | Vacaciones | ❌ `enabled: false` | Solicitud y aprobación de vacaciones |
 | 4 | `INCIDENCIAS` | Incidencias | ✅ `enabled: true` | Reporte y seguimiento de incidencias |
 | 5 | `CONFIGURACION` | Configuración | ✅ `enabled: true` | Configuración del sistema |
-| 6 | `REPORTES` | Reportes | ✅ `enabled: true` | Generación de reportes y estadísticas |
+| 6 | `REPORTES` | Reportes | ❌ `enabled: false` | Generación de reportes y estadísticas |
 | 7 | `COMPRAS` | Compras | ✅ `enabled: true` | Gestión de compras |
 
 **Módulo adicional en BD (enum `ModuleType` en `schema.prisma`):**
 - `DASHBOARD` — Panel principal (siempre activo, no listado en `modules.config.js`)
 
-**Total de módulos: 8** (7 en `modules.config.js` + `DASHBOARD` como implícito)
+**Módulos habilitados: 6** (5 en `modules.config.js` + `DASHBOARD` implícito). VACACIONES y REPORTES están registrados pero deshabilitados (sin implementación).
 
 ---
 
@@ -307,30 +307,29 @@ El ERP KRAM reconoce dos **Roles Estratégicos** con bypass global, cada uno con
 ```
 ADMIN
   ↓
-  DASHBOARD, EMPLEADOS, RECLUTAMIENTO, VACACIONES,
-  INCIDENCIAS, CONFIGURACION, REPORTES, COMPRAS
-  (8 módulos — acceso total)
+  DASHBOARD, EMPLEADOS, RECLUTAMIENTO,
+  INCIDENCIAS, CONFIGURACION, COMPRAS
+  (6 módulos — acceso total)
 
 RH
   ↓
-  DASHBOARD, EMPLEADOS, RECLUTAMIENTO, VACACIONES,
-  INCIDENCIAS, REPORTES
-  (6 módulos)
+  DASHBOARD, EMPLEADOS, RECLUTAMIENTO, INCIDENCIAS
+  (4 módulos)
 
 SISTEMAS
   ↓
-  DASHBOARD, CONFIGURACION, REPORTES
-  (3 módulos)
+  DASHBOARD, CONFIGURACION
+  (2 módulos)
 
 COMPRAS
   ↓
-  DASHBOARD, COMPRAS, REPORTES
-  (3 módulos)
+  DASHBOARD, COMPRAS
+  (2 módulos)
 
 PRODUCCION
   ↓
-  DASHBOARD, REPORTES
-  (2 módulos)
+  DASHBOARD
+  (1 módulo)
 
 EMPLEADO_BASICO
   ↓

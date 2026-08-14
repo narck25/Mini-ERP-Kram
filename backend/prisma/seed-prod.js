@@ -121,7 +121,7 @@ async function main() {
         role: 'ADMIN',
         accessibleModules: [
           'DASHBOARD', 'EMPLEADOS', 'RECLUTAMIENTO', 
-          'VACACIONES', 'INCIDENCIAS', 'CONFIGURACION', 'REPORTES'
+          'INCIDENCIAS', 'CONFIGURACION'
         ],
         isActive: true
       }

@@ -16,7 +16,7 @@ Módulo de reportes y estadísticas. Proporciona dashboards y estadísticas para
 
 | Componente | Estado | Detalle |
 |------------|--------|---------|
-| `modules.config.js` | ✅ Registrado | key: `REPORTES`, enabled: true |
+| `modules.config.js` | ⛔ Deshabilitado | key: `REPORTES`, enabled: false (estadísticas distribuidas en otros módulos) |
 | `ModuleType` enum | ✅ Registrado | `REPORTES` en schema.prisma |
 | Rutas backend dedicadas | ❌ No existen | No hay `reports.routes.js` |
 | Controlador dedicado | ❌ No existe | No hay `report.controller.js` |
