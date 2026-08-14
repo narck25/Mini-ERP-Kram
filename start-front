@@ -1,0 +1,25 @@
+@echo off
+title ERP KRAM - Frontend (Next.js :3000)
+cd /d "C:\Users\Sistemas\Documents\GitHub\Mini-ERP-Kram\frontend"
+
+echo ========================================
+echo   ERP KRAM - Frontend Server
+echo   Puerto: 3000
+echo ========================================
+
+REM Validar node_modules
+if not exist "node_modules\" (
+    echo.
+    echo [ERROR] No se encontró node_modules.
+    echo Ejecute: npm install
+    echo.
+    pause
+    exit /b 1
+)
+
+echo   Iniciando...
+echo.
+C:\Users\Sistemas\nodejs\node-v20.18.0-win-x64\npm.cmd run dev
+echo.
+echo Servidor detenido.
+pause

@@ -1,22 +1,208 @@
 # REGLAS MAESTRAS DEL ERP KRAM (AI SYSTEM PROMPT)
 
-**Última actualización**: 13/06/2026  
-**Versión**: 4.1 — Roles Estratégicos y Modelo Oficial de Seguridad  
-**Cambios en v4.1**: Documentación de ADMIN y RH como Roles Estratégicos con bypass global intencional; corrección del alcance documental de RH (control operativo global autorizado por Dirección General); actualización de ejemplos de código; incorporación de nota de seguridad sobre autorización de Presidencia; alineación con la política oficial de seguridad de KRAM.
+**Última actualización**: 24/06/2026  
+**Versión**: 5.2 — Constitución Técnica  
+**Cambios en v5.2**: Unificación de reglas de controllers (eliminación de contradicción); nuevas secciones de Arquitectura Evolutiva, Constitución Técnica, Principio de Cambio Mínimo y Regla de Dependencias; creación de `docs/STANDARDS.md` para ejemplos detallados; refuerzo de .clinerules como documento liviano de principios. Se preservan todas las reglas existentes de v5.1.
 
 ---
 
-## 1. Sistema de Permisos (ACL) — Filosofía Escalable
+## 1. FILOSOFÍA DEL SISTEMA
 
-El ERP está diseñado para que los permisos de acceso sean **dinámicos y configurables por usuario**, no atados a un rol fijo. Esto permite agregar nuevos roles o reorganizar responsabilidades sin modificar código.
+El ERP KRAM está diseñado para ser **escalable, configurable y mantenible**. Los permisos de acceso son **dinámicos y configurables por usuario**, no atados a un rol fijo. Esto permite agregar nuevos roles o reorganizar responsabilidades sin modificar código.
 
-### Regla de Oro
+### 1.1 Principios Rectores
+
+| Principio | Descripción |
+|-----------|-------------|
+| **Configuración sobre código** | Los permisos, roles y módulos se configuran, no se hardcodean |
+| **Separación de responsabilidades** | Cada capa tiene un propósito claro y único |
+| **Escalabilidad horizontal** | Agregar módulos/roles no requiere modificar código existente |
+| **Documentación viva** | El código y la documentación deben estar siempre sincronizados |
+| **Anti-duplicidad** | Antes de crear algo nuevo, verificar si ya existe |
+
+---
+
+## 2. PRINCIPIOS GENERALES
+
+### 2.1 Manejo de Fechas y Zonas Horarias
+
+- El Backend guarda fechas en formato ISO/UTC.
+- El Frontend **DEBE** formatear las fechas a `DD/MM/YYYY` para la UI.
+- Para evitar el 'bug del día anterior', al procesar fechas del backend en el frontend, extrae estrictamente la fecha sin zona horaria (`.substring(0,10)` o `split('T')[0]`) antes de convertirla a objeto `Date`.
+
+### 2.2 Convenciones de Código
+
+- **Frontend**: Usar `'use client'` para componentes interactivos con hooks
+- **Backend**: Usar controladores con métodos estáticos (`exports.methodName`)
+- **API**: Respuestas consistentes con `{ data: ..., message: ... }` o `{ vacancy: ..., candidates: ... }`
+- **Errores**: Mensajes de error claros y localizados (español)
+- **Imports**: Usar `@/` para rutas absolutas en Frontend
+
+### 2.3 Calidad del Código
+
+- No dejes código huérfano (Dead Code). Si reemplazas una función o endpoint, elimina el viejo.
+- Revisa siempre los imports de React y asegúrate de no generar condiciones de carrera en los Contextos de Autenticación.
+
+---
+
+## 3. ARQUITECTURA BACKEND
+
+### 3.1 Separación de Capas (Obligatorio)
+
+La arquitectura backend sigue una separación estricta de responsabilidades en 3 capas:
+
+```
+Rutas (routes/) → Controladores (controllers/) → Servicios (services/)
+```
+
+#### Reglas Obligatorias:
+
+1. **Los controllers deben mantenerse delgados.**
+   - Su responsabilidad principal es:
+     - Validar requests (parámetros, body, headers)
+     - Llamar a los servicios correspondientes
+     - Devolver respuestas HTTP estandarizadas
+   - La lógica de negocio compleja debe implementarse en servicios.
+   - Evitar consultas Prisma en controllers.
+   - Los CRUD simples y operaciones triviales pueden permanecer en el controller cuando agregar una capa de servicio adicional no aporte valor.
+   - La simplicidad tiene prioridad sobre la sobreingeniería.
+
+2. **Favorecer servicios pequeños y especializados.**
+   - En lugar de un solo servicio monolítico, dividir por dominio:
+
+```js
+services/compras/
+    purchase.service.js      // Órdenes de compra
+    quote.service.js         // Cotizaciones
+    approval.service.js      // Aprobaciones
+    order.service.js         // Órdenes de servicio
+    stationery.service.js    // Papelería
+    uniform.service.js       // Uniformes
+```
+
+4. **El controller actúa únicamente como orquestador.**
+
+```js
+// ✅ BIEN: Controller sin lógica de negocio
+static async create(req, res) {
+  try {
+    const data = req.body;
+    const result = await PurchaseService.create(data, req.user);
+    res.status(201).json({ data: result, message: 'Creado exitosamente' });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+}
+
+// ❌ MAL: Controller con lógica de negocio
+static async create(req, res) {
+  try {
+    const { items, total } = req.body;
+    const tax = total * 0.16; // ❌ Lógica aquí
+    const result = await prisma.purchase.create({ // ❌ Prisma aquí
+      data: { items, total: total + tax }
+    });
+    res.json({ data: result });
+  } catch (error) { ... }
+}
+```
+
+### 3.2 Límites de Tamaño (Objetivos Recomendados)
+
+| Componente | Límite recomendado |
+|------------|-------------------|
+| **Controllers** | 300 líneas |
+| **Services** | 500 líneas |
+| **Archivos de rutas** | 200 líneas |
+
+Si un archivo supera estos valores, evaluar primero si realmente existe una violación del principio de responsabilidad única (SRP). No dividir artificialmente únicamente por cumplir una métrica. La mantenibilidad tiene prioridad sobre el conteo de líneas. Evitar **God Objects**.
+
+### 3.3 Estructura de Directorios Backend
+
+```
+backend/src/
+  config/           ← Configuración (módulos, roles, empresa)
+  controllers/      ← Controladores (sin lógica de negocio)
+  middlewares/      ← Middlewares (auth, permisos, validación)
+  routes/           ← Definición de rutas Express
+  services/         ← Lógica de negocio (único lugar para Prisma)
+    compras/
+    reclutamiento/
+    empleados/
+    ...
+  utils/            ← Utilidades compartidas
+  index.js          ← Punto de entrada
+```
+
+---
+
+## 4. ARQUITECTURA FRONTEND
+
+### 4.1 Estructura de Directorios
+
+```
+frontend/
+  app/              ← Páginas Next.js (App Router)
+  components/       ← Componentes React reutilizables
+  contexts/         ← Contextos de React (Auth, etc.)
+  hooks/            ← Custom hooks reutilizables
+  lib/              ← Clientes API, configuraciones
+  utils/            ← Utilidades y helpers
+  constants/        ← Constantes del frontend
+  services/         ← Lógica de servicios frontend (si aplica)
+```
+
+### 4.2 Reglas de Frontend
+
+1. **Crear hooks reutilizables.** No duplicar lógica de estado entre páginas.
+2. **Prohibido lógica compleja dentro de pages.** Las páginas deben ser delgadas.
+3. **Separar responsabilidades en el frontend:**
+
+```
+UI (componentes visuales)
+  → Estado (hooks, contextos)
+    → Servicios (llamadas API)
+      → Validaciones (schemas, helpers)
+```
+
+4. **Límites de tamaño (objetivos recomendados):**
+
+| Componente | Límite recomendado |
+|------------|-------------------|
+| **page.js** | 200 líneas |
+| **Componentes React** | 300 líneas |
+
+Si se exceden, evaluar si realmente es necesario extraer lógica a hooks o subcomponentes. No fragmentar artificialmente solo por cumplir una métrica.
+
+---
+
+## 5. MODELO DE SEGURIDAD
+
+### 5.1 Regla de Oro
 
 **NUNCA** uses validaciones rígidas de roles (`user.role === 'SISTEMAS'`) para ocultar/mostrar módulos en el Frontend o bloquear rutas en el Backend, **a menos que sea ADMIN o RH**.
 
 **SIEMPRE** utiliza el array `user.accessibleModules` para control de acceso a módulos de usuarios regulares.
 
-### Roles Estratégicos
+```js
+// ❌ MAL: Hardcodear roles NO estratégicos para acceso a módulos
+if (user.role === 'SISTEMAS') { ... }
+if (['SISTEMAS', 'COMPRAS'].includes(user.role)) { ... }
+
+// ❌ MAL: Hardcodear roles en el frontend para redirigir
+if (['SISTEMAS', 'COMPRAS'].includes(user.role)) {
+  router.push('/rh/dashboard-completo');
+}
+
+// ✅ BIEN: Bypass ADMIN/RH + accessibleModules para acceso a módulos
+if (user.role === 'ADMIN' || user.role === 'RH') {
+  // Acceso completo
+} else if (user.accessibleModules?.includes('EMPLEADOS')) {
+  // Acceso condicional
+}
+```
+
+### 5.2 Roles Estratégicos
 
 El ERP KRAM reconoce dos **Roles Estratégicos** con bypass global, cada uno con responsabilidades distintas:
 
@@ -29,7 +215,7 @@ El ERP KRAM reconoce dos **Roles Estratégicos** con bypass global, cada uno con
 
 > ⚠️ **Política de seguridad:** Ningún otro rol deberá recibir privilegios equivalentes a ADMIN o RH sin autorización expresa de Presidencia.
 
-### Bypass Global de ADMIN y RH
+### 5.3 Bypass Global de ADMIN y RH
 
 Los roles **ADMIN** y **RH** tienen bypass total en acceso a módulos y scoping de datos:
 
@@ -51,7 +237,7 @@ if (user.role === 'ADMIN' || user.role === 'RH') {
 // Para otros roles, aplicar scoping por jerarquía/departamento
 ```
 
-### Estrategia de 3 Niveles (Tiered Access Control)
+### 5.4 Estrategia de 3 Niveles (Tiered Access Control)
 
 | Nivel | Mecanismo | Cuándo usarlo | Ejemplos |
 |-------|-----------|---------------|----------|
@@ -59,7 +245,7 @@ if (user.role === 'ADMIN' || user.role === 'RH') {
 | **B — Scoping de Datos / Visibilidad** | Lógica de negocio (empleado asociado, departamento, nivel jerárquico) + bypass ADMIN/RH | Determinar QUÉ datos ve el usuario dentro de un módulo | "¿Este jefe ve todos los empleados o solo los de su departamento?" |
 | **C — Operaciones Críticas del Sistema** | `requireRole(['ADMIN'])` o `req.user.role !== 'ADMIN'` | Modificar permisos de usuarios, eliminar usuarios, shell del sistema | Solo ADMIN puede cambiar roles/módulos de otros usuarios |
 
-### Guía Rápida por Tecnología
+### 5.5 Guía Rápida por Tecnología
 
 **En React (Frontend):**
 - Usa `user.accessibleModules?.includes('MODULO')` para validar acceso a páginas/secciones
@@ -75,25 +261,36 @@ if (user.role === 'ADMIN' || user.role === 'RH') {
 - Usa `requireRole(['ADMIN'])` o `req.user.role !== 'ADMIN'` **SOLO** para operaciones críticas del sistema (Nivel C)
 - Para notificaciones, es válido buscar usuarios por rol de negocio (`where: { role: { in: ['RH'] } }`) como destinatarios
 
-### Lo que NUNCA debes hacer
+### 5.6 Reglas de Validación por Nivel
+
+#### Nivel A: Control de Acceso a Módulos
+
+**Frontend:**
+- Usar `user.accessibleModules?.includes('MODULO')` para validar acceso
+- Usar `<ProtectedRoute requiredModule="MODULO">` para proteger rutas
+- ADMIN y RH tienen bypass: no necesitan verificar módulos
+
+**Backend:**
+- Usar `requireModule('MODULO')` para proteger endpoints de cualquier tipo
+- ADMIN y RH tienen bypass automático en `requireModule()` (implementado en `auth.middleware.js`)
+- Validación inline: `if (!req.user.accessibleModules?.includes('MODULO')) return 403`
+
+#### Nivel B: Scoping de Datos / Visibilidad
+
+**Frontend y Backend:**
+- Usar atributos del empleado asociado (`employeeId`, `nivelJerarquico`, `departamento_id`) para filtrar datos
+- Verificar propiedad: `if (vacancy.solicitanteId !== employee.id)` en lugar de `if (!['RH','ADMIN'].includes(user.role))`
+- `getOrCreateSolicitante(userId)`: buscar empleado por `userId`, no por rol
+- ADMIN y RH tienen bypass total en scoping
+
+#### Nivel C: Operaciones Críticas del Sistema
+
+- Usar `req.user.role !== 'ADMIN'` **SOLO** para: modificar permisos de usuarios, eliminar usuarios, estadísticas del sistema
+- RH **NO** tiene bypass en operaciones de Nivel C (solo ADMIN)
+
+### 5.7 Ejemplos Correctos e Incorrectos
 
 ```js
-// ❌ MAL: Hardcodear roles NO estratégicos para acceso a módulos
-if (user.role === 'SISTEMAS') { ... }
-if (['SISTEMAS', 'COMPRAS'].includes(user.role)) { ... }
-
-// ❌ MAL: Hardcodear roles en el frontend para redirigir
-if (['SISTEMAS', 'COMPRAS'].includes(user.role)) {
-  router.push('/rh/dashboard-completo');
-}
-
-// ✅ BIEN: Bypass ADMIN/RH + accessibleModules para acceso a módulos
-if (user.role === 'ADMIN' || user.role === 'RH') {
-  // Acceso completo
-} else if (user.accessibleModules?.includes('EMPLEADOS')) {
-  // Acceso condicional
-}
-
 // ✅ BIEN: Scoping de datos con bypass ADMIN/RH
 const employee = await prisma.employee.findUnique({ where: { userId } });
 if (user.role === 'ADMIN' || user.role === 'RH') {
@@ -108,7 +305,7 @@ if (req.user.role !== 'ADMIN') {
 }
 ```
 
-### Notificaciones por Email
+### 5.8 Notificaciones por Email
 
 Para envío de notificaciones, se permite buscar usuarios por rol (ej. `where: { role: { in: ['RH', 'ADMIN'] } }`) para determinar destinatarios. Esto es **lógica de negocio**, no control de acceso.
 
@@ -120,149 +317,7 @@ const rhUsers = await prisma.user.findMany({
 });
 ```
 
----
-
-## 2. Base de Datos (Prisma)
-
-**PROHIBIDO** renombrar tablas principales (ej. `JobVacancy`, `Employee`) o columnas clave sin autorización explícita del usuario, ya que esto rompe el Frontend.
-
-No agregues campos calculados a la base de datos (como edad, antigüedad, o fechas en letras). Estos deben calcularse dinámicamente en el Frontend.
-
----
-
-## 3. Manejo de Fechas y Zonas Horarias
-
-- El Backend guarda fechas en formato ISO/UTC.
-- El Frontend **DEBE** formatear las fechas a `DD/MM/YYYY` para la UI.
-- Para evitar el 'bug del día anterior', al procesar fechas del backend en el frontend, extrae estrictamente la fecha sin zona horaria (`.substring(0,10)` o `split('T')[0]`) antes de convertirla a objeto `Date`.
-
----
-
-## 4. Calidad del Código
-
-- No dejes código huérfano (Dead Code). Si reemplazas una función o endpoint, elimina el viejo.
-- Revisa siempre los imports de React y asegúrate de no generar condiciones de carrera en los Contextos de Autenticación.
-
----
-
-## 5. Módulos del Sistema
-
-### Fuente de Verdad
-
-La **única fuente de verdad** para los módulos del sistema es:
-
-```
-backend/src/config/modules.config.js
-```
-
-Este archivo centraliza la definición de todos los módulos (key, label, description, enabled). El backend expone estos módulos dinámicamente a través de `GET /api/modules` (definido en `backend/src/routes/roles.routes.js`).
-
-**NO** hardcodear listados de módulos en el frontend. Consumir siempre desde `GET /api/modules` o desde `modules.config.js` en el backend.
-
-### Módulos Registrados
-
-| ID | Nombre | Descripción | Estado |
-|----|--------|-------------|--------|
-| `DASHBOARD` | Dashboard | Panel principal (siempre activo) | ✅ enabled |
-| `EMPLEADOS` | Empleados | Gestión de empleados y expedientes | ✅ enabled |
-| `RECLUTAMIENTO` | Reclutamiento | Gestión de vacantes y candidatos | ✅ enabled |
-| `VACACIONES` | Vacaciones | Solicitud y aprobación de vacaciones | ✅ enabled |
-| `INCIDENCIAS` | Incidencias | Reporte y seguimiento de incidencias | ✅ enabled |
-| `CONFIGURACION` | Configuración | Configuración del sistema | ✅ enabled |
-| `REPORTES` | Reportes | Generación de reportes y estadísticas | ✅ enabled |
-| `COMPRAS` | Compras | Gestión de compras | ✅ enabled |
-
-### Persistencia en Base de Datos
-
-El enum `ModuleType` en `backend/prisma/schema.prisma` (línea ~352) contiene los mismos valores y se usa para persistencia cuando es necesario.
-
----
-
-## 6. Roles del Sistema
-
-### Fuentes Oficiales
-
-**Backend (fuente primaria):**
-- `backend/src/config/roles.config.js` — Presets de módulos por rol (módulos asignados por defecto)
-- `backend/src/routes/roles.routes.js` — `SYSTEM_ROLES` (definición de roles del sistema con nombre, color, ícono, descripción)
-- `GET /api/roles` — Endpoint dinámico que devuelve roles del sistema + roles personalizados
-- `GET /api/roles/presets` — Endpoint dinámico que devuelve presets de módulos por rol
-
-**Frontend (solo fallback visual):**
-- `frontend/lib/rolesConfig.js` — `ROLE_FALLBACK_CONFIG`
-
-> ⚠️ **ADVERTENCIA**: `ROLE_FALLBACK_CONFIG` existe ÚNICAMENTE como fallback visual para cuando la API no está disponible. **NO debe utilizarse para autorización ni lógica de negocio.** La fuente de verdad para roles es el backend.
-
-### Roles del Sistema
-
-Los roles definen la identidad organizacional del usuario. **No definen qué módulos puede ver** (eso lo hacen los `accessibleModules`), con la excepción de los Roles Estratégicos (ADMIN y RH) que tienen bypass global.
-
-| Rol | Nombre | Descripción | Color | Icono | Tipo |
-|-----|--------|-------------|-------|-------|------|
-| `ADMIN` | Administrador | Administrador del sistema — control técnico global | `bg-purple-100 text-purple-800` | 👑 | Estratégico |
-| `RH` | Recursos Humanos | Gestión de personal y reclutamiento — control operativo global autorizado por Dirección General | `bg-blue-100 text-blue-800` | 👥 | Estratégico |
-| `SISTEMAS` | Sistemas | Soporte técnico y sistemas | `bg-green-100 text-green-800` | 💻 | Departamental |
-| `COMPRAS` | Compras | Gestión de compras y proveedores | `bg-yellow-100 text-yellow-800` | 🛒 | Departamental |
-| `PRODUCCION` | Producción | Gestión de producción | `bg-red-100 text-red-800` | 🏭 | Departamental |
-| `EMPLEADO_BASICO` | Empleado | Acceso básico al sistema | `bg-gray-100 text-gray-800` | 👤 | Base |
-
-**Principio**: El rol es un atributo del usuario, no un mecanismo de control de acceso a módulos. La excepción son ADMIN y RH, que por política organizacional tienen bypass global.
-
-### Presets de Módulos por Rol
-
-Definidos en `backend/src/config/roles.config.js`:
-
-| Rol | Módulos asignados por defecto |
-|-----|-------------------------------|
-| `ADMIN` | DASHBOARD, EMPLEADOS, RECLUTAMIENTO, VACACIONES, INCIDENCIAS, CONFIGURACION, REPORTES, COMPRAS |
-| `RH` | DASHBOARD, EMPLEADOS, RECLUTAMIENTO, VACACIONES, INCIDENCIAS, REPORTES |
-| `SISTEMAS` | DASHBOARD, CONFIGURACION, REPORTES |
-| `COMPRAS` | DASHBOARD, COMPRAS, REPORTES |
-| `PRODUCCION` | DASHBOARD, REPORTES |
-| `EMPLEADO_BASICO` | DASHBOARD |
-
----
-
-## 7. Reglas de Validación
-
-### Nivel A: Control de Acceso a Módulos
-
-**Frontend:**
-- Usar `user.accessibleModules?.includes('MODULO')` para validar acceso
-- Usar `<ProtectedRoute requiredModule="MODULO">` para proteger rutas
-- ADMIN y RH tienen bypass: no necesitan verificar módulos
-
-**Backend:**
-- Usar `requireModule('MODULO')` para proteger endpoints de cualquier tipo
-- ADMIN y RH tienen bypass automático en `requireModule()` (implementado en `auth.middleware.js`)
-- Validación inline: `if (!req.user.accessibleModules?.includes('MODULO')) return 403`
-
-### Nivel B: Scoping de Datos / Visibilidad
-
-**Frontend y Backend:**
-- Usar atributos del empleado asociado (`employeeId`, `nivelJerarquico`, `departamento_id`) para filtrar datos
-- Verificar propiedad: `if (vacancy.solicitanteId !== employee.id)` en lugar de `if (!['RH','ADMIN'].includes(user.role))`
-- `getOrCreateSolicitante(userId)`: buscar empleado por `userId`, no por rol
-- ADMIN y RH tienen bypass total en scoping
-
-### Nivel C: Operaciones Críticas del Sistema
-
-- Usar `req.user.role !== 'ADMIN'` **SOLO** para: modificar permisos de usuarios, eliminar usuarios, estadísticas del sistema
-- RH **NO** tiene bypass en operaciones de Nivel C (solo ADMIN)
-
----
-
-## 8. Convenciones de Código
-
-- **Frontend**: Usar `'use client'` para componentes interactivos con hooks
-- **Backend**: Usar controladores con métodos estáticos (`exports.methodName`)
-- **API**: Respuestas consistentes con `{ data: ..., message: ... }` o `{ vacancy: ..., candidates: ... }`
-- **Errores**: Mensajes de error claros y localizados (español)
-- **Imports**: Usar `@/` para rutas absolutas en Frontend
-
----
-
-## 9. Seguridad
+### 5.9 Seguridad General
 
 - **Tokens JWT**: Incluir `accessibleModules` y `role` en el payload
 - **Middleware**: Validar permisos en cada ruta protegida con `requireModule()`
@@ -276,40 +331,38 @@ Definidos en `backend/src/config/roles.config.js`:
 
 ---
 
-## 10. Mantenimiento y Escalabilidad
+## 6. REGLAS DE MÓDULOS
 
-- **Auditoría**: Registrar cambios en permisos de usuarios (quién asignó/quitó qué módulo)
-- **Backup**: Mantener backups de la base de datos antes de migraciones
-- **Logs**: Registrar intentos de acceso fallidos y operaciones críticas
-- **Documentación**: Mantener actualizado este `.clinerules` al agregar nuevos módulos o roles
-- **Nuevos Roles**: Al crear un nuevo rol, solo se necesita:
-  1. Agregarlo al enum `RoleType` en `backend/prisma/schema.prisma`
-  2. Agregar configuración visual en `backend/src/routes/roles.routes.js` (SYSTEM_ROLES)
-  3. Agregar preset en `backend/src/config/roles.config.js` (módulos por defecto)
-  4. Configurar sus `accessibleModules` desde la UI de administración
-  5. **No se requiere modificar código** de validación de acceso
-- **Nuevos Módulos**: Ver [Guía para creación de módulos](#guía-para-creación-de-módulos) en la sección 11
+### 6.1 Fuente de Verdad
 
----
+La **única fuente de verdad** para los módulos del sistema es:
 
-## 11. Sistema de Roles Escalable
+```
+backend/src/config/modules.config.js
+```
 
-### Arquitectura de Roles
+Este archivo centraliza la definición de todos los módulos (key, label, description, enabled). El backend expone estos módulos dinámicamente a través de `GET /api/modules` (definido en `backend/src/routes/roles.routes.js`).
 
-El sistema soporta roles **semidinámicos** con archivos de configuración centralizados:
+**NO** hardcodear listados de módulos en el frontend. Consumir siempre desde `GET /api/modules` o desde `modules.config.js` en el backend.
 
-| Componente | Propósito | Archivo |
-|------------|-----------|---------|
-| `backend/src/config/modules.config.js` | **Fuente de verdad** de módulos del sistema | Backend |
-| `backend/src/config/roles.config.js` | **Fuente de verdad** de presets de módulos por rol | Backend |
-| `backend/src/routes/roles.routes.js` | **Fuente de verdad** de roles del sistema (SYSTEM_ROLES) + endpoints dinámicos | Backend |
-| `GET /api/roles` | Endpoint dinámico que devuelve roles desde SYSTEM_ROLES + BD | Backend |
-| `GET /api/modules` | Endpoint dinámico que devuelve módulos desde `modules.config.js` | Backend |
-| `GET /api/roles/presets` | Endpoint dinámico que devuelve presets desde `roles.config.js` | Backend |
-| `frontend/lib/rolesConfig.js` | ⚠️ Solo fallback visual (`ROLE_FALLBACK_CONFIG`). No usar para autorización | Frontend |
-| `frontend/lib/api.js` → `systemApi` | Cliente API para consumir roles/módulos | Frontend |
+### 6.2 Módulos Registrados
 
-### Guía para creación de módulos
+| ID | Nombre | Descripción | Estado |
+|----|--------|-------------|--------|
+| `DASHBOARD` | Dashboard | Panel principal (siempre activo) | ✅ enabled |
+| `EMPLEADOS` | Empleados | Gestión de empleados y expedientes | ✅ enabled |
+| `RECLUTAMIENTO` | Reclutamiento | Gestión de vacantes y candidatos | ✅ enabled |
+| `VACACIONES` | Vacaciones | Solicitud y aprobación de vacaciones | ✅ enabled |
+| `INCIDENCIAS` | Incidencias | Reporte y seguimiento de incidencias | ✅ enabled |
+| `CONFIGURACION` | Configuración | Configuración del sistema | ✅ enabled |
+| `REPORTES` | Reportes | Generación de reportes y estadísticas | ✅ enabled |
+| `COMPRAS` | Compras | Gestión de compras | ✅ enabled |
+
+### 6.3 Persistencia en Base de Datos
+
+El enum `ModuleType` en `backend/prisma/schema.prisma` contiene los mismos valores y se usa para persistencia cuando es necesario.
+
+### 6.4 Guía para creación de módulos
 
 Procedimiento oficial paso a paso para agregar un nuevo módulo al ERP KRAM:
 
@@ -327,7 +380,121 @@ Procedimiento oficial paso a paso para agregar un nuevo módulo al ERP KRAM:
 12. **Aplicar ProtectedRoute**: Proteger rutas del frontend con el módulo correspondiente
 13. **Actualizar documentación oficial**: Reflejar cambios en `.clinerules` y `docs/`
 
-### Cómo agregar un nuevo rol
+---
+
+## 7. CONVENCIONES PRISMA (BASE DE DATOS)
+
+### 7.1 Reglas de Base de Datos
+
+- **PROHIBIDO** renombrar tablas principales (ej. `JobVacancy`, `Employee`) o columnas clave sin autorización explícita del usuario, ya que esto rompe el Frontend.
+- No agregues campos calculados a la base de datos (como edad, antigüedad, o fechas en letras). Estos deben calcularse dinámicamente en el Frontend.
+- **Prohibido SQL directo.** Toda interacción con la BD debe ser a través de Prisma ORM.
+- **Toda escritura crítica debe generar auditoría.** Registrar quién hizo qué y cuándo.
+- **Priorizar borrado lógico** sobre borrado físico cuando el modelo lo requiera (ej. empleados, usuarios).
+- **`schema.prisma` es la única fuente de verdad** para la estructura de la base de datos.
+- **No crear tablas duplicadas.** Si una tabla similar existe, refactorizar antes de crear una nueva.
+
+### 7.2 Enumeraciones del Sistema
+
+Las enumeraciones en `schema.prisma` deben mantenerse sincronizadas con los archivos de configuración del backend (`modules.config.js`, `roles.config.js`).
+
+---
+
+## 8. CALIDAD DEL CÓDIGO
+
+### 8.1 Reglas Generales
+
+- No dejes código huérfano (Dead Code). Si reemplazas una función o endpoint, elimina el viejo.
+- Revisa siempre los imports de React y asegúrate de no generar condiciones de carrera en los Contextos de Autenticación.
+- **Auditoría**: Registrar cambios en permisos de usuarios (quién asignó/quitó qué módulo)
+- **Backup**: Mantener backups de la base de datos antes de migraciones
+- **Logs**: Registrar intentos de acceso fallidos y operaciones críticas
+- **Documentación**: Mantener actualizado este `.clinerules` al agregar nuevos módulos o roles
+
+### 8.2 Límites de Tamaño (Resumen)
+
+| Componente | Límite | Acción |
+|------------|--------|--------|
+| **page.js** | 200 líneas | Extraer a hooks/subcomponentes |
+| **Componente React** | 300 líneas | Dividir en componentes más pequeños |
+| **Controller** | 300 líneas | Dividir en múltiples controladores |
+| **Service** | 500 líneas | Dividir en servicios especializados |
+| **Archivo de rutas** | 200 líneas | Separar en múltiples archivos |
+
+> **Nota:** Estos son objetivos recomendados. Evaluar primero si realmente existe una violación del principio SRP antes de dividir. La mantenibilidad tiene prioridad sobre el conteo de líneas.
+
+---
+
+## 9. REUTILIZACIÓN Y ANTI-DUPLICIDAD
+
+### 9.1 Regla de Oro
+
+**Antes de crear** cualquier componente, servicio, endpoint, hook o utilidad:
+
+1. Buscar si ya existe algo similar en el códigobase.
+2. Si existe pero no es exactamente lo que necesitas, **refactorizar** antes de duplicar.
+3. Si no existe, crearlo siguiendo los patrones establecidos.
+
+### 9.2 Prohibido
+
+```
+purchaseServiceNew.js        ← ❌ Usar purchase.service.js existente
+rolesConfigV2.js             ← ❌ Usar rolesConfig.js existente
+employeeControllerCopy.js    ← ❌ Usar employee.controller.js existente
+```
+
+**Siempre refactorizar antes de duplicar.** La duplicación de código es la principal fuente de deuda técnica.
+
+---
+
+## 10. PATRONES OBLIGATORIOS
+
+### 10.1 Sistema de Roles Escalable
+
+#### Arquitectura de Roles
+
+El sistema soporta roles **semidinámicos** con archivos de configuración centralizados:
+
+| Componente | Propósito | Archivo |
+|------------|-----------|---------|
+| `backend/src/config/modules.config.js` | **Fuente de verdad** de módulos del sistema | Backend |
+| `backend/src/config/roles.config.js` | **Fuente de verdad** de presets de módulos por rol | Backend |
+| `backend/src/routes/roles.routes.js` | **Fuente de verdad** de roles del sistema (SYSTEM_ROLES) + endpoints dinámicos | Backend |
+| `GET /api/roles` | Endpoint dinámico que devuelve roles desde SYSTEM_ROLES + BD | Backend |
+| `GET /api/modules` | Endpoint dinámico que devuelve módulos desde `modules.config.js` | Backend |
+| `GET /api/roles/presets` | Endpoint dinámico que devuelve presets desde `roles.config.js` | Backend |
+| `frontend/lib/rolesConfig.js` | ⚠️ Solo fallback visual (`ROLE_FALLBACK_CONFIG`). No usar para autorización | Frontend |
+| `frontend/lib/api.js` → `systemApi` | Cliente API para consumir roles/módulos | Frontend |
+
+#### Roles del Sistema
+
+Los roles definen la identidad organizacional del usuario. **No definen qué módulos puede ver** (eso lo hacen los `accessibleModules`), con la excepción de los Roles Estratégicos (ADMIN y RH) que tienen bypass global.
+
+| Rol | Nombre | Descripción | Color | Icono | Tipo |
+|-----|--------|-------------|-------|-------|------|
+| `ADMIN` | Administrador | Administrador del sistema — control técnico global | `bg-purple-100 text-purple-800` | 👑 | Estratégico |
+| `RH` | Recursos Humanos | Gestión de personal y reclutamiento — control operativo global autorizado por Dirección General | `bg-blue-100 text-blue-800` | 👥 | Estratégico |
+| `SISTEMAS` | Sistemas | Soporte técnico y sistemas | `bg-green-100 text-green-800` | 💻 | Departamental |
+| `COMPRAS` | Compras | Gestión de compras y proveedores | `bg-yellow-100 text-yellow-800` | 🛒 | Departamental |
+| `PRODUCCION` | Producción | Gestión de producción | `bg-red-100 text-red-800` | 🏭 | Departamental |
+| `EMPLEADO_BASICO` | Empleado | Acceso básico al sistema | `bg-gray-100 text-gray-800` | 👤 | Base |
+
+**Principio**: El rol es un atributo del usuario, no un mecanismo de control de acceso a módulos. La excepción son ADMIN y RH, que por política organizacional tienen bypass global.
+
+#### Presets de Módulos por Rol
+
+Definidos en `backend/src/config/roles.config.js`:
+
+| Rol | Módulos asignados por defecto |
+|-----|-------------------------------|
+| `ADMIN` | DASHBOARD, EMPLEADOS, RECLUTAMIENTO, VACACIONES, INCIDENCIAS, CONFIGURACION, REPORTES, COMPRAS |
+| `RH` | DASHBOARD, EMPLEADOS, RECLUTAMIENTO, VACACIONES, INCIDENCIAS, REPORTES |
+| `SISTEMAS` | DASHBOARD, CONFIGURACION, REPORTES |
+| `COMPRAS` | DASHBOARD, COMPRAS, REPORTES |
+| `PRODUCCION` | DASHBOARD, REPORTES |
+| `EMPLEADO_BASICO` | DASHBOARD |
+
+#### Cómo agregar un nuevo rol
 
 1. **Agregar al enum `RoleType`** en `backend/prisma/schema.prisma`
 2. **Agregar a `SYSTEM_ROLES`** en `backend/src/routes/roles.routes.js` con:
@@ -340,7 +507,7 @@ Procedimiento oficial paso a paso para agregar un nuevo módulo al ERP KRAM:
 4. **Configurar `accessibleModules`** desde la UI de Gestión de Accesos
 5. **No se requiere modificar código** de validación de acceso
 
-### Uso en Frontend
+#### Uso en Frontend
 
 ```jsx
 // Importar funciones de rolesConfig (solo para visualización)
@@ -355,7 +522,7 @@ const roles = await getRolesFromApi()
 const modules = await getModulesFromApi()
 ```
 
-### Uso en Backend
+#### Uso en Backend
 
 ```js
 // Consumir endpoint de roles
@@ -371,9 +538,116 @@ const presetsResponse = await fetch(`${API_URL}/api/roles/presets`, {
 const { presets } = await presetsResponse.json();
 ```
 
+### 10.2 Patrón de Controladores
+
+```js
+// ✅ Patrón obligatorio para controladores
+class EntityController {
+  static async list(req, res) {
+    try {
+      const filters = req.query;
+      const data = await EntityService.list(filters);
+      res.json({ data });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async getById(req, res) {
+    try {
+      const { id } = req.params;
+      const data = await EntityService.getById(id);
+      if (!data) return res.status(404).json({ error: 'No encontrado' });
+      res.json({ data });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async create(req, res) {
+    try {
+      const data = await EntityService.create(req.body, req.user);
+      res.status(201).json({ data, message: 'Creado exitosamente' });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+}
+```
+
 ---
 
-## 12. Documentación Asociada
+## 11. FLUJO DE TRABAJO ANTES DE PROGRAMAR
+
+### 11.1 Proceso Obligatorio
+
+**ANTES DE ESCRIBIR CUALQUIER CÓDIGO**, seguir este proceso en orden:
+
+```
+1. Analizar requerimiento
+   ↓
+2. Buscar componentes existentes (frontend)
+   ↓
+3. Buscar servicios existentes (backend)
+   ↓
+4. Buscar endpoints existentes (backend)
+   ↓
+5. Detectar duplicidades con lo existente
+   ↓
+6. Proponer plan de implementación
+   ↓
+7. Programar
+```
+
+**Para cambios grandes** (nuevos módulos, cambios arquitectónicos, refactors mayores):
+- Proponer plan.
+- Esperar aprobación del usuario.
+- Programar.
+
+**Para cambios pequeños** (correcciones, bugs localizados, refactors menores, cambios evidentes):
+- Puede implementarse directamente respetando las reglas del sistema.
+
+Analizar primero el impacto antes de implementar.
+
+### 11.2 Preguntas Clave Antes de Programar
+
+- ¿Ya existe un componente/servicio/endpoint que haga algo similar?
+- ¿Puedo extender lo existente en lugar de crear algo nuevo?
+- ¿Estoy siguiendo los patrones establecidos?
+- ¿Estoy respetando la separación de capas?
+- ¿Estoy usando `accessibleModules` correctamente?
+- ¿Ya revisé la documentación existente?
+
+---
+
+## 12. GIT Y DESPLIEGUE
+
+### 12.1 Reglas de Git
+
+**NUNCA** hacer automáticamente `git add`, `git commit` o `git push`.
+
+Antes de cualquier operación Git, se debe:
+
+1. **Mostrar al usuario** los archivos modificados
+2. **Presentar un resumen** de los cambios realizados
+3. **Identificar riesgos** potenciales (migraciones, cambios de schema, permisos)
+4. **Esperar confirmación explícita** del usuario
+
+### 12.2 Proceso de Commit
+
+```
+1. Mostrar: "Archivos modificados: [lista]"
+2. Mostrar: "Resumen de cambios: [descripción]"
+3. Mostrar: "Riesgos: [ninguno / migraciones / cambios de permisos / etc.]"
+4. Preguntar: "¿Procedo con el commit y push?"
+5. Solo ejecutar tras confirmación del usuario
+```
+
+---
+
+## 13. DOCUMENTACIÓN OBLIGATORIA
+
+### 13.1 Documentos Oficiales
 
 El ERP KRAM cuenta con documentación técnica oficial en el directorio `docs/`. Cualquier cambio importante en la arquitectura, flujos de negocio, modelo de datos o permisos debe reflejarse tanto en este `.clinerules` como en la documentación correspondiente.
 
@@ -382,9 +656,225 @@ El ERP KRAM cuenta con documentación técnica oficial en el directorio `docs/`.
 | `docs/ARQUITECTURA_KRAM.md` | Arquitectura general, estructura del repositorio, inventario de módulos, roles, presets y base de datos |
 | `docs/FLUJOS_DE_NEGOCIO.md` | Flujos funcionales detallados: reclutamiento, compras, empleados, configuración de accesos |
 | `docs/MATRIZ_DE_PERMISOS.md` | Matriz completa de permisos por módulo y rol, modelo de autorización de 3 niveles |
-| `docs/ERD_KRAM.md` | Diagrama entidad-relación con 23 modelos y 9 enums, relaciones y campos clave |
+| `docs/ERD_KRAM.md` | Diagrama entidad-relación con modelos y enums, relaciones y campos clave |
 | `docs/GUIA_NUEVO_MODULO.md` | Guía detallada paso a paso para implementar un nuevo módulo en el sistema |
 | `docs/DEUDA_TECNICA.md` | Inventario de deuda técnica clasificada por prioridad (P0-P3) con plan de remediación |
+
+### 13.2 Regla de Sincronización
+
+Cuando se agregue un módulo o se realice un cambio arquitectónico significativo, **ACTUALIZAR OBLIGATORIAMENTE**:
+
+- `docs/ARQUITECTURA_KRAM.md` — Estructura, rutas, modelos, inventario completo
+- `docs/FLUJOS_DE_NEGOCIO.md` — Flujos funcionales detallados
+- `docs/ERD_KRAM.md` — Diagrama entidad-relación
+- `docs/MATRIZ_DE_PERMISOS.md` — Matriz de permisos actualizada
+
+---
+
+## 14. CHECKLIST FINAL
+
+### 14.1 Verificación Antes de Terminar un Cambio
+
+Antes de dar por completado cualquier cambio en el código, verificar:
+
+| # | Verificación | Descripción |
+|---|-------------|-------------|
+| ✓ | **No hay código duplicado** | Se buscaron componentes/servicios/endpoints existentes antes de crear nuevos |
+| ✓ | **No hay lógica en controllers** | Los controllers solo orquestan, no contienen lógica de negocio ni consultas Prisma |
+| ✓ | **No se rompió schema.prisma** | No se renombraron tablas/columnas existentes sin autorización |
+| ✓ | **No se rompieron permisos** | Se usó `accessibleModules` en lugar de hardcodear roles (excepto ADMIN/RH) |
+| ✓ | **Se reutilizaron servicios existentes** | No se crearon servicios duplicados cuando ya existía uno similar |
+| ✓ | **No se agregaron hardcodes** | No se hardcodearon listados de módulos, roles ni permisos en el frontend |
+| ✓ | **Se mantuvo la arquitectura** | Se respetó la separación de capas (routes → controllers → services) |
+| ✓ | **Se actualizó documentación** | Se reflejaron los cambios en `.clinerules` y `docs/` si fue necesario |
+| ✓ | **El código es escalable** | Agregar nuevos módulos/roles no requiere modificar código existente |
+| ✓ | **El cambio es consistente con ERP KRAM** | Sigue los patrones establecidos y la filosofía del sistema |
+
+### 14.2 Recordatorio Final
+
+```
+¿El cambio que estás por hacer...
+  ...respeta la separación de capas?
+  ...usa accessibleModules en lugar de roles hardcodeados?
+  ...reutiliza servicios existentes?
+  ...no duplica código?
+  ...está documentado?
+  ...es escalable?
+
+Si la respuesta a TODAS es SÍ, procede.
+Si alguna es NO, refactoriza antes de continuar.
+```
+
+---
+
+## 15. PRAGMATISMO Y SIMPLICIDAD
+
+### 15.1 Principios
+
+- **La simplicidad tiene prioridad** sobre la sobreingeniería.
+- **Evitar abstracciones prematuras.** No crear capas, servicios o componentes que aún no se necesitan.
+- **Evitar fragmentar** componentes o servicios sin una razón justificada.
+- **Un CRUD simple puede permanecer simple.** No toda operación de base de datos necesita un service dedicado.
+- **La arquitectura debe evolucionar** con el crecimiento del sistema, no anticiparse a necesidades hipotéticas.
+- **No crear hooks, servicios o capas adicionales** cuando no aporten valor real a la mantenibilidad o reutilización.
+
+### 15.2 Prioridades
+
+Al escribir código, priorizar en este orden:
+
+1. **Legibilidad** — El código debe ser claro para otros desarrolladores.
+2. **Mantenibilidad** — Debe ser fácil de modificar sin romper otras partes.
+3. **Simplicidad** — La solución más simple y directa suele ser la correcta.
+4. **Reutilización** — Extraer lógica compartida solo cuando se usa en más de un lugar.
+5. **Escalabilidad** — Preparar para crecimiento sin sobreingeniería.
+
+> **Regla práctica:** Si una abstracción no resuelve un problema real hoy, no la implementes. La deuda técnica por exceso de abstracción es tan costosa como la falta de ella.
+
+---
+
+## 16. REGLAS PARA AGENTES IA
+
+### 16.1 Antes de Modificar Código
+
+1. **Leer archivos relacionados** para comprender el contexto completo del cambio.
+2. **Comprender la arquitectura existente** antes de proponer modificaciones.
+3. **Identificar posibles duplicidades** con código existente.
+4. **Mostrar riesgos** cuando existan (migraciones, cambios de schema, impacto en permisos).
+5. **Implementar el cambio mínimo necesario** para resolver el problema.
+
+### 16.2 Preferencias
+
+- **Preferir refactorizar** antes que reescribir.
+- **Preferir extender** lo existente antes que crear algo nuevo.
+
+### 16.3 Restricciones
+
+No cambiar sin autorización explícita:
+
+- **Modelos Prisma** (`schema.prisma`) — cambios estructurales de BD.
+- **Rutas** — nombres de endpoints, métodos HTTP, middlewares.
+- **APIs** — contratos de frontend/backend.
+- **Nombres de archivos** — rompe imports y referencias.
+
+### 16.4 Reglas de Seguridad para IA
+
+- **No realizar migraciones destructivas** automáticamente (ej. `prisma migrate reset`).
+- **No eliminar código** sin verificar referencias en todo el proyecto.
+- **No asumir comportamientos** del sistema; inspeccionar primero el código real.
+- **No introducir nuevas dependencias** (`npm install`) sin justificar su necesidad.
+- **No modificar archivos de configuración** del proyecto (`next.config.js`, `docker-compose.yml`, etc.) sin autorización.
+
+---
+
+## 17. ARQUITECTURA EVOLUTIVA
+
+### 17.1 Principios
+
+- **La arquitectura debe evolucionar** con el tamaño del sistema, no anticiparse a necesidades hipotéticas.
+- **No introducir complejidad anticipada.** Las abstracciones deben aparecer cuando exista una necesidad real.
+- **Preferir la progresión:** `Simple → Modular → Escalable`, en lugar de `Complejo → Sobreingeniería → Difícil mantenimiento`.
+- **La mantenibilidad y legibilidad** tienen prioridad sobre patrones innecesarios.
+- **No crear capas adicionales** únicamente por seguir una moda arquitectónica.
+
+### 17.2 Ciclo de Evolución
+
+```
+Fase 1: Simple
+  → Código directo, mínimo de abstracciones
+  → Válido para CRUDs, páginas simples, utilidades
+
+Fase 2: Modular
+  → Extraer responsabilidades cuando el código crece
+  → Separar por dominio cuando hay múltiples contextos
+
+Fase 3: Escalable
+  → Arquitectura completa con capas bien definidas
+  → Solo cuando el sistema lo justifica
+```
+
+> **Regla práctica:** No diseñes para un futuro que puede no llegar. Diseña para el presente, y refactoriza cuando el presente lo exija.
+
+---
+
+## 18. CONSTITUCIÓN TÉCNICA
+
+### 18.1 Propósito del .clinerules
+
+Este archivo `.clinerules` representa únicamente:
+
+- **Filosofía del sistema** — Principios rectores y valores de diseño.
+- **Principios de arquitectura** — Separación de capas, estructura, patrones.
+- **Seguridad** — Modelo de 3 niveles, bypass estratégico, reglas de acceso.
+- **Reglas generales** — Convenciones, calidad, anti-duplicidad.
+- **Flujo de trabajo** — Proceso antes de programar, Git, documentación.
+- **Convenciones** — Estilo, nombres, estructura de archivos.
+
+### 18.2 Lo que NO es .clinerules
+
+- **NO es un manual de usuario** — Eso va en `docs/` o `MANUAL_USUARIO.md`.
+- **NO es documentación de API** — Eso va en `docs/` o en el código mismo.
+- **NO es un catálogo de ejemplos** — Los ejemplos detallados van en `docs/STANDARDS.md`.
+- **NO es un registro de decisiones técnicas** — Eso va en `docs/adr/`.
+- **NO debe crecer indefinidamente** — Si una regla es muy específica o detallada, debe moverse a `docs/`.
+
+### 18.3 Regla de Mantenimiento
+
+- Mantener `.clinerules` como un documento **liviano** de principios y reglas generales.
+- Los **detalles específicos** (ejemplos de código, patrones detallados, guías de implementación) deben mantenerse en documentos externos dentro de `docs/`.
+- Al agregar contenido nuevo, preguntar: *"¿Esto es un principio general o un detalle específico?"*
+  - Si es principio general → queda en `.clinerules`.
+  - Si es detalle específico → va a `docs/`.
+
+---
+
+## 19. PRINCIPIO DE CAMBIO MÍNIMO
+
+### 19.1 Regla
+
+Antes de modificar código, aplicar el principio de cambio mínimo:
+
+1. **Preferir extender** antes que reescribir.
+2. **Preferir refactorizar** antes que duplicar.
+3. **Implementar el cambio mínimo necesario** para resolver el problema.
+4. **No reemplazar grandes bloques de código** si una modificación pequeña resuelve el problema.
+5. **Preservar compatibilidad** con el resto del sistema.
+
+### 19.2 Ejemplos
+
+```js
+// ✅ BIEN: Cambio mínimo — agregar un parámetro opcional
+function getEmployees(departmentId, includeInactive = false) {
+  // ...
+}
+
+// ❌ MAL: Reescribir toda la función para agregar una funcionalidad pequeña
+function getEmployeesV2(departmentId, includeInactive) {
+  // Reescribe toda la lógica existente solo para agregar un filtro
+}
+```
+
+---
+
+## 20. REGLA DE DEPENDENCIAS
+
+### 20.1 Regla
+
+No instalar nuevas librerías o dependencias sin justificar:
+
+1. **El problema que resuelven** — ¿Qué funcionalidad específica se necesita?
+2. **Alternativas existentes** — ¿Se puede resolver con herramientas ya presentes en el proyecto?
+3. **Impacto en mantenimiento** — ¿La dependencia agrega riesgo de seguridad, peso al bundle, o complejidad?
+
+### 20.2 Prioridad
+
+```
+1. Soluciones con herramientas ya presentes en el proyecto
+2. Código propio (utilidades, hooks, helpers)
+3. Librerías ligeras y bien mantenidas
+4. Frameworks completos (solo cuando sea estrictamente necesario)
+```
+
+> **Regla práctica:** Cada dependencia nueva es una deuda de mantenimiento. Pregúntate si realmente vale la pena antes de agregarla.
 
 ---
 
@@ -396,4 +886,7 @@ El ERP KRAM cuenta con documentación técnica oficial en el directorio `docs/`.
 | 2.0 | — | Sistema de permisos ACL, estrategia de 3 niveles |
 | 3.0 | 04/06/2026 | Sistema de Roles Escalable: `rolesConfig.js`, endpoints dinámicos `GET /api/roles` y `GET /api/modules`, guía de escalabilidad |
 | 4.0 | 13/06/2026 | Centralización de módulos en `modules.config.js`; formalización de documentación técnica (`docs/`); incorporación del módulo Compras; reglas actualizadas para nuevos módulos; documentación de fuentes oficiales de roles y presets; sección de documentación asociada; refuerzo de reglas de seguridad |
-| **4.1** | **13/06/2026** | Documentación de ADMIN y RH como Roles Estratégicos con bypass global intencional; corrección del alcance documental de RH (control operativo global autorizado por Dirección General); actualización de ejemplos de código; incorporación de nota de seguridad sobre autorización de Presidencia; alineación con la política oficial de seguridad de KRAM |
+| 4.1 | 13/06/2026 | Documentación de ADMIN y RH como Roles Estratégicos con bypass global intencional; corrección del alcance documental de RH (control operativo global autorizado por Dirección General); actualización de ejemplos de código; incorporación de nota de seguridad sobre autorización de Presidencia; alineación con la política oficial de seguridad de KRAM |
+| **5.0** | **24/06/2026** | **Refactorización Integral Arquitectónica**: Reorganización completa del documento en 14 secciones temáticas; incorporación de reglas de arquitectura backend (controllers sin lógica, servicios especializados, límites de tamaño); reglas de frontend (separación UI/estado/servicios); proceso obligatorio antes de programar; reglas Git; anti-duplicidad; checklist final. Se preservan todas las reglas existentes de v4.1. |
+| **5.1** | **24/06/2026** | **Refinamiento Pragmático**: Flexibilización de límites de tamaño (objetivos recomendados, no obligatorios); relajación de regla de Prisma en controllers (CRUD simple permitido); flujo de trabajo menos burocrático (cambios pequeños sin aprobación previa); tono más técnico y neutral; nuevas secciones de Pragmatismo/Simplicidad y Reglas para Agentes IA. Se preservan todas las reglas existentes de v5.0. |
+| **5.2** | **24/06/2026** | **Constitución Técnica**: Unificación de reglas de controllers (eliminación de contradicción); nuevas secciones de Arquitectura Evolutiva, Constitución Técnica, Principio de Cambio Mínimo y Regla de Dependencias; creación de `docs/STANDARDS.md` para ejemplos detallados; refuerzo de .clinerules como documento liviano de principios. Se preservan todas las reglas existentes de v5.1. |
