@@ -1,7 +1,9 @@
 /**
  * Other Modules Tests (Papelería, Uniformes, Notificaciones)
- * Rutas reales: /api/stationery (papelería)
- * Uniformes y Notificaciones no tienen rutas montadas actualmente
+ * Rutas reales:
+ *   - /api/stationery (papelería)
+ *   - /api/uniforms/inventory, /api/uniforms/deliveries (uniformes)
+ *   - /api/notifications/upcoming, /api/notifications/logs (notificaciones)
  */
 const { request, getToken } = require('./helpers/setup');
 
@@ -24,17 +26,27 @@ describe('📎 Módulos Adicionales', () => {
     });
   });
 
-  describe('Uniformes (ruta no montada - 404 esperado)', () => {
-    test('GET /api/uniform-deliveries - ruta no existe (404)', async () => {
-      const res = await request('GET', '/api/uniform-deliveries', null, token);
-      expect(res.status).toBe(404);
+  describe('Uniformes', () => {
+    test('GET /api/uniforms/inventory - lista inventario', async () => {
+      const res = await request('GET', '/api/uniforms/inventory', null, token);
+      expect(res.status).toBe(200);
+    });
+
+    test('GET /api/uniforms/inventory sin token (401)', async () => {
+      const res = await request('GET', '/api/uniforms/inventory');
+      expect(res.status).toBe(401);
     });
   });
 
-  describe('Notificaciones (ruta no montada - 404 esperado)', () => {
-    test('GET /api/notifications - ruta no existe (404)', async () => {
-      const res = await request('GET', '/api/notifications', null, token);
-      expect(res.status).toBe(404);
+  describe('Notificaciones', () => {
+    test('GET /api/notifications/upcoming - próximos eventos', async () => {
+      const res = await request('GET', '/api/notifications/upcoming', null, token);
+      expect(res.status).toBe(200);
+    });
+
+    test('GET /api/notifications/upcoming sin token (401)', async () => {
+      const res = await request('GET', '/api/notifications/upcoming');
+      expect(res.status).toBe(401);
     });
   });
 });

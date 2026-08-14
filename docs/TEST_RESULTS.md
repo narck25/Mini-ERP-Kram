@@ -12,13 +12,13 @@
 | Métrica | Valor |
 |---------|-------|
 | **Suites de prueba** | 11 |
-| **Pruebas totales** | 55 |
-| **✅ Pass** | 55 |
+| **Pruebas totales** | 57 |
+| **✅ Pass** | 57 |
 | **❌ Fail** | 0 |
 | **⏱️ Tiempo total** | ~8s |
 | **Cobertura de código** | N/A (pruebas de integración) |
 
-**Resultado: ✅ 55/55 PRUEBAS PASAN — SISTEMA OPERATIVO**
+**Resultado: ✅ 57/57 PRUEBAS PASAN — SISTEMA OPERATIVO**
 
 ---
 
@@ -37,7 +37,7 @@ backend/tests/
 ├── 07-config.test.js          ← Configuración (7 tests)
 ├── 08-incidencias.test.js     ← Incidencias (2 tests)
 ├── 09-stats.test.js           ← Estadísticas (4 tests)
-├── 10-other-modules.test.js   ← Papelería, Uniformes, Notif. (4 tests)
+├── 10-other-modules.test.js   ← Papelería, Uniformes, Notif. (6 tests)
 └── 11-security.test.js        ← Seguridad (6 tests)
 ```
 
@@ -135,14 +135,16 @@ backend/tests/
 | 3 | Estadísticas del sistema | ✅ 200 |
 | 4 | Sin token | ✅ 401 |
 
-### 📎 Módulos Adicionales — 4/4 ✅
+### 📎 Módulos Adicionales — 6/6 ✅
 
 | # | Prueba | Resultado |
 |---|--------|-----------|
 | 1 | Papelería (stationery) | ✅ 200 |
 | 2 | Papelería sin token | ✅ 401 |
-| 3 | Uniformes (ruta no montada) | ✅ 404 (esperado) |
-| 4 | Notificaciones (ruta no montada) | ✅ 404 (esperado) |
+| 3 | Uniformes (inventory) | ✅ 200 |
+| 4 | Uniformes sin token | ✅ 401 |
+| 5 | Notificaciones (upcoming) | ✅ 200 |
+| 6 | Notificaciones sin token | ✅ 401 |
 
 ### 🔒 Seguridad — 6/6 ✅
 
@@ -172,15 +174,17 @@ backend/tests/
 | **Incidencias** | `/api/incidencias` | ✅ |
 | **Estadísticas** | `/api/stats/rh/dashboard`, `/api/stats/my-dashboard`, `/api/stats/system` | ✅ |
 | **Papelería** | `/api/stationery` | ✅ |
+| **Uniformes** | `/api/uniforms/inventory` | ✅ |
+| **Notificaciones** | `/api/notifications/upcoming` | ✅ |
 | **Seguridad** | Nivel A, Nivel C, 404 Handling | ✅ |
 
 ---
 
 ## Hallazgos y Notas
 
-### Rutas no montadas (404 esperado)
-- `/api/uniform-deliveries` — Ruta de uniformes no está montada en el backend
-- `/api/notifications` — Ruta de notificaciones no está montada en el backend
+### Rutas montadas y alias verificados
+- `/api/uniforms/*` — Rutas de uniformes SÍ montadas (`inventory`, `deliveries`, `employees/:id/history`)
+- `/api/notifications/*` — Rutas de notificaciones SÍ montadas (`upcoming`, `logs`, `check-now`)
 - `/api/purchase-requests` — La ruta correcta es `/api/purchase-orders`
 - `/api/stationery-requests` — La ruta correcta es `/api/stationery`
 

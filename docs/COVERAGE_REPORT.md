@@ -10,10 +10,10 @@
 
 | Tipo | Framework | Pruebas | Cobertura de Código |
 |------|-----------|---------|---------------------|
-| **Integración (API)** | Jest + Supertest | 55 | N/A (HTTP tests) |
+| **Integración (API)** | Jest + Supertest | 57 | N/A (HTTP tests) |
 | **Unitarias** | Jest | 20+ | ✅ Mide cobertura real |
 | **E2E** | Playwright | 10+ | N/A (browser tests) |
-| **Total** | | **85+** | |
+| **Total** | | **87+** | |
 
 ---
 
@@ -63,8 +63,8 @@
 | **Estadísticas** | 3 | 4 | ✅ |
 | **Papelería** | 1 | 2 | ✅ |
 | **Seguridad** | 3 niveles | 6 | ✅ |
-| **Uniformes** | 0 | 0 | ⬜ No montado |
-| **Notificaciones** | 0 | 0 | ⬜ No montado |
+| **Uniformes** | 1 | 2 | ✅ |
+| **Notificaciones** | 1 | 2 | ✅ |
 
 ---
 

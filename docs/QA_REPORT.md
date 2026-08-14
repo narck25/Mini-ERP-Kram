@@ -13,8 +13,8 @@
 | Métrica | Valor |
 |---------|-------|
 | **Suites** | 11 |
-| **Pruebas** | 55 |
-| **✅ Pass** | 55 |
+| **Pruebas** | 57 |
+| **✅ Pass** | 57 |
 | **❌ Fail** | 0 |
 | **Tiempo** | ~8s |
 
@@ -38,11 +38,11 @@
 | Métrica | Valor |
 |---------|-------|
 | **Suites totales** | 14 |
-| **Pruebas totales** | 94 |
-| **✅ Pass** | 94 |
+| **Pruebas totales** | 96 |
+| **✅ Pass** | 96 |
 | **❌ Fail** | 0 |
 
-**✅ 94/94 — SISTEMA OPERATIVO**
+**✅ 96/96 — SISTEMA OPERATIVO**
 
 ---
 
@@ -112,9 +112,9 @@
 
 ## Hallazgos
 
-### Rutas no montadas (404)
-- `/api/uniform-deliveries` — Ruta de uniformes no montada
-- `/api/notifications` — Ruta de notificaciones no montada
+### Rutas montadas (corrección)
+- `/api/uniforms/*` — Rutas de uniformes SÍ montadas (`inventory`, `deliveries`, `employees/:id/history`)
+- `/api/notifications/*` — Rutas de notificaciones SÍ montadas (`upcoming`, `logs`, `check-now`)
 
 ### Discrepancias de API
 - `GET /api/modules` devuelve `{ id, name, description }` (no `key`/`label`/`enabled`)
@@ -137,8 +137,8 @@
 | Estadísticas | ✅ | `/api/stats/rh/dashboard`, `/api/stats/my-dashboard`, `/api/stats/system` |
 | Papelería | ✅ | `/api/stationery` |
 | Seguridad | ✅ | Nivel A, Nivel C, 404 |
-| Uniformes | ⬜ | No montado |
-| Notificaciones | ⬜ | No montado |
+| Uniformes | ✅ | `/api/uniforms/inventory` |
+| Notificaciones | ✅ | `/api/notifications/upcoming` |
 
 ---
 
