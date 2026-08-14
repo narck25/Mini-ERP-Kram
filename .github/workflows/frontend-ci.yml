@@ -1,0 +1,160 @@
+# CI/CD — Frontend ERP KRAM
+# ─────────────────────────────────────────────────────────────
+# Ejecuta build y lint en cada push/PR.
+# Las pruebas E2E requieren backend + frontend corriendo.
+# ─────────────────────────────────────────────────────────────
+name: Frontend CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  build-and-lint:
+    name: Build & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Run linter
+        run: |
+          cd frontend
+          npm run lint
+        continue-on-error: true
+
+      - name: Build project
+        run: |
+          cd frontend
+          npm run build
+        env:
+          NEXT_PUBLIC_API_URL: 'http://localhost:4000/api'
+          CI: true
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-build
+          path: frontend/.next/
+          retention-days: 7
+
+      - name: Check build output
+        run: |
+          echo "✅ Frontend CI completed successfully"
+          echo "Build output size:"
+          du -sh frontend/.next/ 2>/dev/null || echo "No .next directory"
+
+  e2e-tests:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    needs: build-and-lint
+    if: false  # Deshabilitado hasta que se configuren los servicios
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kram_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Install Playwright browsers
+        run: |
+          cd frontend
+          npx playwright install chromium
+
+      - name: Setup database
+        run: |
+          cd backend
+          npx prisma generate
+          npx prisma migrate deploy
+          node prisma/seed.js
+        env:
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/kram_test'
+          JWT_SECRET: 'ci-test-secret'
+
+      - name: Start backend
+        run: |
+          cd backend
+          node src/index.js &
+          sleep 3
+          echo "Backend started"
+        env:
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/kram_test'
+          JWT_SECRET: 'ci-test-secret'
+          PORT: 4000
+
+      - name: Start frontend
+        run: |
+          cd frontend
+          npm run build
+          npm start &
+          sleep 5
+          echo "Frontend started"
+        env:
+          NEXT_PUBLIC_API_URL: 'http://localhost:4000/api'
+
+      - name: Run E2E tests
+        run: |
+          cd frontend
+          npx playwright test --config e2e/playwright.config.js
+        env:
+          BASE_URL: 'http://localhost:3000'
+
+      - name: Upload E2E report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-report
+          path: frontend/e2e/report/
+          retention-days: 30

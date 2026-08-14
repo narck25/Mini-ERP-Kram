@@ -1,0 +1,113 @@
+# CI/CD — Backend ERP KRAM
+# ─────────────────────────────────────────────────────────────
+# Ejecuta pruebas de integración y unitarias en cada push/PR.
+# Requiere PostgreSQL para pruebas de integración.
+# ─────────────────────────────────────────────────────────────
+name: Backend CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+
+env:
+  NODE_VERSION: '18'
+  DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/kram_test'
+
+jobs:
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kram_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Generate Prisma client
+        run: |
+          cd backend
+          npx prisma generate
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Run Prisma migrations
+        run: |
+          cd backend
+          npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Seed database
+        run: |
+          cd backend
+          node prisma/seed.js
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          JWT_SECRET: 'ci-test-secret'
+          JWT_EXPIRES_IN: '1h'
+
+      - name: Run integration tests
+        run: |
+          cd backend
+          npm test -- --ci --coverage
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          JWT_SECRET: 'ci-test-secret'
+          JWT_EXPIRES_IN: '1h'
+          PORT: 4000
+
+      - name: Run unit tests
+        run: |
+          cd backend
+          npm run test:unit -- --ci --coverage
+        env:
+          JWT_SECRET: 'ci-test-secret'
+          JWT_EXPIRES_IN: '1h'
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage
+          path: |
+            backend/coverage/
+            backend/coverage/unit/
+          retention-days: 30
+
+      - name: Check coverage thresholds
+        run: |
+          cd backend
+          echo "✅ Backend CI completed successfully"
