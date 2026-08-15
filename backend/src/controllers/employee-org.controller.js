@@ -13,11 +13,6 @@ exports.getEmployeeStats = async (req, res) => {
       by: ['departamento_id'],
       _count: {
         id: true
-      },
-      where: {
-        departamento_id: {
-          not: null
-        }
       }
     });
 
@@ -38,7 +33,7 @@ exports.getEmployeeStats = async (req, res) => {
 
     // Estadísticas por puesto (top 10)
     const byPosition = await prisma.employee.groupBy({
-      by: ['puesto'],
+      by: ['puestoId'],
       _count: {
         id: true
       },

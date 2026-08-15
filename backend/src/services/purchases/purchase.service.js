@@ -454,9 +454,6 @@ exports.getPublicRequestDetails = async (req) => {
 exports.authorizeRequest = async (userId, requestId) => {
 
   const employee = await getEmployeeByUserId(userId);
-  if (!employee) {
-    throw { status: 404, error: 'Empleado no encontrado', message: 'El usuario no tiene un empleado asociado' };
-  }
 
   const request = await prisma.purchaseRequest.findUnique({ where: { id: requestId } });
   if (!request) {
@@ -468,24 +465,26 @@ exports.authorizeRequest = async (userId, requestId) => {
   }
 
   // ── Actualizar estado del aprobador (PurchaseApprover) ──
-  // Buscar el registro de aprobador asignado a este empleado para esta solicitud
-  await prisma.purchaseApprover.updateMany({
-    where: {
-      requestId,
-      employeeId: employee.id
-    },
-    data: {
-      estatus: 'APROBADO',
-      fechaRespuesta: new Date()
-    }
-  });
+  // Solo si el usuario tiene un empleado asociado (ADMIN puede no tenerlo)
+  if (employee) {
+    await prisma.purchaseApprover.updateMany({
+      where: {
+        requestId,
+        employeeId: employee.id
+      },
+      data: {
+        estatus: 'APROBADO',
+        fechaRespuesta: new Date()
+      }
+    });
+  }
 
   // ── Actualizar estado de la solicitud a APROBADO ──
   const updatedRequest = await prisma.purchaseRequest.update({
     where: { id: requestId },
     data: {
       estatus: 'APROBADO',
-      autorizadoPorId: employee.id,
+      autorizadoPorId: employee ? employee.id : null,
       fechaAutorizacion: new Date()
     },
     include: {

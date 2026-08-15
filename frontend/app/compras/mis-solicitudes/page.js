@@ -47,7 +47,7 @@ export default function MisSolicitudesComprasPage() {
     if (!window.confirm('¿Estás seguro de cancelar esta solicitud?')) return;
     try {
       setCancellingId(requestId);
-      await api.put(`/purchases/${requestId}/cancel`);
+      await api.post(`/purchases/${requestId}/cancel`);
       toast.success('Solicitud cancelada exitosamente');
       fetchMyRequests();
     } catch (error) {

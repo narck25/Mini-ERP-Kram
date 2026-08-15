@@ -7,6 +7,7 @@ import api from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
+import Image from 'next/image';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { exportEmployeeToPDF } from '@/lib/employeePdfExport';
 
@@ -145,6 +146,7 @@ function EmployeeProfilePage() {
     if (user && id) {
       fetchEmployee();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, id]);
 
   // Inicializar formularios cuando se carga el empleado
@@ -574,7 +576,7 @@ function EmployeeProfilePage() {
   // ============================================================
   return (
     <DashboardLayout>
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="p-6 w-full">
         {/* Encabezado */}
         <div className="mb-6">
           <Link href="/rh/empleados" className="text-blue-600 hover:text-blue-800 font-medium">
@@ -590,9 +592,11 @@ function EmployeeProfilePage() {
             {/* Foto del empleado (HERO) */}
             <div className="flex-shrink-0 flex flex-col items-center gap-2">
               {employee.fotoUrl ? (
-                <img
+                <Image
                   src={employee.fotoUrl}
                   alt={`Foto de ${employee.nombres || employee.nombre || ''}`}
+                  width={128}
+                  height={128}
                   className="h-32 w-32 object-cover rounded-full border-4 border-white shadow-lg"
                 />
               ) : (

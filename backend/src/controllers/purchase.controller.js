@@ -817,15 +817,7 @@ class PurchaseController {
       const { id } = req.params;
       const result = await PurchaseService.deleteRequest(req.user.id, req.user.role, id);
 
-      await audit.log({
-        requestId: id,
-        userId: req.user.id,
-        accion: 'ELIMINACION',
-        valorAnterior: { id },
-        valorNuevo: null,
-        ip: req.ip,
-        userAgent: req.headers['user-agent']
-      });
+      await audit.logWithReq(id, req.user.id, 'ELIMINACION', { id }, null, req);
 
       res.json({ message: result.message });
     } catch (error) {

@@ -38,6 +38,7 @@ export default function MisSolicitudesDetallePage() {
     if (user && user.accessibleModules?.includes('COMPRAS')) {
       fetchRequestDetails();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, requestId]);
 
   const fetchRequestDetails = async () => {

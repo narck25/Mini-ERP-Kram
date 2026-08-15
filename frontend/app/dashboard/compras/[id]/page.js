@@ -63,6 +63,7 @@ export default function ComprasDetailPage() {
     if (user && (user.role === 'ADMIN' || user.role === 'COMPRAS' || user.accessibleModules?.includes('COMPRAS'))) {
       fetchRequestDetails();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, requestId]);
 
   const fetchRequestDetails = async () => {
@@ -258,6 +259,7 @@ export default function ComprasDetailPage() {
     if (request?.estatus === 'APROBADO') {
       fetchPurchaseOrder();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request?.estatus]);
 
   const handleAuthorizeRequest = async () => {
