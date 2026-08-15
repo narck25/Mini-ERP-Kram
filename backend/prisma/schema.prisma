@@ -21,6 +21,8 @@ model User {
   sessions          Session[]
   VacancyComment    VacancyComment[]
   purchaseComments  PurchaseComment[]
+  inventoryAdjustmentsApproved InventoryAdjustmentRequest[] @relation("AjusteAprobador")
+  inventoryMovements InventoryMovement[]
 
   @@map("users")
 }
@@ -126,6 +128,7 @@ model Employee {
   stationeryDeliveries  StationeryRequest[] @relation("PapeleriaEntregador")
   uniformDeliveries     UniformDelivery[]   @relation("UniformeEmpleado")
   uniformDeliveriesMade UniformDelivery[]   @relation("UniformeEntregador")
+  inventoryAdjustmentsRequested InventoryAdjustmentRequest[] @relation("AjusteSolicitante")
 
   @@index([departamento_id, estatus])
   @@map("employees")
@@ -653,4 +656,50 @@ model UniformDelivery {
   entregadoPor    Employee @relation("UniformeEntregador", fields: [entregadoPorId], references: [id])
 
   @@map("uniform_deliveries")
+}
+
+// ─── SOLICITUDES DE AJUSTE DE INVENTARIO ───
+
+model InventoryAdjustmentRequest {
+  id                   String    @id @default(cuid())
+  tipo                 String    // 'PAPELERIA' | 'UNIFORMES'
+  accion               String    // 'AGREGAR' | 'ACTUALIZAR' | 'ELIMINAR'
+  itemId               String?   // item existente (para ACTUALIZAR/ELIMINAR)
+  detalle              Json      // datos del ajuste (producto, talla, cantidad, etc.)
+  motivo               String    // razón del ajuste (obligatoria)
+  estatus              String    @default("PENDIENTE") // PENDIENTE | APROBADA | RECHAZADA
+  solicitanteId        String
+  aprobadoPorId        String?
+  aprobadoAt           DateTime?
+  comentarioAprobacion String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  solicitante Employee  @relation("AjusteSolicitante", fields: [solicitanteId], references: [id])
+  aprobadoPorUser User? @relation("AjusteAprobador", fields: [aprobadoPorId], references: [id])
+
+  @@index([estatus, tipo])
+  @@map("inventory_adjustment_requests")
+}
+
+// ─── KARDEX / MOVIMIENTOS DE INVENTARIO ───
+
+model InventoryMovement {
+  id              String   @id @default(cuid())
+  tipo            String   // 'PAPELERIA' | 'UNIFORMES'
+  tipoMovimiento  String   // 'ENTRADA' | 'SALIDA' | 'AJUSTE'
+  itemId          String?
+  itemDescripcion String
+  cantidad        Int
+  stockAnterior   Int
+  stockNuevo      Int
+  referencia      String?
+  usuarioId       String?
+  createdAt       DateTime @default(now())
+
+  usuario User? @relation(fields: [usuarioId], references: [id])
+
+  @@index([tipo, createdAt])
+  @@index([tipoMovimiento])
+  @@map("inventory_movements")
 }

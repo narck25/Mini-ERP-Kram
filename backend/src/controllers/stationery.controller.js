@@ -78,7 +78,7 @@ class StationeryController {
       if (!entregadoPorId) {
         return res.status(400).json({ error: 'No tienes un empleado asociado' });
       }
-      const request = await StationeryService.deliverRequest(req.params.id, entregadoPorId);
+      const request = await StationeryService.deliverRequest(req.params.id, entregadoPorId, req.user.id);
       res.json({ data: request, message: 'Solicitud marcada como entregada' });
     } catch (error) {
       console.error('Error al entregar solicitud:', error);
@@ -101,7 +101,7 @@ class StationeryController {
 
   static async addInventoryItem(req, res) {
     try {
-      const item = await StationeryService.addInventoryItem(req.body);
+      const item = await StationeryService.addInventoryItem(req.body, req.user.id);
       res.status(201).json({ data: item, message: 'Producto agregado al inventario' });
     } catch (error) {
       console.error('Error al agregar producto:', error);
@@ -111,7 +111,7 @@ class StationeryController {
 
   static async updateInventoryItem(req, res) {
     try {
-      const item = await StationeryService.updateInventoryItem(req.params.id, req.body);
+      const item = await StationeryService.updateInventoryItem(req.params.id, req.body, req.user.id);
       res.json({ data: item, message: 'Producto actualizado' });
     } catch (error) {
       console.error('Error al actualizar producto:', error);
@@ -121,10 +121,20 @@ class StationeryController {
 
   static async deleteInventoryItem(req, res) {
     try {
-      await StationeryService.deleteInventoryItem(req.params.id);
+      await StationeryService.deleteInventoryItem(req.params.id, req.user.id);
       res.json({ message: 'Producto eliminado del inventario' });
     } catch (error) {
       console.error('Error al eliminar producto:', error);
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  static async restockInventoryItem(req, res) {
+    try {
+      const item = await StationeryService.restockInventoryItem(req.params.id, req.body.cantidad, req.user.id);
+      res.json({ data: item, message: 'Stock reabastecido' });
+    } catch (error) {
+      console.error('Error al reabastecer:', error);
       res.status(400).json({ error: error.message });
     }
   }

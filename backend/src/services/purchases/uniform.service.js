@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const { recordMovement } = require('./inventory-movement.service');
 
 const prisma = new PrismaClient();
 
@@ -16,21 +17,49 @@ class UniformService {
     });
   }
 
-  static async addInventoryItem(data) {
-    return prisma.uniformInventory.create({ data });
+  static async addInventoryItem(data, userId) {
+    const item = await prisma.uniformInventory.create({ data });
+    await recordMovement(null, {
+      tipo: 'UNIFORMES', tipoMovimiento: 'ENTRADA',
+      itemId: item.id, itemDescripcion: `${item.tipo} ${item.talla} ${item.genero || ''}`.trim(),
+      cantidad: item.cantidadActual || 0, stockAnterior: 0, stockNuevo: item.cantidadActual || 0,
+      referencia: 'Alta manual de inventario', usuarioId: userId
+    });
+    return item;
   }
 
-  static async updateInventoryItem(id, data) {
-    return prisma.uniformInventory.update({ where: { id }, data });
+  static async updateInventoryItem(id, data, userId) {
+    const anterior = await prisma.uniformInventory.findUnique({ where: { id } });
+    const item = await prisma.uniformInventory.update({ where: { id }, data });
+    if (anterior && data.cantidadActual != null) {
+      await recordMovement(null, {
+        tipo: 'UNIFORMES', tipoMovimiento: 'AJUSTE',
+        itemId: item.id, itemDescripcion: `${item.tipo} ${item.talla} ${item.genero || ''}`.trim(),
+        cantidad: Math.abs(item.cantidadActual - anterior.cantidadActual),
+        stockAnterior: anterior.cantidadActual, stockNuevo: item.cantidadActual,
+        referencia: 'Ajuste manual de inventario', usuarioId: userId
+      });
+    }
+    return item;
   }
 
-  static async deleteInventoryItem(id) {
-    return prisma.uniformInventory.delete({ where: { id } });
+  static async deleteInventoryItem(id, userId) {
+    const item = await prisma.uniformInventory.findUnique({ where: { id } });
+    const deleted = await prisma.uniformInventory.delete({ where: { id } });
+    if (item) {
+      await recordMovement(null, {
+        tipo: 'UNIFORMES', tipoMovimiento: 'SALIDA',
+        itemId: item.id, itemDescripcion: `${item.tipo} ${item.talla} ${item.genero || ''}`.trim(),
+        cantidad: item.cantidadActual, stockAnterior: item.cantidadActual, stockNuevo: 0,
+        referencia: 'Eliminación de inventario', usuarioId: userId
+      });
+    }
+    return deleted;
   }
 
   // ─── ENTREGAS ───
 
-  static async createDelivery(data, entregadoPorId) {
+  static async createDelivery(data, entregadoPorId, userId) {
     const { empleadoId, items, observaciones } = data;
 
     if (!items || items.length === 0) {
@@ -66,9 +95,16 @@ class UniformService {
       });
 
       if (inventoryItem) {
+        const nuevo = Math.max(0, inventoryItem.cantidadActual - (item.cantidad || 1));
         await prisma.uniformInventory.update({
           where: { id: inventoryItem.id },
-          data: { cantidadActual: Math.max(0, inventoryItem.cantidadActual - (item.cantidad || 1)) }
+          data: { cantidadActual: nuevo }
+        });
+        await recordMovement(null, {
+          tipo: 'UNIFORMES', tipoMovimiento: 'SALIDA',
+          itemId: inventoryItem.id, itemDescripcion: `${inventoryItem.tipo} ${inventoryItem.talla} ${inventoryItem.genero || ''}`.trim(),
+          cantidad: item.cantidad || 1, stockAnterior: inventoryItem.cantidadActual, stockNuevo: nuevo,
+          referencia: 'Entrega de uniforme', usuarioId: userId
         });
       }
     }
@@ -110,6 +146,20 @@ class UniformService {
       },
       orderBy: { fechaEntrega: 'desc' }
     });
+  }
+
+  static async restockInventoryItem(id, cantidad, userId) {
+    const item = await prisma.uniformInventory.findUnique({ where: { id } });
+    if (!item) throw new Error('Artículo no encontrado');
+    const nuevo = item.cantidadActual + (parseInt(cantidad) || 0);
+    const updated = await prisma.uniformInventory.update({ where: { id }, data: { cantidadActual: nuevo } });
+    await recordMovement(null, {
+      tipo: 'UNIFORMES', tipoMovimiento: 'ENTRADA',
+      itemId: updated.id, itemDescripcion: `${updated.tipo} ${updated.talla} ${updated.genero || ''}`.trim(),
+      cantidad: parseInt(cantidad) || 0, stockAnterior: item.cantidadActual, stockNuevo: nuevo,
+      referencia: 'Reabastecimiento (restock)', usuarioId: userId
+    });
+    return updated;
   }
 }
 

@@ -24,25 +24,36 @@ router.post('/stationery/:id/cancel',
 router.get('/stationery/inventory',
   AuthMiddleware.verifyToken,
   AuthMiddleware.requireModule('COMPRAS'),
+  AuthMiddleware.requireRole(['ADMIN', 'RH', 'COMPRAS']),
   StationeryController.getInventory
 );
 
 router.post('/stationery/inventory',
   AuthMiddleware.verifyToken,
   AuthMiddleware.requireModule('COMPRAS'),
+  AuthMiddleware.requireRole(['ADMIN', 'RH']),
   StationeryController.addInventoryItem
 );
 
 router.put('/stationery/inventory/:id',
   AuthMiddleware.verifyToken,
   AuthMiddleware.requireModule('COMPRAS'),
+  AuthMiddleware.requireRole(['ADMIN', 'RH']),
   StationeryController.updateInventoryItem
 );
 
 router.delete('/stationery/inventory/:id',
   AuthMiddleware.verifyToken,
   AuthMiddleware.requireModule('COMPRAS'),
+  AuthMiddleware.requireRole(['ADMIN', 'RH']),
   StationeryController.deleteInventoryItem
+);
+
+router.post('/stationery/inventory/:id/restock',
+  AuthMiddleware.verifyToken,
+  AuthMiddleware.requireModule('COMPRAS'),
+  AuthMiddleware.requireRole(['ADMIN', 'RH']),
+  StationeryController.restockInventoryItem
 );
 
 // ─── Rutas de gestión (módulo COMPRAS) - con parámetro :id ───

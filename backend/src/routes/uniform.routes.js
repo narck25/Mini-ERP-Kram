@@ -7,25 +7,36 @@ const UniformController = require('../controllers/uniform.controller');
 router.get('/uniforms/inventory',
   AuthMiddleware.verifyToken,
   AuthMiddleware.requireModule('COMPRAS'),
+  AuthMiddleware.requireRole(['ADMIN', 'RH', 'COMPRAS']),
   UniformController.getInventory
 );
 
 router.post('/uniforms/inventory',
   AuthMiddleware.verifyToken,
   AuthMiddleware.requireModule('COMPRAS'),
+  AuthMiddleware.requireRole(['ADMIN', 'RH']),
   UniformController.addInventoryItem
 );
 
 router.put('/uniforms/inventory/:id',
   AuthMiddleware.verifyToken,
   AuthMiddleware.requireModule('COMPRAS'),
+  AuthMiddleware.requireRole(['ADMIN', 'RH']),
   UniformController.updateInventoryItem
 );
 
 router.delete('/uniforms/inventory/:id',
   AuthMiddleware.verifyToken,
   AuthMiddleware.requireModule('COMPRAS'),
+  AuthMiddleware.requireRole(['ADMIN', 'RH']),
   UniformController.deleteInventoryItem
+);
+
+router.post('/uniforms/inventory/:id/restock',
+  AuthMiddleware.verifyToken,
+  AuthMiddleware.requireModule('COMPRAS'),
+  AuthMiddleware.requireRole(['ADMIN', 'RH']),
+  UniformController.restockInventoryItem
 );
 
 // ─── Entregas (Admin/Compras) ───

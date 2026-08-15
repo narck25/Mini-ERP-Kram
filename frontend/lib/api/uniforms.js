@@ -6,6 +6,7 @@ export const uniformApi = {
   addInventoryItem: (data) => api.post('/uniforms/inventory', data),
   updateInventoryItem: (id, data) => api.put(`/uniforms/inventory/${id}`, data),
   deleteInventoryItem: (id) => api.delete(`/uniforms/inventory/${id}`),
+  restockInventoryItem: (id, cantidad) => api.post(`/uniforms/inventory/${id}/restock`, { cantidad }),
 
   // Entregas
   createDelivery: (data) => api.post('/uniforms/deliveries', data),

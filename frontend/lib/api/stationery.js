@@ -16,4 +16,5 @@ export const stationeryApi = {
   addInventoryItem: (data) => api.post('/stationery/inventory', data),
   updateInventoryItem: (id, data) => api.put(`/stationery/inventory/${id}`, data),
   deleteInventoryItem: (id) => api.delete(`/stationery/inventory/${id}`),
+  restockInventoryItem: (id, cantidad) => api.post(`/stationery/inventory/${id}/restock`, { cantidad }),
 }

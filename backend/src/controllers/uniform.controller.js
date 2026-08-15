@@ -16,7 +16,7 @@ class UniformController {
 
   static async addInventoryItem(req, res) {
     try {
-      const item = await UniformService.addInventoryItem(req.body);
+      const item = await UniformService.addInventoryItem(req.body, req.user.id);
       res.status(201).json({ data: item, message: 'Producto agregado al inventario' });
     } catch (error) {
       console.error('Error al agregar producto:', error);
@@ -26,7 +26,7 @@ class UniformController {
 
   static async updateInventoryItem(req, res) {
     try {
-      const item = await UniformService.updateInventoryItem(req.params.id, req.body);
+      const item = await UniformService.updateInventoryItem(req.params.id, req.body, req.user.id);
       res.json({ data: item, message: 'Producto actualizado' });
     } catch (error) {
       console.error('Error al actualizar producto:', error);
@@ -36,7 +36,7 @@ class UniformController {
 
   static async deleteInventoryItem(req, res) {
     try {
-      await UniformService.deleteInventoryItem(req.params.id);
+      await UniformService.deleteInventoryItem(req.params.id, req.user.id);
       res.json({ message: 'Producto eliminado del inventario' });
     } catch (error) {
       console.error('Error al eliminar producto:', error);
@@ -52,7 +52,7 @@ class UniformController {
       if (!entregadoPorId) {
         return res.status(400).json({ error: 'No tienes un empleado asociado. Contacta a RH para que te asignen uno.' });
       }
-      const delivery = await UniformService.createDelivery(req.body, entregadoPorId);
+      const delivery = await UniformService.createDelivery(req.body, entregadoPorId, req.user.id);
       res.status(201).json({ data: delivery, message: 'Entrega registrada exitosamente' });
     } catch (error) {
       console.error('Error al crear entrega:', error);
@@ -94,6 +94,16 @@ class UniformController {
     } catch (error) {
       console.error('Error al obtener historial:', error);
       res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async restockInventoryItem(req, res) {
+    try {
+      const item = await UniformService.restockInventoryItem(req.params.id, req.body.cantidad, req.user.id);
+      res.json({ data: item, message: 'Stock reabastecido' });
+    } catch (error) {
+      console.error('Error al reabastecer:', error);
+      res.status(400).json({ error: error.message });
     }
   }
 }

@@ -57,6 +57,8 @@ const purchaseRoutes = loadRoute('purchase', './routes/purchase.routes');
 const purchasePublicRoutes = loadRoute('purchase-public', './routes/purchase-public.routes');
 const stationeryRoutes = loadRoute('stationery', './routes/stationery.routes');
 const uniformRoutes = loadRoute('uniform', './routes/uniform.routes');
+const inventoryAdjustmentRoutes = loadRoute('inventory-adjustment', './routes/inventory-adjustment.routes');
+const inventoryMovementRoutes = loadRoute('inventory-movement', './routes/inventory-movement.routes');
 
 const attendanceRoutes = loadRoute('attendance', './routes/attendance.routes');
 const rolesRoutes = loadRoute('roles', './routes/roles.routes');
@@ -151,6 +153,8 @@ app.use('/api', purchaseRoutes);
 app.use('/api', purchasePublicRoutes);
 app.use('/api', stationeryRoutes);
 app.use('/api', uniformRoutes);
+app.use('/api', inventoryAdjustmentRoutes);
+app.use('/api', inventoryMovementRoutes);
 app.use('/api/incidencias', attendanceRoutes);
 
 app.use('/api', rolesRoutes);

@@ -21,4 +21,4 @@
  * Todos los imports existentes `from '@/lib/api'` siguen funcionando.
  */
 
-export { default, authApi, employeeApi, vacancyApi, recruitmentApi, employeeDocumentApi, statsApi, permissionApi, systemApi, stationeryApi, uniformApi, healthApi } from './api/index'
+export { default, authApi, employeeApi, vacancyApi, recruitmentApi, employeeDocumentApi, statsApi, permissionApi, systemApi, stationeryApi, uniformApi, inventoryAdjustmentApi, inventoryMovementApi, healthApi } from './api/index'

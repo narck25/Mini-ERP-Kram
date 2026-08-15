@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const { recordMovement } = require('./inventory-movement.service');
 
 const prisma = new PrismaClient();
 
@@ -103,11 +104,29 @@ class StationeryService {
   /**
    * Marcar solicitud como entregada (Admin/Compras)
    */
-  static async deliverRequest(id, entregadoPorId) {
-    const request = await prisma.stationeryRequest.findUnique({ where: { id } });
+  static async deliverRequest(id, entregadoPorId, userId) {
+    const request = await prisma.stationeryRequest.findUnique({
+      where: { id },
+      include: { items: true }
+    });
 
     if (!request) throw new Error('Solicitud no encontrada');
     if (request.estatus !== 'PENDIENTE') throw new Error('Solo puedes entregar solicitudes pendientes');
+
+    // Descontar stock de papelería + registrar salida (kardex)
+    for (const item of request.items) {
+      const inv = await prisma.stationeryInventory.findUnique({ where: { producto: item.producto } });
+      if (inv) {
+        const nuevo = Math.max(0, inv.cantidadActual - item.cantidad);
+        await prisma.stationeryInventory.update({ where: { id: inv.id }, data: { cantidadActual: nuevo } });
+        await recordMovement(null, {
+          tipo: 'PAPELERIA', tipoMovimiento: 'SALIDA',
+          itemId: inv.id, itemDescripcion: inv.producto,
+          cantidad: item.cantidad, stockAnterior: inv.cantidadActual, stockNuevo: nuevo,
+          referencia: 'Entrega de papelería', usuarioId: userId
+        });
+      }
+    }
 
     return prisma.stationeryRequest.update({
       where: { id },
@@ -142,25 +161,67 @@ class StationeryService {
   /**
    * Agregar producto al inventario
    */
-  static async addInventoryItem(data) {
-    return prisma.stationeryInventory.create({ data });
+  static async addInventoryItem(data, userId) {
+    const item = await prisma.stationeryInventory.create({ data });
+    await recordMovement(null, {
+      tipo: 'PAPELERIA', tipoMovimiento: 'ENTRADA',
+      itemId: item.id, itemDescripcion: item.producto,
+      cantidad: item.cantidadActual || 0, stockAnterior: 0, stockNuevo: item.cantidadActual || 0,
+      referencia: 'Alta manual de inventario', usuarioId: userId
+    });
+    return item;
   }
 
   /**
    * Actualizar stock de un producto
    */
-  static async updateInventoryItem(id, data) {
-    return prisma.stationeryInventory.update({
+  static async updateInventoryItem(id, data, userId) {
+    const anterior = await prisma.stationeryInventory.findUnique({ where: { id } });
+    const item = await prisma.stationeryInventory.update({
       where: { id },
       data
     });
+    if (anterior && data.cantidadActual != null) {
+      await recordMovement(null, {
+        tipo: 'PAPELERIA', tipoMovimiento: 'AJUSTE',
+        itemId: item.id, itemDescripcion: item.producto,
+        cantidad: Math.abs(item.cantidadActual - anterior.cantidadActual),
+        stockAnterior: anterior.cantidadActual, stockNuevo: item.cantidadActual,
+        referencia: 'Ajuste manual de inventario', usuarioId: userId
+      });
+    }
+    return item;
   }
 
   /**
    * Eliminar producto del inventario
    */
-  static async deleteInventoryItem(id) {
-    return prisma.stationeryInventory.delete({ where: { id } });
+  static async deleteInventoryItem(id, userId) {
+    const item = await prisma.stationeryInventory.findUnique({ where: { id } });
+    const deleted = await prisma.stationeryInventory.delete({ where: { id } });
+    if (item) {
+      await recordMovement(null, {
+        tipo: 'PAPELERIA', tipoMovimiento: 'SALIDA',
+        itemId: item.id, itemDescripcion: item.producto,
+        cantidad: item.cantidadActual, stockAnterior: item.cantidadActual, stockNuevo: 0,
+        referencia: 'Eliminación de inventario', usuarioId: userId
+      });
+    }
+    return deleted;
+  }
+
+  static async restockInventoryItem(id, cantidad, userId) {
+    const item = await prisma.stationeryInventory.findUnique({ where: { id } });
+    if (!item) throw new Error('Producto no encontrado');
+    const nuevo = item.cantidadActual + (parseInt(cantidad) || 0);
+    const updated = await prisma.stationeryInventory.update({ where: { id }, data: { cantidadActual: nuevo } });
+    await recordMovement(null, {
+      tipo: 'PAPELERIA', tipoMovimiento: 'ENTRADA',
+      itemId: updated.id, itemDescripcion: updated.producto,
+      cantidad: parseInt(cantidad) || 0, stockAnterior: item.cantidadActual, stockNuevo: nuevo,
+      referencia: 'Reabastecimiento (restock)', usuarioId: userId
+    });
+    return updated;
   }
 }
 
