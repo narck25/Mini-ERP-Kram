@@ -14,6 +14,7 @@ export default function DetalleEntregaUniforme() {
 
   useEffect(() => {
     loadDelivery()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   const loadDelivery = async () => {
@@ -36,71 +37,83 @@ export default function DetalleEntregaUniforme() {
   return (
     <DashboardLayout>
     <div className="p-6 max-w-4xl mx-auto">
-      <button onClick={() => router.back()} className="text-blue-600 hover:underline mb-4 block">
-        &larr; Regresar
-      </button>
+      {/* Barra de acciones (no se imprime) */}
+      <div className="flex justify-between items-center mb-4 no-print">
+        <button onClick={() => router.back()} className="text-blue-600 hover:underline">
+          &larr; Regresar
+        </button>
+        <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+          🖨️ Imprimir Acta
+        </button>
+      </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h1 className="text-2xl font-bold mb-6">Entrega de Uniformes</h1>
-
-        <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
-          <div>
-            <span className="text-gray-500">Fecha de entrega:</span>
-            <p className="font-medium">{new Date(delivery.fechaEntrega).toLocaleDateString()}</p>
-          </div>
-          <div>
-            <span className="text-gray-500">Entregado por:</span>
-            <p className="font-medium">{delivery.entregadoPor?.nombres} {delivery.entregadoPor?.apellidoPaterno}</p>
-          </div>
+      {/* Acta de entrega (se imprime) */}
+      <div className="print-area bg-white rounded-lg shadow p-8">
+        <div className="text-center mb-8 border-b-2 border-gray-800 pb-4">
+          <h1 className="text-2xl font-bold uppercase tracking-wide">Acta de Entrega de Uniformes</h1>
+          <p className="text-gray-600 mt-1">Folio: {delivery.id.slice(0, 8).toUpperCase()}</p>
+          <p className="text-gray-600">Fecha de entrega: {new Date(delivery.fechaEntrega).toLocaleDateString('es-MX')}</p>
         </div>
 
-        {/* Datos del empleado */}
-        <div className="bg-gray-50 rounded p-4 mb-6">
-          <h3 className="font-semibold mb-2">Empleado</h3>
-          <p className="text-lg font-medium">{delivery.empleado?.nombres} {delivery.empleado?.apellidoPaterno}</p>
-          <p className="text-sm text-gray-600">Clave: {delivery.empleado?.clave}</p>
+        <div className="mb-6">
+          <h3 className="font-bold mb-2 border-b border-gray-300 pb-1">Empleado que recibe</h3>
+          <p><span className="font-medium">Nombre:</span> {delivery.empleado?.nombres} {delivery.empleado?.apellidoPaterno}</p>
+          <p><span className="font-medium">Clave:</span> {delivery.empleado?.clave || '-'}</p>
           {delivery.empleado?.tallaCamisa && (
-            <div className="mt-2 text-sm text-gray-600">
-              <p>Tallas registradas: Camisa {delivery.empleado.tallaCamisa}
-                {delivery.empleado.tallaPantalon && ` | Pantalón ${delivery.empleado.tallaPantalon}`}
-                {delivery.empleado.tallaPlayera && ` | Playera ${delivery.empleado.tallaPlayera}`}
-                {delivery.empleado.tallaZapatos && ` | Zapatos ${delivery.empleado.tallaZapatos}`}
-              </p>
-            </div>
+            <p>
+              <span className="font-medium">Tallas registradas:</span> Camisa {delivery.empleado.tallaCamisa}
+              {delivery.empleado.tallaPantalon ? ` · Pantalón ${delivery.empleado.tallaPantalon}` : ''}
+              {delivery.empleado.tallaPlayera ? ` · Playera ${delivery.empleado.tallaPlayera}` : ''}
+              {delivery.empleado.tallaZapatos ? ` · Zapatos ${delivery.empleado.tallaZapatos}` : ''}
+            </p>
           )}
         </div>
 
+        <h3 className="font-bold mb-2 border-b border-gray-300 pb-1">Artículos entregados</h3>
+        <table className="w-full border-collapse mb-6">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border border-gray-300 p-2 text-left">#</th>
+              <th className="border border-gray-300 p-2 text-left">Tipo</th>
+              <th className="border border-gray-300 p-2 text-left">Talla</th>
+              <th className="border border-gray-300 p-2 text-left">Género</th>
+              <th className="border border-gray-300 p-2 text-center">Cantidad</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(delivery.items || []).map((item, index) => (
+              <tr key={index}>
+                <td className="border border-gray-300 p-2">{index + 1}</td>
+                <td className="border border-gray-300 p-2 font-medium">{item.tipo}</td>
+                <td className="border border-gray-300 p-2">{item.talla || '-'}</td>
+                <td className="border border-gray-300 p-2">{item.genero || '-'}</td>
+                <td className="border border-gray-300 p-2 text-center">{item.cantidad || 1}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
         {delivery.observaciones && (
           <div className="mb-6">
-            <h3 className="font-semibold mb-1">Observaciones:</h3>
-            <p className="text-gray-700 bg-gray-50 p-3 rounded">{delivery.observaciones}</p>
+            <h3 className="font-bold mb-1 border-b border-gray-300 pb-1">Observaciones</h3>
+            <p className="text-gray-700">{delivery.observaciones}</p>
           </div>
         )}
 
-        <h3 className="font-semibold mb-3">Artículos entregados</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="p-3 text-left">#</th>
-                <th className="p-3 text-left">Tipo</th>
-                <th className="p-3 text-left">Talla</th>
-                <th className="p-3 text-left">Género</th>
-                <th className="p-3 text-center">Cantidad</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(delivery.items || []).map((item, index) => (
-                <tr key={index} className="border-t">
-                  <td className="p-3">{index + 1}</td>
-                  <td className="p-3 font-medium">{item.tipo}</td>
-                  <td className="p-3">{item.talla || '-'}</td>
-                  <td className="p-3">{item.genero || '-'}</td>
-                  <td className="p-3 text-center">{item.cantidad || 1}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* Firmas */}
+        <div className="grid grid-cols-2 gap-12 mt-16">
+          <div className="text-center">
+            <div className="border-t border-gray-800 pt-2">
+              <p className="font-medium">{delivery.empleado?.nombres} {delivery.empleado?.apellidoPaterno}</p>
+              <p className="text-sm text-gray-600">Recibí de conformidad</p>
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="border-t border-gray-800 pt-2">
+              <p className="font-medium">{delivery.entregadoPor?.nombres} {delivery.entregadoPor?.apellidoPaterno}</p>
+              <p className="text-sm text-gray-600">Entregó (RH / Compras)</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

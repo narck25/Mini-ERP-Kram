@@ -104,3 +104,26 @@ select option {
     @apply text-white bg-gray-800 border-gray-600;
   }
 }
+
+/* Estilos de impresión: solo imprimir el área marcada (.print-area) */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area, .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
