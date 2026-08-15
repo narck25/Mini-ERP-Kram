@@ -14,13 +14,14 @@ export default function AdminPapeleria() {
 
   useEffect(() => {
     loadRequests()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const loadRequests = async () => {
+  const loadRequests = async (status = filter) => {
     try {
       setLoading(true)
       const params = {}
-      if (filter) params.estatus = filter
+      if (status) params.estatus = status
       const res = await stationeryApi.getAllRequests(params)
       setRequests(res.data.data || [])
     } catch (err) {
@@ -54,7 +55,7 @@ export default function AdminPapeleria() {
 
   return (
     <DashboardLayout>
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 w-full">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold">Gestión de Papelería</h1>
@@ -77,7 +78,7 @@ export default function AdminPapeleria() {
         {['', 'PENDIENTE', 'ENTREGADO', 'CANCELADO'].map((estatus) => (
           <button
             key={estatus}
-            onClick={() => { setFilter(estatus); loadRequests() }}
+            onClick={() => { setFilter(estatus); loadRequests(estatus) }}
             className={`px-3 py-1 rounded text-sm ${filter === estatus ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
           >
             {estatus || 'TODOS'}
@@ -118,7 +119,7 @@ export default function AdminPapeleria() {
                   </td>
                   <td className="p-3">
                     <button
-                      onClick={() => router.push(`/dashboard/compras/${req.id}`)}
+                      onClick={() => router.push(`/compras/papeleria/${req.id}`)}
                       className="text-blue-600 hover:underline text-sm mr-2"
                     >
                       Ver

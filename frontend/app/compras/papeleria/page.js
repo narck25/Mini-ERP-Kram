@@ -53,7 +53,7 @@ export default function MisSolicitudesPapeleria() {
 
   return (
     <DashboardLayout>
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6 w-full">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold">Mis Solicitudes de Papelería</h1>
@@ -98,7 +98,7 @@ export default function MisSolicitudesPapeleria() {
                       {req.estatus}
                     </span>
                   </td>
-                  <td className="p-3 text-sm text-gray-600 max-w-xs truncate">{req.observaciones || '-'}</td>
+                  <td className="p-3 text-sm text-gray-600 max-w-xs truncate">{req.justificacion || '-'}</td>
                   <td className="p-3">
                     <button
                       onClick={() => router.push(`/compras/papeleria/${req.id}`)}

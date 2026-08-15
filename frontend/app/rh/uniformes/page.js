@@ -41,7 +41,7 @@ export default function HistorialUniformesRH() {
 
   return (
     <DashboardLayout>
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 w-full">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Historial de Uniformes</h1>
         <p className="text-gray-500">Consulta las entregas de uniformes por empleado</p>

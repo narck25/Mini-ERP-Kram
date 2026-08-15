@@ -85,7 +85,7 @@ export default function AdminUniformes() {
 
   return (
     <DashboardLayout>
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 w-full">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold">Gestión de Uniformes</h1>

@@ -187,7 +187,7 @@ export default function AccesosPage() {
     return (
       <DashboardLayout>
         <div className="min-h-screen p-6">
-          <div className="max-w-7xl mx-auto">
+          <div className="w-full">
             <div className="bg-red-50 border border-red-200 rounded-lg p-6">
               <h2 className="text-lg font-semibold text-red-800 mb-2">Acceso Denegado</h2>
               <p className="text-red-700">No tienes permisos para acceder a esta sección. Solo ADMIN y RH pueden gestionar permisos.</p>
@@ -201,7 +201,7 @@ export default function AccesosPage() {
   return (
     <DashboardLayout>
       <div className="min-h-screen p-6">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Gestión de Accesos</h1>
             <p className="text-gray-600 mt-2">Administra los módulos a los que tienen acceso los usuarios del sistema.</p>
