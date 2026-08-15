@@ -5,7 +5,7 @@ module.exports = {
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
-  darkMode: false, // Deshabilitar completamente el modo oscuro
+  darkMode: 'media', // 'media' (sin clases dark:) - evita el warning de Tailwind v3+
   theme: {
     extend: {
       colors: {

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
+import Image from 'next/image';
 
 export default function PurchaseComments({ requestId }) {
   const { user } = useAuth();
@@ -22,6 +23,7 @@ export default function PurchaseComments({ requestId }) {
     if (requestId) {
       fetchComments();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId]);
 
   // ───────────────────────────────────────────────────────────
@@ -410,9 +412,11 @@ export default function PurchaseComments({ requestId }) {
                   {/* Avatar */}
                   <div className="flex-shrink-0">
                     {comment.user?.employee?.fotoUrl ? (
-                      <img
+                      <Image
                         src={comment.user.employee.fotoUrl}
                         alt={userName}
+                        width={40}
+                        height={40}
                         className="w-10 h-10 rounded-full object-cover"
                       />
                     ) : (

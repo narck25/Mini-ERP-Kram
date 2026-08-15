@@ -26,6 +26,7 @@ export default function VacancyActivitiesPage() {
       fetchVacancy();
       fetchActivities();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, id]);
 
   const fetchVacancy = async () => {

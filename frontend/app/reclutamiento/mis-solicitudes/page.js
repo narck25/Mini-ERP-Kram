@@ -24,6 +24,7 @@ export default function MisSolicitudesPage() {
     if (user && user.accessibleModules?.includes('RECLUTAMIENTO')) {
       fetchMyVacancies();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, pagination.page]);
 
   const fetchMyVacancies = async () => {

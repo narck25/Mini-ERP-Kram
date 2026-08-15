@@ -35,6 +35,7 @@ export default function AutorizarCompraPage() {
     if (user && requestId) {
       fetchRequestDetails();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, requestId]);
 
   const fetchRequestDetails = async () => {

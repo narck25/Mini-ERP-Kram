@@ -14,6 +14,7 @@ export default function DetalleSolicitudPapeleria() {
 
   useEffect(() => {
     loadRequest()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   const loadRequest = async () => {
@@ -65,10 +66,10 @@ export default function DetalleSolicitudPapeleria() {
             <span className="text-gray-500">Fecha de solicitud:</span>
             <p className="font-medium">{new Date(request.createdAt).toLocaleDateString()}</p>
           </div>
-          {request.entregadoAt && (
+          {request.fechaEntrega && (
             <div>
               <span className="text-gray-500">Fecha de entrega:</span>
-              <p className="font-medium">{new Date(request.entregadoAt).toLocaleDateString()}</p>
+              <p className="font-medium">{new Date(request.fechaEntrega).toLocaleDateString()}</p>
             </div>
           )}
           {request.entregadoPor && (
@@ -79,10 +80,10 @@ export default function DetalleSolicitudPapeleria() {
           )}
         </div>
 
-        {request.observaciones && (
+        {request.justificacion && (
           <div className="mb-6">
-            <h3 className="font-semibold mb-1">Observaciones:</h3>
-            <p className="text-gray-700 bg-gray-50 p-3 rounded">{request.observaciones}</p>
+            <h3 className="font-semibold mb-1">Justificación:</h3>
+            <p className="text-gray-700 bg-gray-50 p-3 rounded">{request.justificacion}</p>
           </div>
         )}
 
@@ -93,19 +94,17 @@ export default function DetalleSolicitudPapeleria() {
               <tr className="bg-gray-100">
                 <th className="p-3 text-left">#</th>
                 <th className="p-3 text-left">Artículo</th>
-                <th className="p-3 text-left">Categoría</th>
                 <th className="p-3 text-center">Cantidad</th>
-                <th className="p-3 text-left">Observaciones</th>
+                <th className="p-3 text-left">Unidad</th>
               </tr>
             </thead>
             <tbody>
               {(request.items || []).map((item, index) => (
                 <tr key={index} className="border-t">
                   <td className="p-3">{index + 1}</td>
-                  <td className="p-3 font-medium">{item.nombre}</td>
-                  <td className="p-3 text-sm text-gray-600">{item.categoria || '-'}</td>
+                  <td className="p-3 font-medium">{item.producto}</td>
                   <td className="p-3 text-center">{item.cantidad}</td>
-                  <td className="p-3 text-sm text-gray-600">{item.observaciones || '-'}</td>
+                  <td className="p-3 text-sm text-gray-600">{item.unidad || '-'}</td>
                 </tr>
               ))}
             </tbody>

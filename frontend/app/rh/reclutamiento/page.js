@@ -38,6 +38,7 @@ function RHReclutamientoPageContent() {
       fetchStats();
       fetchDepartments();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, filters, pagination.page]);
 
   const fetchVacancies = async () => {

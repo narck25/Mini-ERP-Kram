@@ -16,6 +16,7 @@ export default function SendAuthorizationModal({ request, onClose, onSuccess }) 
 
   useEffect(() => {
     fetchPotentialApprovers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchPotentialApprovers = async () => {

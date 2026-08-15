@@ -306,6 +306,7 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
       // Mismo destino, refrescar
       onRefresh();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSolicitante, isRH, vacancy.id]);
 
   const getCandidateStatusColor = (estatus) => {

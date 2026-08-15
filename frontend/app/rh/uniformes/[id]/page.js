@@ -15,6 +15,7 @@ export default function HistorialUniformesEmpleado() {
 
   useEffect(() => {
     loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   const loadData = async () => {
@@ -40,7 +41,7 @@ export default function HistorialUniformesEmpleado() {
 
   return (
     <DashboardLayout>
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6 w-full">
       <button onClick={() => router.back()} className="text-blue-600 hover:underline mb-4 block">
         &larr; Regresar
       </button>
