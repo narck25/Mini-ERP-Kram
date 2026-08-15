@@ -12,13 +12,13 @@
 | Métrica | Valor |
 |---------|-------|
 | **Suites de prueba** | 11 |
-| **Pruebas totales** | 57 |
-| **✅ Pass** | 57 |
+| **Pruebas totales** | 60 |
+| **✅ Pass** | 60 |
 | **❌ Fail** | 0 |
 | **⏱️ Tiempo total** | ~8s |
 | **Cobertura de código** | N/A (pruebas de integración) |
 
-**Resultado: ✅ 57/57 PRUEBAS PASAN — SISTEMA OPERATIVO**
+**Resultado: ✅ 60/60 PRUEBAS PASAN — SISTEMA OPERATIVO**
 
 ---
 
@@ -33,7 +33,7 @@ backend/tests/
 ├── 03-modules-roles.test.js   ← Módulos, Roles, Presets (10 tests)
 ├── 04-employees.test.js       ← Empleados (8 tests)
 ├── 05-recruitment.test.js     ← Reclutamiento (5 tests)
-├── 06-purchases.test.js       ← Compras (3 tests)
+├── 06-purchases.test.js       ← Compras (6 tests)
 ├── 07-config.test.js          ← Configuración (7 tests)
 ├── 08-incidencias.test.js     ← Incidencias (2 tests)
 ├── 09-stats.test.js           ← Estadísticas (4 tests)
@@ -99,13 +99,16 @@ backend/tests/
 | 4 | Datos para formulario | ✅ 200 |
 | 5 | Sin token | ✅ 401 |
 
-### 🛒 Compras — 3/3 ✅
+### 🛒 Compras — 6/6 ✅
 
 | # | Prueba | Resultado |
 |---|--------|-----------|
 | 1 | Lista purchase-orders | ✅ 200 |
 | 2 | Lista purchases (alternativo) | ✅ 200 |
 | 3 | Sin token | ✅ 401 |
+| 4 | Crear solicitud | ✅ 201 |
+| 5 | Cancelar solicitud | ✅ 200 |
+| 6 | Eliminar solicitud | ✅ 200 |
 
 ### ⚙️ Configuración — 7/7 ✅
 

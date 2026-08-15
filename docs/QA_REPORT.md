@@ -13,8 +13,8 @@
 | Métrica | Valor |
 |---------|-------|
 | **Suites** | 11 |
-| **Pruebas** | 57 |
-| **✅ Pass** | 57 |
+| **Pruebas** | 60 |
+| **✅ Pass** | 60 |
 | **❌ Fail** | 0 |
 | **Tiempo** | ~8s |
 
@@ -38,11 +38,11 @@
 | Métrica | Valor |
 |---------|-------|
 | **Suites totales** | 14 |
-| **Pruebas totales** | 96 |
-| **✅ Pass** | 96 |
+| **Pruebas totales** | 99 |
+| **✅ Pass** | 99 |
 | **❌ Fail** | 0 |
 
-**✅ 96/96 — SISTEMA OPERATIVO**
+**✅ 99/99 — SISTEMA OPERATIVO**
 
 ---
 
