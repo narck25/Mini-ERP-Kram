@@ -20,13 +20,13 @@ Documentación oficial organizada **por módulo**. Cada archivo de `modules/` co
 
 ## Módulos
 
-| Módulo | Documento | Estado |
-|--------|-----------|--------|
-| Dashboard | [modules/DASHBOARD.md](modules/DASHBOARD.md) | Siempre activo |
-| Empleados | [modules/EMPLEADOS.md](modules/EMPLEADOS.md) | ✅ Habilitado |
-| Reclutamiento | [modules/RECLUTAMIENTO.md](modules/RECLUTAMIENTO.md) | ✅ Habilitado |
-| Incidencias | [modules/INCIDENCIAS.md](modules/INCIDENCIAS.md) | ✅ Habilitado |
-| Configuración | [modules/CONFIGURACION.md](modules/CONFIGURACION.md) | ✅ Habilitado |
-| Compras | [modules/COMPRAS.md](modules/COMPRAS.md) | ✅ Habilitado |
+| Módulo | Manual | Flujos |
+|--------|--------|--------|
+| Dashboard | [modules/DASHBOARD.md](modules/DASHBOARD.md) | [flujos/DASHBOARD.md](flujos/DASHBOARD.md) |
+| Empleados | [modules/EMPLEADOS.md](modules/EMPLEADOS.md) | [flujos/EMPLEADOS.md](flujos/EMPLEADOS.md) |
+| Reclutamiento | [modules/RECLUTAMIENTO.md](modules/RECLUTAMIENTO.md) | [flujos/RECLUTAMIENTO.md](flujos/RECLUTAMIENTO.md) |
+| Incidencias | [modules/INCIDENCIAS.md](modules/INCIDENCIAS.md) | [flujos/INCIDENCIAS.md](flujos/INCIDENCIAS.md) |
+| Configuración | [modules/CONFIGURACION.md](modules/CONFIGURACION.md) | [flujos/CONFIGURACION.md](flujos/CONFIGURACION.md) |
+| Compras | [modules/COMPRAS.md](modules/COMPRAS.md) | [flujos/COMPRAS.md](flujos/COMPRAS.md) |
 
 > **Nota:** la documentación técnica y los manuales anteriores fueron archivados en la carpeta `docuold/`.
