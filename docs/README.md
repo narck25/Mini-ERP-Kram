@@ -40,3 +40,20 @@ Documentación oficial organizada **por módulo**. Cada archivo de `modules/` co
 | [ESTADO_DEL_PROYECTO.md](ESTADO_DEL_PROYECTO.md) | Estado de los módulos, infraestructura y cambios recientes |
 | [TESTING.md](TESTING.md) | Suite de pruebas: cómo ejecutar y estructura |
 | [DEUDA_TECNICA.md](DEUDA_TECNICA.md) | Deuda técnica y mejoras priorizadas (P1–P3) |
+
+## Documentación técnica y operativa
+
+| Documento | Contenido |
+|-----------|-----------|
+| [ARQUITECTURA.md](ARQUITECTURA.md) | Arquitectura general, capas, modelo de seguridad y stack |
+| [API.md](API.md) | Referencia completa de endpoints (método, ruta, permisos) |
+| [MODELO_DATOS.md](MODELO_DATOS.md) | Modelo entidad-relación, tablas y enumeraciones |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Guía para desarrolladores (setup, convenciones, testing) |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Despliegue local y producción (Docker/Coolify) |
+| [OPERACIONES.md](OPERACIONES.md) | Migraciones, seed, respaldos y monitoreo |
+| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Errores comunes y soluciones |
+| [SEGURIDAD.md](SEGURIDAD.md) | Modelo de seguridad (3 niveles) y recomendaciones |
+| [CHANGELOG.md](CHANGELOG.md) | Historial de cambios del sistema |
+| [CAPACITACION.md](CAPACITACION.md) | Guía de capacitación por rol (perfiles y flujos) |
+
+> La licencia del proyecto (MIT) se encuentra en el archivo `LICENSE` en la raíz del repositorio.
