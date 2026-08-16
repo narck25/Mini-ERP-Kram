@@ -35,6 +35,8 @@ Documentación oficial organizada **por módulo**. Cada archivo de `modules/` co
 
 | Documento | Contenido |
 |-----------|-----------|
+| [PRESENTACION_PROYECTO.md](PRESENTACION_PROYECTO.md) | Presentación detallada del proyecto (para NotebookLM) |
+| [MANUAL_PROYECTO.md](MANUAL_PROYECTO.md) | Manual completo del proyecto y los módulos |
 | [ESTADO_DEL_PROYECTO.md](ESTADO_DEL_PROYECTO.md) | Estado de los módulos, infraestructura y cambios recientes |
 | [TESTING.md](TESTING.md) | Suite de pruebas: cómo ejecutar y estructura |
 | [DEUDA_TECNICA.md](DEUDA_TECNICA.md) | Deuda técnica y mejoras priorizadas (P1–P3) |
