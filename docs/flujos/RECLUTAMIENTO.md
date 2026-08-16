@@ -1,5 +1,22 @@
 # Flujos del Módulo Reclutamiento
 
+## Diagrama general
+
+```mermaid
+flowchart TD
+    A[Empleado solicita vacante] --> B[Estado: Solicitada]
+    B --> C[RH aprueba]
+    C --> D[Estado: Buscando]
+    D --> E[Registrar candidatos]
+    E --> F[Tablero Kanban]
+    F --> G[Mover a Seleccionado<br>voto like]
+    F --> H[Mover a Descartado<br>voto dislike]
+    F --> I[Devolver a En revisión<br>reset]
+    G --> J[Selección y contratación]
+    B --> K[Cerrar / Cancelar]
+    D --> K
+```
+
 ## Flujo 1: Requisición de personal
 
 1. El empleado crea una **solicitud de vacante** (`/reclutamiento/solicitar-vacante`).

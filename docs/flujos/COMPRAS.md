@@ -1,5 +1,30 @@
 # Flujos del Módulo Compras
 
+## Diagrama general
+
+```mermaid
+flowchart TD
+    A[Solicitud de compra] --> B[NUEVO → PENDIENTE]
+    B --> C[Agregar cotizaciones]
+    C --> D[Seleccionar cotización]
+    D --> E{¿Monto > 50k MXN?}
+    E -- Sí --> F[EN_AUTORIZACION]
+    F --> G[ADMIN autoriza]
+    E -- No --> H[APROBADO]
+    G --> H
+    H --> I[Generar orden de compra]
+    I --> J[ENTREGADO]
+
+    subgraph Inventario
+    K[Alta / restock] --> L[Genera movimiento kardex]
+    M[Solicitud de ajuste COMPRAS] --> N[PENDIENTE]
+    N --> O{¿ADMIN/RH aprueba?}
+    O -- Sí --> P[APROBADA y aplica]
+    O -- No --> Q[RECHAZADA]
+    P --> L
+    end
+```
+
 ## Flujo 1: Solicitud de compra
 
 1. El usuario crea una solicitud con productos, cantidades y justificación (`NUEVO`).

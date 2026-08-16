@@ -1,5 +1,32 @@
 # Flujos del Módulo Empleados
 
+## Diagrama general
+
+```mermaid
+flowchart TD
+    subgraph Alta
+    A[Formulario alta] --> B[Validar RFC/CURP/NSS únicos]
+    B --> C[Calcular SD/SDI]
+    C --> D[Crear empleado]
+    D --> E{¿Crear usuario?}
+    E -- Sí --> F[Crear cuenta con correo]
+    E -- No --> G[Sin cuenta de acceso]
+    end
+
+    subgraph Baja
+    H[Botón Baja] --> I[Modal: motivo + nota + fecha]
+    I --> J[estatus=Inactivo<br>motivoBaja + fechaBaja]
+    J --> K[Desactivar usuario]
+    K --> L[Liberar correo<br>baja.rfc@kram.mx]
+    end
+
+    subgraph Eliminar
+    M[Eliminar permanente] --> N{¿Tiene documentos/vacantes?}
+    N -- Sí --> O[Bloquear 400]
+    N -- No --> P[Eliminar usuario y empleado]
+    end
+```
+
 ## Flujo 1: Alta de empleado
 
 1. RH/Admin abre `/rh/empleados` → "Nuevo Empleado".

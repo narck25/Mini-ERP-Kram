@@ -1,5 +1,18 @@
 # Flujos del Módulo Incidencias (Asistencia)
 
+## Diagrama general
+
+```mermaid
+flowchart TD
+    A[Subir CSV del checador ZKTeco] --> B[Procesar archivo]
+    B --> C[Guardar en attendance_records]
+    C --> D[Agrupar por empleado y fecha]
+    D --> E[Ordenar checadas]
+    E --> F[Filtro anti-rebote > 5 min]
+    F --> G[Calcular entrada/salida y jornada]
+    G --> H[Reporte de incidencias]
+```
+
 ## Flujo 1: Carga de asistencia (checador ZKTeco)
 
 1. RH/Admin abre `/rh/incidencias`.

@@ -1,5 +1,21 @@
 # Flujos del Módulo Dashboard
 
+## Diagrama general
+
+```mermaid
+flowchart TD
+    A[Inicio de sesión] --> B{¿Credenciales válidas?}
+    B -- No --> C[Error 401]
+    B -- Sí --> D[JWT con role y módulos]
+    D --> E{¿ADMIN o RH?}
+    E -- Sí --> F[Dashboard RH<br>/rh/dashboard-completo]
+    E -- No --> G[Mi Espacio<br>/dashboard/mi-espacio]
+    G --> H[GET /stats/my-dashboard]
+    H --> I{¿ADMIN/RH?}
+    I -- Sí --> J[Ver todos los datos]
+    I -- No --> K[Ver solo sus datos<br>scoping]
+```
+
 ## Flujo 1: Acceso al panel
 
 1. El usuario inicia sesión (`POST /api/auth/login`).

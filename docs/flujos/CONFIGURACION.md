@@ -1,5 +1,25 @@
 # Flujos del Módulo Configuración
 
+## Diagrama general
+
+```mermaid
+flowchart TD
+    A[Gestión de Accesos] --> B[Alternar módulos]
+    B --> C[Validar módulos + DASHBOARD]
+    C --> D[Actualizar accessibleModules]
+
+    E[Aplicar preset] --> F{¿Es ADMIN?}
+    F -- No --> G[403: solo ADMIN cambia rol]
+    F -- Sí --> H[Validar rol válido]
+    H --> I[Actualizar rol + módulos]
+
+    J[Crear rol personalizado] --> F
+
+    K[Gestión de Usuarios] --> L{¿Es ADMIN?}
+    L -- Sí --> M[Crear/Editar/Eliminar usuario]
+    L -- No --> G
+```
+
 ## Flujo 1: Asignar/retirar módulos a un usuario
 
 1. ADMIN/RH abre `/dashboard/accesos`.
