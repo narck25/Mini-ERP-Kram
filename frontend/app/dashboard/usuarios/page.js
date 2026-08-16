@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import api from '@/lib/api';
+import api, { systemApi } from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -44,9 +44,20 @@ function UsersManagementPage() {
     if (user && user.role === 'ADMIN') {
       fetchUsers();
       fetchStats();
-      setAvailableRoles(getAllRoles());
+      fetchRoles();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  const fetchRoles = async () => {
+    try {
+      const response = await systemApi.getRoles();
+      setAvailableRoles(response.data.roles || []);
+    } catch (error) {
+      console.error('Error fetching roles:', error);
+      setAvailableRoles(getAllRoles()); // fallback estático
+    }
+  };
 
   const fetchUsers = async () => {
     try {

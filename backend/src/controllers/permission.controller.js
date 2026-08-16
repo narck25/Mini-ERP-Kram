@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { getEnabledModuleKeys, getModulesArray } = require('../config/modules.config');
+const { getAllPresets } = require('../config/roles.config');
 
 class PermissionController {
   /**
@@ -109,8 +110,27 @@ class PermissionController {
         accessibleModules: modulesToSet
       };
 
-      // Si se proporciona un rol, actualizarlo (acepta cualquier string, incluidos roles personalizados)
+      // Si se proporciona un rol, validar permisos y el rol
       if (role && role.trim().length > 0) {
+        // Solo ADMIN puede cambiar el rol de un usuario (Nivel C)
+        if (req.user.role !== 'ADMIN') {
+          return res.status(403).json({
+            error: 'Acceso denegado',
+            message: 'Solo ADMIN puede cambiar el rol de un usuario'
+          });
+        }
+
+        // Validar que el rol sea válido (sistema + personalizados)
+        const systemRoleIds = Object.keys(getAllPresets());
+        const customRoles = await prisma.role.findMany({ where: { isCustom: true }, select: { name: true } });
+        const validRoles = [...systemRoleIds, ...customRoles.map(r => r.name)];
+        if (!validRoles.includes(role)) {
+          return res.status(400).json({
+            error: 'Rol inválido',
+            message: `El rol "${role}" no es válido`
+          });
+        }
+
         updateData.role = role;
       }
 

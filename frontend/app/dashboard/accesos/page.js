@@ -5,12 +5,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { permissionApi, systemApi } from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
 import RoleManager from '@/components/RoleManager';
+import ProtectedRoute from '@/components/ProtectedRoute';
 import { getRoleName, getRoleColor } from '@/lib/rolesConfig';
 
 // Módulos y presets se cargan desde la API (systemApi.getModules, systemApi.getRolePresets)
 // con fallback inline en caso de error de conexión.
 
-export default function AccesosPage() {
+function AccesosPageContent() {
   const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -105,6 +106,10 @@ export default function AccesosPage() {
   };
 
   const handleToggleModule = async (userId, moduleId, isChecked) => {
+    if (userId === user.id) {
+      setError('No puedes modificar tus propios permisos para evitar bloquearte el acceso');
+      return;
+    }
     try {
       setUpdating(prev => ({ ...prev, [userId]: true }));
       setError(null);
@@ -134,6 +139,10 @@ export default function AccesosPage() {
   };
 
   const handleToggleAllModules = async (userId, enableAll) => {
+    if (userId === user.id) {
+      setError('No puedes modificar tus propios permisos para evitar bloquearte el acceso');
+      return;
+    }
     try {
       setUpdating(prev => ({ ...prev, [userId]: true }));
       setError(null);
@@ -157,6 +166,11 @@ export default function AccesosPage() {
   };
 
   const handleApplyPreset = async (userId, presetRole) => {
+    if (userId === user.id) {
+      setError('No puedes modificar tus propios permisos para evitar bloquearte el acceso');
+      return;
+    }
+    if (!confirm(`¿Aplicar el preset "${getRoleName(presetRole)}"? Esto cambiará el rol y los módulos del usuario.`)) return;
     try {
       setUpdating(prev => ({ ...prev, [userId]: true }));
       setError(null);
@@ -360,6 +374,7 @@ export default function AccesosPage() {
                       </button>
                     </div>
 
+                    {user?.role === 'ADMIN' && (
                     <div className="mb-6">
                       <label className="block text-sm font-medium text-gray-700 mb-2">Aplicar preset por rol:</label>
                       <div className="flex flex-wrap gap-2">
@@ -382,6 +397,7 @@ export default function AccesosPage() {
                       </div>
                       <p className="text-xs text-gray-500 mt-1">Los presets asignan los módulos típicos para cada rol. Puedes personalizarlos después.</p>
                     </div>
+                    )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                       {modules.map(module => {
@@ -429,5 +445,13 @@ export default function AccesosPage() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function AccesosPage() {
+  return (
+    <ProtectedRoute>
+      <AccesosPageContent />
+    </ProtectedRoute>
   );
 }
