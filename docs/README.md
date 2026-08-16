@@ -30,3 +30,11 @@ Documentación oficial organizada **por módulo**. Cada archivo de `modules/` co
 | Compras | [modules/COMPRAS.md](modules/COMPRAS.md) | [flujos/COMPRAS.md](flujos/COMPRAS.md) |
 
 > **Nota:** la documentación técnica y los manuales anteriores fueron archivados en la carpeta `docuold/`.
+
+## Documentos transversales
+
+| Documento | Contenido |
+|-----------|-----------|
+| [ESTADO_DEL_PROYECTO.md](ESTADO_DEL_PROYECTO.md) | Estado de los módulos, infraestructura y cambios recientes |
+| [TESTING.md](TESTING.md) | Suite de pruebas: cómo ejecutar y estructura |
+| [DEUDA_TECNICA.md](DEUDA_TECNICA.md) | Deuda técnica y mejoras priorizadas (P1–P3) |
