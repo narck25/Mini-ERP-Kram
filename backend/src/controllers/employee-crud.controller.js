@@ -155,6 +155,18 @@ exports.createEmployee = async (req, res) => {
       if (existingEmployeeWithUser) return res.status(400).json({ error: 'El usuario ya tiene un empleado asociado' });
     }
 
+    // Validar disponibilidad del correo ANTES de crear el empleado (evita usuarios huérfanos y fallos silenciosos)
+    const crearUsuario = req.body.createUser === 'true' || req.body.createUser === true;
+    if (crearUsuario && !(userId && userId.trim() !== '')) {
+      const emailUsuario = correoEmpresa || correoElectronico;
+      if (emailUsuario) {
+        const usuarioExistente = await prisma.user.findUnique({ where: { email: emailUsuario } });
+        if (usuarioExistente) {
+          return res.status(400).json({ error: `El correo ${emailUsuario} ya está registrado. Da de baja al empleado anterior (el correo se liberará automáticamente) o usa otro correo.` });
+        }
+      }
+    }
+
     const employeeData = {
       clave: clave || null, nombre: nombres || null, nombres: nombres || null,
       apellidoPaterno: apellidoPaterno || null, apellidoMaterno: apellidoMaterno || null,
@@ -165,7 +177,7 @@ exports.createEmployee = async (req, res) => {
       correoElectronico: correoElectronico || null, correoEmpresa: correoEmpresa || null,
       direccionCompleta: direccionCompleta || null, estado: estado || null, cpFiscal: cpFiscal || null,
       rfc, curp, nss, fechaAlta: new Date(fecha_ingreso),
-      fechaBaja: fechaBaja ? new Date(fechaBaja) : null, estatus: estatus || 'Activo',
+      fechaBaja: fechaBaja ? new Date(fechaBaja) : null, motivoBaja: req.body.motivoBaja || null, estatus: estatus || 'Activo',
       sucursal: sucursal || null, area: area || null, region: region || null,
       contrato: contrato || null, horario: horario || null,
       salarioMensual: salary && salary !== '' ? parseFloat(salary) : null,
@@ -293,6 +305,7 @@ exports.updateEmployee = async (req, res) => {
       rfc: u(rfc, existingEmployee.rfc), curp: u(curp, existingEmployee.curp), nss: u(nss, existingEmployee.nss),
       fechaAlta: u(fecha_ingreso, existingEmployee.fechaAlta, v => v ? new Date(v) : existingEmployee.fechaAlta),
       fechaBaja: u(fechaBaja, existingEmployee.fechaBaja, v => v ? new Date(v) : null),
+      motivoBaja: u(req.body.motivoBaja, existingEmployee.motivoBaja),
       estatus: u(estatus, existingEmployee.estatus), sucursal: u(sucursal, existingEmployee.sucursal),
       area: u(area, existingEmployee.area), region: u(region, existingEmployee.region),
       contrato: u(contrato, existingEmployee.contrato), horario: u(horario, existingEmployee.horario),
@@ -328,6 +341,11 @@ exports.updateEmployee = async (req, res) => {
     if (updateData.reportaA && updateData.reportaA.connect === undefined && updateData.reportaA.disconnect === undefined) delete updateData.reportaA;
     if (updateData.user && updateData.user.connect === undefined && updateData.user.disconnect === undefined) delete updateData.user;
 
+    // Si es una baja y no se indicó fecha de baja, usar la fecha actual
+    if (estatus === 'Inactivo' && existingEmployee.estatus !== 'Inactivo' && !fechaBaja) {
+      updateData.fechaBaja = new Date();
+    }
+
     const nuevoSalario = salary !== undefined ? (salary && salary !== '' ? parseFloat(salary) : null) : existingEmployee.salarioMensual;
     const nuevaFecha = fecha_ingreso !== undefined ? (fecha_ingreso ? new Date(fecha_ingreso) : existingEmployee.fechaAlta) : existingEmployee.fechaAlta;
     if (nuevoSalario && nuevaFecha) {
@@ -353,7 +371,13 @@ exports.updateEmployee = async (req, res) => {
       });
     }
 
-    res.json({ message: 'Empleado actualizado exitosamente', employee });
+    // Si el empleado fue dado de baja, desactivar su usuario y liberar el correo institucional
+    let correoLiberado = null;
+    if (estatus === 'Inactivo' && existingEmployee.estatus !== 'Inactivo' && existingEmployee.userId) {
+      correoLiberado = await exports.releaseUserEmail(existingEmployee.userId, existingEmployee.rfc);
+    }
+
+    res.json({ message: 'Empleado actualizado exitosamente', employee, correoLiberado });
   } catch (error) {
     console.error('Error updating employee:', error);
     res.status(500).json({ error: 'Error al actualizar el empleado', details: error.message });
@@ -364,3 +388,17 @@ exports.updateEmployee = async (req, res) => {
 const u = (val, fallback, transform) => val !== undefined ? (transform ? transform(val) : val) : fallback;
 const u2 = (val, connect, disconnect) => val !== undefined ? (val ? connect : disconnect) : undefined;
 const u3 = (val, connect) => val !== undefined ? { connect: val ? connect.connect : undefined, disconnect: !val ? true : undefined } : undefined;
+
+// Liberar el correo institucional de un usuario al dar de baja:
+// desactiva la cuenta y renombra el email a un placeholder único (basado en RFC o id),
+// de modo que el correo original pueda reutilizarse con la siguiente persona del puesto.
+exports.releaseUserEmail = async (userId, rfc) => {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true } });
+  if (!user) return null;
+  const placeholder = `baja.${(rfc || userId).toLowerCase()}@kram.mx`;
+  await prisma.user.update({
+    where: { id: userId },
+    data: { isActive: false, email: placeholder }
+  });
+  return user.email; // correo original liberado
+};

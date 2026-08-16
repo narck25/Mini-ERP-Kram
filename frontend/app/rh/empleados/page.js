@@ -20,6 +20,11 @@ function EmpleadosPageContent() {
   const [departments, setDepartments] = useState([]);
   const [managers, setManagers] = useState([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showBajaModal, setShowBajaModal] = useState(false);
+  const [bajaEmployee, setBajaEmployee] = useState(null);
+  const [bajaMotivo, setBajaMotivo] = useState('Renuncia');
+  const [bajaDetalle, setBajaDetalle] = useState('');
+  const [bajaFecha, setBajaFecha] = useState('');
 
   const fetchDepartments = useCallback(async () => {
     try {
@@ -49,13 +54,33 @@ function EmpleadosPageContent() {
     setShowEditModal(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('¿Estás seguro de dar de baja a este empleado?')) return;
+  const openBajaModal = (employee) => {
+    setBajaEmployee(employee);
+    setBajaMotivo('Renuncia');
+    setBajaDetalle('');
+    setBajaFecha(new Date().toISOString().split('T')[0]);
+    setShowBajaModal(true);
+  };
+
+  const confirmBaja = async () => {
+    if (!bajaEmployee) return;
+    if (!bajaMotivo) {
+      alert('Selecciona un motivo de baja');
+      return;
+    }
     try {
-      await api.put(`/employees/${id}`, { estatus: 'Inactivo' });
+      const motivoBaja = [bajaMotivo, bajaDetalle.trim()].filter(Boolean).join(' - ');
+      await api.put(`/employees/${bajaEmployee.id}`, {
+        estatus: 'Inactivo',
+        motivoBaja,
+        fechaBaja: bajaFecha
+      });
+      setShowBajaModal(false);
+      setBajaEmployee(null);
       setRefreshTrigger(prev => prev + 1);
     } catch (error) {
-      console.error('Error deleting employee:', error);
+      console.error('Error al dar de baja:', error);
+      alert(error.response?.data?.error || 'Error al dar de baja al empleado');
     }
   };
 
@@ -150,7 +175,7 @@ function EmpleadosPageContent() {
         <EmployeeTable
           isRHOrAdmin={isRHOrAdmin}
           onEdit={handleEdit}
-          onDelete={handleDelete}
+          onDelete={openBajaModal}
           onDeletePermanently={handleDeletePermanently}
           refreshTrigger={refreshTrigger}
         />
@@ -184,6 +209,77 @@ function EmpleadosPageContent() {
           onClose={() => setShowImportModal(false)}
           onSaved={handleSaved}
         />
+
+        {/* Modal de baja (motivo + fecha) */}
+        {showBajaModal && bajaEmployee && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+              <div className="flex justify-between items-center px-6 py-4 border-b">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Dar de baja a {bajaEmployee.nombres || bajaEmployee.nombre || 'empleado'}
+                </h2>
+                <button
+                  onClick={() => { setShowBajaModal(false); setBajaEmployee(null); }}
+                  className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+                >
+                  &times;
+                </button>
+              </div>
+              <div className="px-6 py-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Motivo de baja *</label>
+                  <select
+                    value={bajaMotivo}
+                    onChange={(e) => setBajaMotivo(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Renuncia">Renuncia</option>
+                    <option value="Despido">Despido</option>
+                    <option value="Fin de contrato">Fin de contrato</option>
+                    <option value="Abandono">Abandono</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nota / detalle (opcional)</label>
+                  <textarea
+                    value={bajaDetalle}
+                    onChange={(e) => setBajaDetalle(e.target.value)}
+                    rows={2}
+                    placeholder="Detalle adicional del motivo"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de baja</label>
+                  <input
+                    type="date"
+                    value={bajaFecha}
+                    onChange={(e) => setBajaFecha(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800">
+                  Al dar de baja se desactivará su cuenta y se liberará el correo institucional para poder reutilizarlo con otra persona.
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 px-6 py-4 border-t">
+                <button
+                  onClick={() => { setShowBajaModal(false); setBajaEmployee(null); }}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmBaja}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium"
+                >
+                  Confirmar baja
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

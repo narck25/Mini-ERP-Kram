@@ -85,6 +85,7 @@ model Employee {
   fechaNacimiento       DateTime?
   horario               String?
   lugarNacimiento       String?
+  motivoBaja            String?
   nacionalidad          String?
   nivelAcademico        String?
   nombreConyuge         String?

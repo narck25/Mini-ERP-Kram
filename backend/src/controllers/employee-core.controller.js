@@ -27,12 +27,17 @@ exports.getSalaryHistory = async (req, res) => {
 exports.deleteEmployee = async (req, res) => {
   try {
     const { id } = req.params;
+    const { motivoBaja } = req.body || {};
     const e = await prisma.employee.findUnique({ where: { id }, include: { user: { select: { id: true, isActive: true } } } });
     if (!e) return res.status(404).json({ error: 'Empleado no encontrado' });
-    const emp = await prisma.employee.update({ where: { id }, data: { estatus: 'Inactivo' } });
+    const emp = await prisma.employee.update({ where: { id }, data: { estatus: 'Inactivo', fechaBaja: new Date(), motivoBaja: motivoBaja || null } });
     let userDeactivated = false;
-    if (e.user) { await prisma.user.update({ where: { id: e.user.id }, data: { isActive: false } }); userDeactivated = true; }
-    res.json({ msg: 'Empleado dado de baja exitosamente', employee: emp, userDeactivated });
+    let emailLiberado = null;
+    if (e.user) {
+      emailLiberado = await employeeCrud.releaseUserEmail(e.user.id, e.rfc);
+      userDeactivated = true;
+    }
+    res.json({ msg: 'Empleado dado de baja exitosamente', employee: emp, userDeactivated, emailLiberado });
   } catch (error) {
     console.error('Error deleting employee:', error);
     res.status(500).json({ error: 'Error al dar de baja al empleado' });

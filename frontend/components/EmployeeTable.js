@@ -219,7 +219,7 @@ export default function EmployeeTable({
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div className="flex gap-2">
                               <button onClick={() => onEdit(employee)} className="text-blue-600 hover:text-blue-900">Editar</button>
-                              <button onClick={() => onDelete(employee.id)} className="text-red-600 hover:text-red-900">Baja</button>
+                              <button onClick={() => onDelete(employee)} className="text-red-600 hover:text-red-900">Baja</button>
                               <button onClick={() => onDeletePermanently(employee.id, employee.nombres || employee.nombre || 'Empleado')} className="text-red-800 hover:text-red-900 font-bold" title="Eliminar permanentemente">Eliminar</button>
                               <Link href={`/rh/empleados/${employee.id}`} className="text-green-600 hover:text-green-900">Ver</Link>
                             </div>
