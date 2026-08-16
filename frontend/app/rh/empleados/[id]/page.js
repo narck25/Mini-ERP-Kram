@@ -721,6 +721,12 @@ function EmployeeProfilePage() {
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Puesto:</span><span className="text-sm text-gray-900">{employee.puesto?.nombre || 'Sin puesto asignado'}</span></div>
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Departamento:</span><span className="text-sm text-gray-900">{employee.departamento?.nombre || 'No asignado'}</span></div>
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Fecha de Ingreso:</span><span className="text-sm text-gray-900">{formatDateSafe(employee.fechaAlta)}</span></div>
+              {employee.estatus === 'Inactivo' && (
+                <>
+                  <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Fecha de Baja:</span><span className="text-sm text-gray-900">{employee.fechaBaja ? formatDateSafe(employee.fechaBaja) : 'No especificada'}</span></div>
+                  <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Motivo de Baja:</span><span className="text-sm text-gray-900">{employee.motivoBaja || 'No especificado'}</span></div>
+                </>
+              )}
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Salario Mensual:</span><span className="text-sm text-gray-900">{employee.salarioMensual ? `$${employee.salarioMensual.toLocaleString('es-MX')}` : 'No especificado'}</span></div>
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Área:</span><span className="text-sm text-gray-900">{employee.area || 'No especificado'}</span></div>
               <div className="flex justify-between"><span className="text-sm font-medium text-gray-500">Región:</span><span className="text-sm text-gray-900">{employee.region || 'No especificado'}</span></div>
