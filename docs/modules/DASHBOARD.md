@@ -1,73 +1,25 @@
-# Auditoría del Módulo: DASHBOARD
+# Módulo Dashboard
 
-**Fecha**: 24/06/2026  
-**Auditor**: Arquitectura — ERP KRAM  
-**Versión**: 1.0
+## 1. Cómo funciona
 
----
+El Dashboard es el panel principal del ERP. **Siempre está activo** para todos los usuarios (no se puede desactivar). Incluye dos vistas principales:
 
-## Descripción
+- **Mi Espacio** (`/dashboard/mi-espacio`): panel personal de autoservicio. Aplica *scoping* por jerarquía (Nivel B): cada usuario ve únicamente **sus** vacantes, compras, actividades pendientes y candidatos.
+- **Dashboard RH** (`/rh/dashboard-completo`): vista consolidada de indicadores para RH y Admin (empleados, vacantes, incidencias, etc.).
 
-Módulo principal del sistema. Proporciona el layout base del dashboard (sidebar, navbar), la página principal del dashboard, y el wrapper de autenticación. Es el módulo por defecto para todos los usuarios.
+## 2. Quiénes pueden usarlo
 
----
+- **Todos los roles.** El módulo `DASHBOARD` es el preset mínimo de cualquier rol y no se puede quitar.
+- El contenido de *Mi Espacio* varía según el usuario (scoping): un empleado ve lo suyo; RH/Admin ven todo (bypass).
 
-## Estado Actual
+## 3. Manual del administrador
 
-| Componente | Estado | Detalle |
-|------------|--------|---------|
-| `modules.config.js` | ✅ Registrado | key: `DASHBOARD`, enabled: true |
-| `ModuleType` enum | ✅ Registrado | `DASHBOARD` en schema.prisma |
-| Rutas backend dedicadas | ❌ No existen | No hay `dashboard.routes.js` |
-| Controlador dedicado | ❌ No existe | No hay `dashboard.controller.js` |
+- No requiere configuración especial.
+- El Dashboard **no se puede quitar** de un usuario en Gestión de Accesos (siempre incluido).
+- El acceso al *Dashboard RH* (`/rh/dashboard-completo`) corresponde a los roles `ADMIN` y `RH`.
 
----
+## 4. Manual del usuario
 
-## Componentes (Frontend)
-
-| Componente | Archivo | Propósito |
-|-----------|---------|-----------|
-| DashboardLayout | `frontend/components/DashboardLayout.js` | Layout principal con sidebar y navbar |
-| DashboardWrapper | `frontend/app/dashboard/DashboardWrapper.js` | Wrapper de autenticación |
-| ProtectedRoute | `frontend/components/ProtectedRoute.js` | Protección de rutas por módulo |
-
-### Páginas
-
-| Ruta Frontend | Archivo |
-|---------------|---------|
-| `/dashboard` | `frontend/app/dashboard/page.js` |
-| `/dashboard/profile` | `frontend/app/dashboard/profile/page.js` |
-
----
-
-## APIs (Frontend)
-
-No existen APIs dedicadas para dashboard.
-
----
-
-## Problemas Encontrados
-
-### 🟡 P2 — Medios
-
-1. **Sin backend dedicado**: DASHBOARD es puramente frontend. No hay endpoints específicos.
-
-2. **Sidebar con módulos hardcodeados**: El `DashboardLayout.js` contiene la lista de módulos en el sidebar, lo que requiere modificación al agregar nuevos módulos.
-
-### 🟢 P3 — Bajos
-
-3. **Sin personalización por usuario**: El dashboard muestra siempre la misma información independientemente del rol/módulos del usuario.
-
----
-
-## Estado General
-
-| Dimensión | Calificación | Comentario |
-|-----------|-------------|------------|
-| **Arquitectura** | 6/10 | Layout funcional, módulos hardcodeados en sidebar |
-| **Seguridad** | 7/10 | ProtectedRoute implementado |
-| **UI** | 7/10 | Layout completo y funcional |
-| **Backend** | 5/10 | Sin endpoints dedicados |
-| **Mantenibilidad** | 5/10 | Sidebar hardcodeado requiere modificación manual |
-
-### Calificación Final: **6.0 / 10**
+1. Inicia sesión; serás redirigido a tu panel (*Mi Espacio*).
+2. Consulta tus tarjetas: vacantes activas, solicitudes de compra, actividades pendientes y candidatos relacionados.
+3. Usa los accesos directos del panel para ir a cada módulo.
