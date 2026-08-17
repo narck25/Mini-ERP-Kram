@@ -29,7 +29,7 @@ const MODULES_CONFIG = {
     key: 'VACACIONES',
     label: 'Vacaciones',
     description: 'Solicitud y aprobación de vacaciones',
-    enabled: false
+    enabled: true
   },
   INCIDENCIAS: {
     key: 'INCIDENCIAS',
@@ -47,7 +47,7 @@ const MODULES_CONFIG = {
     key: 'REPORTES',
     label: 'Reportes',
     description: 'Generación de reportes y estadísticas',
-    enabled: false
+    enabled: true
   },
   COMPRAS: {
     key: 'COMPRAS',

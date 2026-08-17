@@ -2,6 +2,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const AuthController = require('../controllers/auth.controller');
 const AuthMiddleware = require('../middlewares/auth.middleware');
+const { loginLimiter, registerLimiter } = require('../middlewares/rate-limit.middleware');
 
 const router = express.Router();
 
@@ -24,8 +25,8 @@ const changePasswordValidation = [
 ];
 
 // Public routes
-router.post('/register', registerValidation, AuthController.register);
-router.post('/login', loginValidation, AuthController.login);
+router.post('/register', registerLimiter, registerValidation, AuthController.register);
+router.post('/login', loginLimiter, loginValidation, AuthController.login);
 
 // Protected routes (require authentication)
 router.get('/profile', AuthMiddleware.verifyToken, AuthController.getProfile);

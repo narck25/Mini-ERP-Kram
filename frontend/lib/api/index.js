@@ -11,6 +11,8 @@ export { stationeryApi } from './stationery'
 export { uniformApi } from './uniforms'
 export { inventoryAdjustmentApi } from './inventoryAdjustments'
 export { inventoryMovementApi } from './inventoryMovements'
+export { vacationApi } from './vacations'
+export { reportApi } from './reports'
 
 export const healthApi = {
   check: () => require('./client').default.get('/health'),

@@ -2,12 +2,12 @@
 
 Inventario de deuda técnica y mejoras pendientes, priorizadas por impacto.
 
-## P1 — Alta prioridad
+## P1 — Alta prioridad (✅ RESUELTO — 2026-08-17)
 
-| # | Deuda | Detalle | Acción sugerida |
-|---|-------|---------|-----------------|
-| 1 | Sin rate limiting en login | `POST /api/auth/login` no limita intentos (riesgo de fuerza bruta). | Agregar `express-rate-limit` al endpoint de login. |
-| 2 | Módulos `VACACIONES` y `REPORTES` | Deshabilitados (sin implementación). | Implementar si el negocio los requiere. |
+| # | Deuda | Detalle | Resolución |
+|---|-------|---------|------------|
+| 1 | ✅ Sin rate limiting en login | `POST /api/auth/login` no limitaba intentos (riesgo de fuerza bruta). | `express-rate-limit` — login 10/15min, register 5/h (`rate-limit.middleware.js`). |
+| 2 | ✅ Módulos `VACACIONES` y `REPORTES` | Sin implementación. | Implementados: vacaciones (saldo por antigüedad LFT + flujo jefe→RH + notificaciones email) y reportes (5 reportes + export Excel). |
 
 ## P2 — Media prioridad
 

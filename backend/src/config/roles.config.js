@@ -17,27 +17,35 @@ const ROLES_PRESETS = {
     'RECLUTAMIENTO',
     'INCIDENCIAS',
     'CONFIGURACION',
-    'COMPRAS'
+    'COMPRAS',
+    'VACACIONES',
+    'REPORTES'
   ],
   RH: [
     'DASHBOARD',
     'EMPLEADOS',
     'RECLUTAMIENTO',
-    'INCIDENCIAS'
+    'INCIDENCIAS',
+    'VACACIONES',
+    'REPORTES'
   ],
   SISTEMAS: [
     'DASHBOARD',
-    'CONFIGURACION'
+    'CONFIGURACION',
+    'VACACIONES'
   ],
   COMPRAS: [
     'DASHBOARD',
-    'COMPRAS'
+    'COMPRAS',
+    'VACACIONES'
   ],
   PRODUCCION: [
-    'DASHBOARD'
+    'DASHBOARD',
+    'VACACIONES'
   ],
   EMPLEADO_BASICO: [
-    'DASHBOARD'
+    'DASHBOARD',
+    'VACACIONES'
   ]
 };
 

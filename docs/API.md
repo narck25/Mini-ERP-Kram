@@ -243,6 +243,31 @@
 |---|---|---|---|
 | POST | `/seed/reset` | ADMIN | Resetear BD y ejecutar seed (`{confirm:true}`) |
 
+## 16. Vacaciones (`/api`)
+
+| Método | Ruta | Permiso | Descripción |
+|---|---|---|---|
+| POST | `/vacations` | module VACACIONES | Crear solicitud (PENDIENTE si hay jefe; AUTORIZADA si no) |
+| GET | `/vacations/my` | module VACACIONES | Mis solicitudes |
+| GET | `/vacations/balance` | module VACACIONES | Saldo: antigüedad, corresponden, usados, disponibles |
+| GET | `/vacations/pending-for-jefe` | module VACACIONES | Pendientes de autorizar (jefe directo) |
+| GET | `/vacations` | module VACACIONES | Todas (ADMIN/RH) o propias (scoping) |
+| GET | `/vacations/:id` | module VACACIONES | Detalle |
+| POST | `/vacations/:id/authorize-jefe` | module VACACIONES | Jefe autoriza (PENDIENTE → AUTORIZADA) |
+| POST | `/vacations/:id/approve` | ADMIN/RH | RH aprueba (AUTORIZADA → APROBADA, descuenta días) |
+| POST | `/vacations/:id/reject` | module VACACIONES | Jefe o RH rechaza |
+| POST | `/vacations/:id/cancel` | module VACACIONES | Empleado cancela (solo PENDIENTE) |
+
+## 17. Reportes (`/api`)
+
+| Método | Ruta | Permiso | Descripción |
+|---|---|---|---|
+| GET | `/reports/empleados` (+ `/export`) | module REPORTES | Reporte de empleados |
+| GET | `/reports/compras` (+ `/export`) | module REPORTES | Reporte de compras (`?estatus&fechaDesde&fechaHasta`) |
+| GET | `/reports/inventario` (+ `/export`) | module REPORTES | Inventario papelería/uniformes (stock bajo) |
+| GET | `/reports/asistencia` (+ `/export`) | module REPORTES | Checadas (`?fechaDesde&fechaHasta`) |
+| GET | `/reports/vacaciones` (+ `/export`) | module REPORTES | Reporte de vacaciones (`?estatus`) |
+
 ## Códigos de error comunes
 
 | Código | Significado |

@@ -566,6 +566,62 @@ exports.sendPurchaseAuthorizationRequired = async (email, nombreAdmin, request, 
 };
 
 
+/**
+ * Notificar al jefe directo que un empleado solicitó vacaciones.
+ */
+exports.sendVacationRequestToJefe = async (email, jefeName, request) => {
+  const title = '🏖️ Nueva solicitud de vacaciones para autorizar';
+  const content = `
+    <p>Hola <strong>${jefeName}</strong>,</p>
+    <p><strong>${request.empleadoNombre}</strong> ha solicitado vacaciones y requiere tu autorización:</p>
+    <div class="info-box">
+      <strong>Periodo:</strong> ${request.fechaInicio} al ${request.fechaFin} (${request.dias} días)<br>
+      <strong>Motivo:</strong> ${request.motivo || 'Sin motivo'}
+    </div>
+    <center>
+      <a href="${FRONTEND_URL}/vacaciones/mis-solicitudes" class="button">Revisar y autorizar</a>
+    </center>
+  `;
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
+/**
+ * Notificar a RH que una solicitud está lista para su aprobación (autorizada por jefe o sin jefe).
+ */
+exports.sendVacationPendingRH = async (email, rhName, request) => {
+  const title = '🏖️ Solicitud de vacaciones lista para aprobar';
+  const content = `
+    <p>Hola <strong>${rhName}</strong>,</p>
+    <p>La solicitud de vacaciones de <strong>${request.empleadoNombre}</strong> está lista para tu aprobación:</p>
+    <div class="info-box">
+      <strong>Periodo:</strong> ${request.fechaInicio} al ${request.fechaFin} (${request.dias} días)<br>
+      <strong>Motivo:</strong> ${request.motivo || 'Sin motivo'}
+    </div>
+    <center>
+      <a href="${FRONTEND_URL}/rh/vacaciones" class="button">Revisar y aprobar</a>
+    </center>
+  `;
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
+/**
+ * Notificar al empleado el resultado de su solicitud (aprobada/rechazada).
+ */
+exports.sendVacationResultToEmployee = async (email, employeeName, request, decision, comentario) => {
+  const isApproved = decision === 'APROBADA';
+  const title = isApproved ? '✅ Tus vacaciones fueron aprobadas' : '❌ Tu solicitud de vacaciones fue rechazada';
+  const content = `
+    <p>Hola <strong>${employeeName}</strong>,</p>
+    <p>Tu solicitud de vacaciones fue <strong>${isApproved ? 'APROBADA' : 'RECHAZADA'}</strong>:</p>
+    <div class="info-box">
+      <strong>Periodo:</strong> ${request.fechaInicio} al ${request.fechaFin} (${request.dias} días)<br>
+      ${comentario ? `<strong>Comentario:</strong> ${comentario}` : ''}
+    </div>
+  `;
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
+
 // Exportar sendEmail como función pública para otros servicios
 exports.sendEmail = sendEmail;
 

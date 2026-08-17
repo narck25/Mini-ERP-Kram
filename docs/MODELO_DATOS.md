@@ -104,6 +104,12 @@ erDiagram
 |---|---|---|---|
 | **EmployeeDocument** | `employee_documents` | `id, tipo_documento, url_archivo, employee_id, nombre_archivo, size_bytes` | Documentos del expediente |
 
+### Vacaciones
+
+| Modelo | Tabla | Campos clave | Descripción |
+|---|---|---|---|
+| **VacationRequest** | `vacation_requests` | `id, employeeId, fechaInicio, fechaFin, motivo, estatus, jefeAutorizadoPorId, jefeAutorizadoAt, comentarioJefe, aprobadoPorId, aprobadoAt, comentarioAprobacion` | Solicitud de vacaciones (flujo jefe→RH) |
+
 ## 3. Enumeraciones (`schema.prisma`)
 
 | Enum | Valores |
@@ -113,6 +119,7 @@ erDiagram
 | **NivelJerarquico** | `PRESIDENTE, DIRECTOR, GERENTE, JEFE, COORDINADOR, ANALISTA, SUPERVISOR, AUX_ADMINISTRATIVO, OPERATIVO` |
 | **EmployeeStatus** | `Activo, Inactivo` |
 | **VacancyStatus** | `Solicitada, Aprobada, Buscando, Cerrada` |
+| **VacationStatus** | `PENDIENTE, AUTORIZADA, APROBADA, RECHAZADA, CANCELADA` |
 | **CandidateStatus** | `En_Revision, Descartado, Seleccionado` |
 | **MotivoVacante** | `NUEVA_CREACION, REEMPLAZO_DEFINITIVO, REEMPLAZO_TEMPORAL, REEMPLAZO_RENUNCIA, REEMPLAZO_TERMINACION_CONTRATO, INCREMENTO_PLANTILLA, INCREMENTO_PRODUCCION, RENUNCIA, TERMINACION_CONTRATO, LICENCIA, LICENCIA_TEMPORAL, INCAPACIDAD, JUBILACION, JUBILACION_RETIRO, PROMOCION, REESTRUCTURACION, MATERNIDAD, LICENCIA_MATERNIDAD, VACACIONES` |
 | **TipoContratacion** | `ADMINISTRATIVO, TEMPORAL, SINDICALIZADO, TIEMPO_COMPLETO, PERMANENTE, BECARIO, ROL_TURNOS` |

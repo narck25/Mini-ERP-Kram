@@ -64,6 +64,8 @@ const attendanceRoutes = loadRoute('attendance', './routes/attendance.routes');
 const rolesRoutes = loadRoute('roles', './routes/roles.routes');
 const notificationsRoutes = loadRoute('notifications', './routes/notifications.routes');
 const seedRoutes = loadRoute('seed', './routes/seed.routes');
+const vacationRoutes = loadRoute('vacation', './routes/vacation.routes');
+const reportRoutes = loadRoute('report', './routes/report.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -157,6 +159,8 @@ app.use('/api', inventoryAdjustmentRoutes);
 app.use('/api', inventoryMovementRoutes);
 app.use('/api/incidencias', attendanceRoutes);
 
+app.use('/api', vacationRoutes);
+app.use('/api', reportRoutes);
 app.use('/api', rolesRoutes);
 app.use('/api', notificationsRoutes);
 app.use('/api', seedRoutes);

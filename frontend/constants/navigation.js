@@ -15,6 +15,7 @@ export const myPortalNavigation = [
   { name: 'Mis Vacantes', href: '/reclutamiento/mis-solicitudes', icon: '📝', module: 'RECLUTAMIENTO' },
   { name: 'Mis Compras', href: '/compras/mis-solicitudes', icon: '🛒', module: 'COMPRAS' },
   { name: 'Papelería', href: '/compras/papeleria', icon: '📄', module: 'COMPRAS' },
+  { name: 'Mis Vacaciones', href: '/vacaciones/mis-solicitudes', icon: '🏖️', module: 'VACACIONES' },
 ]
 
 // Sección 2: "Administración" (Gestión Total)
@@ -23,6 +24,8 @@ export const adminNavigation = [
   { name: 'Dashboard RH', href: '/rh/dashboard-completo', icon: '📊', module: 'EMPLEADOS', roles: ['ADMIN', 'RH'] },
   { name: 'Reclutamiento', href: '/rh/reclutamiento', icon: '📋', module: 'RECLUTAMIENTO', roles: ['ADMIN', 'RH'] },
   { name: 'Incidencias', href: '/rh/incidencias', icon: '⏰', module: 'INCIDENCIAS', roles: ['ADMIN', 'RH'] },
+  { name: 'Vacaciones', href: '/rh/vacaciones', icon: '🏖️', module: 'VACACIONES', roles: ['ADMIN', 'RH'] },
+  { name: 'Reportes', href: '/dashboard/reportes', icon: '📊', module: 'REPORTES', roles: ['ADMIN', 'RH'] },
   { name: 'Gestión de Compras', href: '/dashboard/compras', icon: '🛒', module: 'COMPRAS', roles: ['ADMIN', 'COMPRAS'] },
   { name: 'Papelería', href: '/dashboard/compras/papeleria', icon: '📄', module: 'COMPRAS', roles: ['ADMIN', 'COMPRAS'] },
   { name: 'Uniformes', href: '/dashboard/compras/uniformes', icon: '👕', module: 'COMPRAS', roles: ['ADMIN', 'RH', 'COMPRAS'] },
