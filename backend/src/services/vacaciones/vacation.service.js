@@ -190,13 +190,31 @@ class VacationService {
   }
 
   static async getById(id) {
-    return prisma.vacationRequest.findUnique({
+    const vacation = await prisma.vacationRequest.findUnique({
       where: { id },
       include: {
-        empleado: { select: { id: true, nombres: true, apellidoPaterno: true, clave: true, departamento_id: true } },
+        empleado: {
+          select: {
+            id: true,
+            nombres: true,
+            apellidoPaterno: true,
+            apellidoMaterno: true,
+            clave: true,
+            fechaAlta: true,
+            departamento: { select: { nombre: true } },
+            puesto: { select: { nombre: true } },
+            reportaA: { select: { nombres: true, apellidoPaterno: true } }
+          }
+        },
+        jefeAutorizadoPor: { select: { id: true, name: true } },
         aprobadoPor: { select: { id: true, name: true, role: true } }
       }
     });
+
+    if (!vacation) return null;
+
+    const balance = await this.getBalance(vacation.employeeId);
+    return { ...vacation, balance };
   }
 
   static async getPendingForJefe(user) {

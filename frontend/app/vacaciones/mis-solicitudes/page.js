@@ -7,6 +7,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { vacationApi } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import VacationTeamApprovals from '@/components/VacationTeamApprovals';
+import Link from 'next/link';
 
 const ESTATUS_BADGES = {
   PENDIENTE: 'bg-yellow-100 text-yellow-800',
@@ -222,6 +223,8 @@ export default function MisVacacionesPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                          <Link href={`/vacaciones/solicitud/${r.id}`} className="text-blue-600 hover:text-blue-800" title="Imprimir solicitud">🖨️</Link>
                           {r.estatus === 'PENDIENTE' && (
                             confirmingId === r.id ? (
                               <div className="flex gap-2 justify-end">
@@ -241,6 +244,7 @@ export default function MisVacacionesPage() {
                           {r.estatus !== 'PENDIENTE' && r.comentarioAprobacion && (
                             <span className="text-xs text-gray-500" title={r.comentarioAprobacion}>💬</span>
                           )}
+                          </div>
                         </td>
                       </tr>
                     ))}

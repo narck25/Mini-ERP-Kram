@@ -5,6 +5,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import DashboardLayout from '@/components/DashboardLayout';
 import { vacationApi } from '@/lib/api';
 import { toast } from 'react-hot-toast';
+import Link from 'next/link';
 
 const ESTATUS_BADGES = {
   PENDIENTE: 'bg-yellow-100 text-yellow-800',
@@ -142,6 +143,8 @@ export default function VacacionesPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                          <Link href={`/vacaciones/solicitud/${r.id}`} className="text-blue-600 hover:text-blue-800" title="Imprimir solicitud">🖨️</Link>
                           {r.estatus === 'AUTORIZADA' && (
                             <div className="flex gap-2 justify-end">
                               <button
@@ -158,6 +161,7 @@ export default function VacacionesPage() {
                               </button>
                             </div>
                           )}
+                          </div>
                         </td>
                       </tr>
                     ))}

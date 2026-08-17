@@ -24,6 +24,7 @@ export default function ProtectedRoute({
   requiredModule = null,
   requireAuth = true,
   redirectTo = '/',
+  forbiddenRedirectTo = '/403',
   loadingComponent = null,
   unauthorizedComponent = null
 }) {
@@ -42,16 +43,16 @@ export default function ProtectedRoute({
     // Nivel C: verificación por rol (solo para operaciones críticas)
     if (user && allowedRoles.length > 0 && !hasRole(allowedRoles)) {
       if (unauthorizedComponent) return
-      router.push(redirectTo)
+      router.push(forbiddenRedirectTo)
       return
     }
 
     // Nivel A: verificación por módulo (método principal de control de acceso)
     if (user && requiredModule && !hasModule(requiredModule)) {
       if (unauthorizedComponent) return
-      router.push(redirectTo)
+      router.push(forbiddenRedirectTo)
     }
-  }, [user, loading, authChecked, allowedRoles, requiredModule, requireAuth, redirectTo, hasRole, hasModule, router, unauthorizedComponent])
+  }, [user, loading, authChecked, allowedRoles, requiredModule, requireAuth, redirectTo, forbiddenRedirectTo, hasRole, hasModule, router, unauthorizedComponent])
 
   if (loading || !authChecked) {
     return loadingComponent || (

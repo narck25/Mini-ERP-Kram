@@ -77,10 +77,19 @@ exports.getRHDashboardStats = async (req, res) => {
     const totalEmployees = await prisma.employee.count();
     const activeEmployees = await prisma.employee.count({ where: { estatus: 'Activo' } });
     
-    // Por ahora, establecer valores por defecto para vacaciones e incapacidades
-    // TODO: Implementar lógica real cuando existan los modelos correspondientes
-    const employeesOnVacation = 0;
-    const employeesOnLeave = 0;
+    // Empleados de vacaciones (solicitudes APROBADAS vigentes hoy)
+    const employeesOnVacation = await prisma.vacationRequest.count({
+      where: {
+        estatus: 'APROBADA',
+        fechaInicio: { lte: now },
+        fechaFin: { gte: now }
+      }
+    });
+
+    // Empleados con incapacidad activa
+    const employeesOnLeave = await prisma.incapacidad.count({
+      where: { estatus: 'ACTIVA' }
+    });
 
     // 2. Estadísticas de vacantes (solo JobVacancy, no existe vacancyRequest)
     const totalVacancies = await prisma.jobVacancy.count();

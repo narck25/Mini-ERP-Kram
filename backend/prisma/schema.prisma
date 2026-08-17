@@ -25,6 +25,7 @@ model User {
   inventoryMovements InventoryMovement[]
   vacationsApproved VacationRequest[] @relation("VacacionesAprobador")
   vacationsAuthorizedAsJefe VacationRequest[] @relation("VacacionesJefe")
+  incapacidadesRegistradas Incapacidad[] @relation("IncapacidadRegistrador")
 
   @@map("users")
 }
@@ -133,6 +134,7 @@ model Employee {
   uniformDeliveriesMade UniformDelivery[]   @relation("UniformeEntregador")
   inventoryAdjustmentsRequested InventoryAdjustmentRequest[] @relation("AjusteSolicitante")
   vacationRequests VacationRequest[] @relation("VacacionesSolicitante")
+  incapacidades Incapacidad[] @relation("IncapacidadEmpleado")
 
   @@index([departamento_id, estatus])
   @@map("employees")
@@ -369,6 +371,17 @@ enum VacationStatus {
   APROBADA
   RECHAZADA
   CANCELADA
+}
+
+enum TipoIncapacidad {
+  ENFERMEDAD_GENERAL
+  RIESGO_TRABAJO
+  MATERNIDAD
+}
+
+enum IncapacidadStatus {
+  ACTIVA
+  REINCORPORADO
 }
 
 enum ModuleType {
@@ -741,4 +754,27 @@ model VacationRequest {
   @@index([estatus, fechaInicio])
   @@index([employeeId])
   @@map("vacation_requests")
+}
+
+// ─── INCAPACIDADES ───
+
+model Incapacidad {
+  id               String            @id @default(cuid())
+  employeeId       String
+  tipo             TipoIncapacidad
+  fechaInicio      DateTime
+  fechaFin         DateTime
+  folioIncapacidad String?
+  estatus          IncapacidadStatus @default(ACTIVA)
+  observaciones    String?
+  registradoPorId  String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  empleado      Employee @relation("IncapacidadEmpleado", fields: [employeeId], references: [id])
+  registradoPor User?    @relation("IncapacidadRegistrador", fields: [registradoPorId], references: [id])
+
+  @@index([estatus, fechaInicio])
+  @@index([employeeId])
+  @@map("incapacidades")
 }

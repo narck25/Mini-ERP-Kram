@@ -66,6 +66,7 @@ const notificationsRoutes = loadRoute('notifications', './routes/notifications.r
 const seedRoutes = loadRoute('seed', './routes/seed.routes');
 const vacationRoutes = loadRoute('vacation', './routes/vacation.routes');
 const reportRoutes = loadRoute('report', './routes/report.routes');
+const incapacidadRoutes = loadRoute('incapacidad', './routes/incapacidad.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -161,6 +162,7 @@ app.use('/api/incidencias', attendanceRoutes);
 
 app.use('/api', vacationRoutes);
 app.use('/api', reportRoutes);
+app.use('/api', incapacidadRoutes);
 app.use('/api', rolesRoutes);
 app.use('/api', notificationsRoutes);
 app.use('/api', seedRoutes);
