@@ -400,5 +400,10 @@ exports.releaseUserEmail = async (userId, rfc) => {
     where: { id: userId },
     data: { isActive: false, email: placeholder }
   });
+  // Liberar también el correo institucional del expediente (correoEmpresa)
+  await prisma.employee.updateMany({
+    where: { userId },
+    data: { correoEmpresa: null }
+  });
   return user.email; // correo original liberado
 };
