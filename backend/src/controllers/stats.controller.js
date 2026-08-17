@@ -1,11 +1,12 @@
 const { PrismaClient } = require('@prisma/client');
+const VacationService = require('../services/vacaciones/vacation.service');
 const prisma = new PrismaClient();
 
 // Obtener estadísticas para RH (endpoint antiguo - mantener compatibilidad)
 exports.getRHStats = async (req, res) => {
   try {
     // Verificar que el usuario tenga acceso a al menos uno de los módulos relevantes
-    const hasAccess = req.user.accessibleModules?.some(m => ['EMPLEADOS', 'RECLUTAMIENTO', 'COMPRAS'].includes(m));
+    const hasAccess = req.user.accessibleModules?.some(m => ['EMPLEADOS', 'RECLUTAMIENTO', 'COMPRAS', 'VACACIONES', 'INCIDENCIAS', 'DASHBOARD'].includes(m));
     if (!hasAccess) {
       return res.status(403).json({ error: 'Acceso denegado. No tienes acceso a este panel.' });
     }
@@ -200,7 +201,7 @@ exports.getMyDashboardStats = async (req, res) => {
     const userId = req.user.id;
 
     // Verificar que el usuario tenga acceso a al menos uno de los módulos relevantes
-    const hasAccess = req.user.accessibleModules?.some(m => ['EMPLEADOS', 'RECLUTAMIENTO', 'COMPRAS'].includes(m));
+    const hasAccess = req.user.accessibleModules?.some(m => ['EMPLEADOS', 'RECLUTAMIENTO', 'COMPRAS', 'VACACIONES', 'INCIDENCIAS', 'DASHBOARD'].includes(m));
     if (!hasAccess) {
       return res.status(403).json({ error: 'Acceso denegado. No tienes acceso a este panel.' });
     }
@@ -220,6 +221,7 @@ exports.getMyDashboardStats = async (req, res) => {
         myPurchases: { total: 0, active: 0, latest: [] },
         pendingActivities: { total: 0, activities: [] },
         candidates: { total: 0, enRevision: 0 },
+        myVacations: { total: 0, pending: 0, latest: [], balance: null },
         lastUpdated: new Date().toISOString()
       });
     }
@@ -305,6 +307,33 @@ exports.getMyDashboardStats = async (req, res) => {
       }
     });
 
+    // 5. Mis vacaciones (solo las propias) + saldo
+    let myVacations = { total: 0, pending: 0, latest: [], balance: null };
+    try {
+      const vacationRequests = await prisma.vacationRequest.findMany({
+        where: { employeeId: employee.id },
+        orderBy: { createdAt: 'desc' },
+        take: 5
+      });
+      let balance = null;
+      try {
+        balance = await VacationService.getBalance(employee.id);
+      } catch (e) { /* saldo no disponible */ }
+      myVacations = {
+        total: vacationRequests.length,
+        pending: vacationRequests.filter(v => ['PENDIENTE', 'AUTORIZADA'].includes(v.estatus)).length,
+        latest: vacationRequests.slice(0, 3).map(v => ({
+          id: v.id,
+          fechaInicio: v.fechaInicio,
+          fechaFin: v.fechaFin,
+          estatus: v.estatus
+        })),
+        balance
+      };
+    } catch (e) {
+      // Modelo no existe, ignorar
+    }
+
     res.json({
       myVacancies: {
         total: myJobVacancies.length,
@@ -331,6 +360,7 @@ exports.getMyDashboardStats = async (req, res) => {
         total: myCandidates.length,
         enRevision: myCandidates.filter(c => c.estatus === 'En_Revision').length
       },
+      myVacations,
       lastUpdated: new Date().toISOString()
     });
   } catch (error) {

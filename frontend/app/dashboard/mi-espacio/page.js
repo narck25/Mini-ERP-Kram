@@ -9,13 +9,15 @@ import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
+const fmt = (iso) => (iso ? new Date(iso).toISOString().substring(0, 10).split('-').reverse().join('/') : '—');
+
 function MiEspacioPage() {
   const { user, loading: authLoading } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  const hasAccess = user?.accessibleModules?.some(m => ['EMPLEADOS', 'RECLUTAMIENTO', 'COMPRAS'].includes(m))
+  const hasAccess = user?.accessibleModules?.some(m => ['EMPLEADOS', 'RECLUTAMIENTO', 'COMPRAS', 'VACACIONES', 'INCIDENCIAS', 'DASHBOARD'].includes(m))
 
   useEffect(() => {
     if (user?.id && hasAccess) {
@@ -68,6 +70,7 @@ function MiEspacioPage() {
 
   const hasReclutamiento = user?.accessibleModules?.includes('RECLUTAMIENTO');
   const hasCompras = user?.accessibleModules?.includes('COMPRAS');
+  const hasVacaciones = user?.accessibleModules?.includes('VACACIONES');
 
   if (authLoading) {
     return (
@@ -154,6 +157,35 @@ function MiEspacioPage() {
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <Link href="/reclutamiento/mis-solicitudes" className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1">
                     Ver mis vacantes
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                </div>
+              </div>
+              )}
+
+              {/* Mis Vacaciones — solo si tiene módulo VACACIONES */}
+              {hasVacaciones && (
+              <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-emerald-500">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Mis Vacaciones</h3>
+                    <p className="text-sm text-gray-600">Días disponibles</p>
+                  </div>
+                  <div className="p-3 bg-emerald-100 rounded-lg">
+                    <span className="text-2xl">🏖️</span>
+                  </div>
+                </div>
+                <div className="text-3xl font-bold text-gray-900 mb-2">
+                  {dashboardData?.myVacations?.balance?.diasDisponibles ?? 0}
+                </div>
+                <div className="text-sm text-gray-600">
+                  {dashboardData?.myVacations?.pending || 0} pendientes
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <Link href="/vacaciones/mis-solicitudes" className="text-emerald-600 hover:text-emerald-800 text-sm font-medium flex items-center gap-1">
+                    Ver mis vacaciones
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                     </svg>
@@ -294,6 +326,55 @@ function MiEspacioPage() {
             </div>
             )}
 
+            {/* Mis vacaciones — solo VACACIONES */}
+            {hasVacaciones && (
+            <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Mis Vacaciones</h2>
+                <Link href="/vacaciones/mis-solicitudes" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                  Ver todas
+                </Link>
+              </div>
+              {dashboardData?.myVacations?.balance && (
+                <div className="grid grid-cols-3 gap-4 mb-4 p-4 bg-emerald-50 rounded-lg">
+                  <div>
+                    <p className="text-sm text-emerald-600">Disponibles</p>
+                    <p className="text-xl font-bold text-emerald-800">{dashboardData.myVacations.balance.diasDisponibles}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Corresponden</p>
+                    <p className="text-lg font-semibold text-gray-800">{dashboardData.myVacations.balance.diasCorresponden}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Usados</p>
+                    <p className="text-lg font-semibold text-gray-800">{dashboardData.myVacations.balance.diasUsados}</p>
+                  </div>
+                </div>
+              )}
+              {dashboardData?.myVacations?.latest?.length > 0 ? (
+                <div className="space-y-3">
+                  {dashboardData.myVacations.latest.map((v) => (
+                    <Link key={v.id} href={`/vacaciones/solicitud/${v.id}`} className="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium text-gray-900">{fmt(v.fechaInicio)} → {fmt(v.fechaFin)}</p>
+                        </div>
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{v.estatus}</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No tienes solicitudes de vacaciones</p>
+                  <Link href="/vacaciones/mis-solicitudes" className="text-emerald-600 hover:text-emerald-800 text-sm font-medium mt-2 inline-block">
+                    Solicitar mis primeras vacaciones
+                  </Link>
+                </div>
+              )}
+            </div>
+            )}
+
             {/* Acciones rápidas */}
             <div className="bg-white rounded-xl shadow-md p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Acciones Rápidas</h2>
@@ -340,6 +421,19 @@ function MiEspacioPage() {
                   </div>
                   <h3 className="font-medium text-gray-900 mb-1">Mis Solicitudes</h3>
                   <p className="text-sm text-gray-600">Ver historial completo</p>
+                </Link>
+                )}
+
+                {hasVacaciones && (
+                <Link
+                  href="/vacaciones/mis-solicitudes"
+                  className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg p-4 flex flex-col items-center justify-center text-center transition-colors"
+                >
+                  <div className="p-3 bg-emerald-100 rounded-lg mb-3">
+                    <span className="text-xl">🏖️</span>
+                  </div>
+                  <h3 className="font-medium text-gray-900 mb-1">Solicitar Vacaciones</h3>
+                  <p className="text-sm text-gray-600">Pedir mis días</p>
                 </Link>
                 )}
               </div>
