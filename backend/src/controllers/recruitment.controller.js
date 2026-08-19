@@ -992,13 +992,16 @@ exports.addComment = async (req, res) => {
       return res.status(404).json({ error: 'Solicitud de vacante no encontrada' });
     }
 
-    // Verificar permisos: usuarios con empleado asociado solo pueden comentar en sus propias solicitudes
-    const employee = await prisma.employee.findUnique({
-      where: { userId }
-    });
+    // Verificar permisos: ADMIN y RH pueden comentar en cualquier solicitud;
+    // los demás usuarios con empleado asociado solo pueden comentar en sus propias solicitudes.
+    if (req.user.role !== 'ADMIN' && req.user.role !== 'RH') {
+      const employee = await prisma.employee.findUnique({
+        where: { userId }
+      });
 
-    if (employee && vacancy.solicitanteId !== employee.id) {
-      return res.status(403).json({ error: 'Solo puedes comentar en tus propias solicitudes' });
+      if (employee && vacancy.solicitanteId !== employee.id) {
+        return res.status(403).json({ error: 'Solo puedes comentar en tus propias solicitudes' });
+      }
     }
 
     const comment = await prisma.vacancyComment.create({
