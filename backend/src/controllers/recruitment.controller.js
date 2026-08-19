@@ -260,27 +260,27 @@ exports.createVacancy = async (req, res) => {
 
     // Notificar por email según el flujo
     try {
-      if (['SISTEMAS', 'COMPRAS', 'PRODUCCION'].includes(role)) {
-        // Jefe de área creó solicitud → notificar a RH
+      if (!['RH', 'ADMIN'].includes(role)) {
+        // Un solicitante (jefe de área) creó la solicitud → notificar a RH/ADMIN
         const rhUsers = await prisma.user.findMany({
           where: { role: { in: ['RH', 'ADMIN'] } },
           select: { email: true, name: true }
         });
         const solicitanteNombre = vacancy.solicitante?.user?.name || req.user.name;
-        for (const rhUser of rhUsers) {
+        await Promise.allSettled(rhUsers.map(rhUser =>
           emailService.sendVacancyApprovalRequired(
             rhUser.email,
             rhUser.name,
             vacancy,
             solicitanteNombre
-          );
-        }
+          )
+        ));
       } else if (isDirect === true) {
-        // Flujo directo → notificar al solicitante
+        // Flujo directo (RH/ADMIN) → notificar al solicitante
         const solicitanteEmail = vacancy.solicitante?.user?.email;
         const solicitanteNombre = vacancy.solicitante?.user?.name || 'Usuario';
         if (solicitanteEmail) {
-          emailService.sendVacancyDirectCreated(solicitanteEmail, solicitanteNombre, vacancy);
+          await emailService.sendVacancyDirectCreated(solicitanteEmail, solicitanteNombre, vacancy);
         }
       }
     } catch (emailErr) {
