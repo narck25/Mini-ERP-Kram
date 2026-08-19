@@ -30,6 +30,7 @@ const prisma = new PrismaClient();
 // ─────────────────────────────────────────────────────────────
 const ACCIONES = {
   CREACION: 'CREACION',
+  ACTUALIZACION: 'ACTUALIZACION',
   COTIZACION_SUBIDA: 'COTIZACION_SUBIDA',
   MONTO_EDITADO: 'MONTO_EDITADO',
   COTIZACION_SELECCIONADA: 'COTIZACION_SELECCIONADA',

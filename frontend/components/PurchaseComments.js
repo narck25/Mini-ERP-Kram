@@ -90,9 +90,9 @@ export default function PurchaseComments({ requestId }) {
         eventSourceRef.current.close();
       }
 
-      // Construir URL con token como query param
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
-      const sseUrl = `${baseUrl}/api/purchases/${requestId}/comments/stream?token=${encodeURIComponent(token)}`;
+      // Construir URL con token como query param.
+      // URL relativa → pasa por el rewrite del frontend (evita mixed content en HTTPS).
+      const sseUrl = `/api/purchases/${requestId}/comments/stream?token=${encodeURIComponent(token)}`;
 
       const eventSource = new EventSource(sseUrl);
       eventSourceRef.current = eventSource;
