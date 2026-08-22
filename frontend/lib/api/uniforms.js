@@ -13,6 +13,9 @@ export const uniformApi = {
   getDeliveries: (params) => api.get('/uniforms/deliveries', { params }),
   getDeliveryById: (id) => api.get(`/uniforms/deliveries/${id}`),
 
+  // Empleados disponibles para el selector de entrega
+  getEmployeesForDelivery: () => api.get('/uniforms/employees'),
+
   // Historial por empleado
   getEmployeeHistory: (empleadoId) => api.get(`/uniforms/employees/${empleadoId}/history`),
 }

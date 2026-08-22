@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { uniformApi, employeeApi } from '@/lib/api'
+import { uniformApi } from '@/lib/api'
 import DashboardLayout from '@/components/DashboardLayout'
 
 export default function AdminUniformes() {
@@ -14,7 +14,7 @@ export default function AdminUniformes() {
   const [employees, setEmployees] = useState([])
   const [form, setForm] = useState({
     empleadoId: '',
-    items: [{ tipo: 'CAMISA', talla: '', genero: '', cantidad: 1 }],
+    items: [{ tipo: 'CAMISA', talla: '', genero: '', cantidad: 1, costoUnitario: '' }],
     observaciones: ''
   })
 
@@ -38,7 +38,7 @@ export default function AdminUniformes() {
 
   const loadEmployees = async () => {
     try {
-      const res = await employeeApi.getAll()
+      const res = await uniformApi.getEmployeesForDelivery()
       setEmployees(res.data.data || [])
     } catch (err) {
       console.error('Error al cargar empleados:', err)
@@ -46,7 +46,7 @@ export default function AdminUniformes() {
   }
 
   const addItem = () => {
-    setForm({ ...form, items: [...form.items, { tipo: 'CAMISA', talla: '', genero: '', cantidad: 1 }] })
+    setForm({ ...form, items: [...form.items, { tipo: 'CAMISA', talla: '', genero: '', cantidad: 1, costoUnitario: '' }] })
   }
 
   const removeItem = (index) => {
@@ -72,7 +72,7 @@ export default function AdminUniformes() {
       setShowModal(false)
       setForm({
         empleadoId: '',
-        items: [{ tipo: 'CAMISA', talla: '', genero: '', cantidad: 1 }],
+        items: [{ tipo: 'CAMISA', talla: '', genero: '', cantidad: 1, costoUnitario: '' }],
         observaciones: ''
       })
       loadDeliveries()
@@ -190,7 +190,7 @@ export default function AdminUniformes() {
                         <button type="button" onClick={() => removeItem(index)} className="text-red-500 text-sm">Eliminar</button>
                       )}
                     </div>
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-5 gap-2">
                       <div>
                         <label className="block text-xs font-medium">Tipo</label>
                         <select value={item.tipo} onChange={(e) => updateItem(index, 'tipo', e.target.value)} className="w-full border rounded px-2 py-1 text-sm">
@@ -215,6 +215,10 @@ export default function AdminUniformes() {
                       <div>
                         <label className="block text-xs font-medium">Cant.</label>
                         <input type="number" min="1" value={item.cantidad} onChange={(e) => updateItem(index, 'cantidad', parseInt(e.target.value) || 1)} className="w-full border rounded px-2 py-1 text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium">C/U ($)</label>
+                        <input type="number" min="0" step="0.01" value={item.costoUnitario} onChange={(e) => updateItem(index, 'costoUnitario', e.target.value === '' ? '' : Number(e.target.value))} className="w-full border rounded px-2 py-1 text-sm" placeholder="0.00" />
                       </div>
                     </div>
                   </div>

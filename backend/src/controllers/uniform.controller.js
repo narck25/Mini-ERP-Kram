@@ -46,6 +46,16 @@ class UniformController {
 
   // ─── ENTREGAS ───
 
+  static async listEmployees(req, res) {
+    try {
+      const employees = await UniformService.listEmployees();
+      res.json({ data: employees });
+    } catch (error) {
+      console.error('Error al listar empleados:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   static async createDelivery(req, res) {
     try {
       const entregadoPorId = req.user.employeeId;

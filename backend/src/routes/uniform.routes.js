@@ -58,6 +58,13 @@ router.get('/uniforms/deliveries/:id',
   UniformController.getDeliveryById
 );
 
+// Empleados disponibles para el selector de entrega (módulo COMPRAS).
+router.get('/uniforms/employees',
+  AuthMiddleware.verifyToken,
+  AuthMiddleware.requireModule('COMPRAS'),
+  UniformController.listEmployees
+);
+
 // ─── Historial por empleado (módulo COMPRAS) ───
 router.get('/uniforms/employees/:empleadoId/history',
   AuthMiddleware.verifyToken,

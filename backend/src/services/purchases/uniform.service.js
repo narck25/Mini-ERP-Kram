@@ -59,6 +59,15 @@ class UniformService {
 
   // ─── ENTREGAS ───
 
+  // Lista ligera de empleados activos para el selector de entrega (módulo COMPRAS).
+  static async listEmployees() {
+    return prisma.employee.findMany({
+      where: { estatus: 'Activo' },
+      select: { id: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, clave: true },
+      orderBy: [{ apellidoPaterno: 'asc' }, { nombres: 'asc' }]
+    });
+  }
+
   static async createDelivery(data, entregadoPorId, userId) {
     const { empleadoId, items, observaciones } = data;
 
