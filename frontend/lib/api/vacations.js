@@ -13,6 +13,7 @@ export const vacationApi = {
 
   // Gestión (Admin/RH)
   getAllRequests: (params) => api.get('/vacations', { params }),
+  getAllBalances: () => api.get('/vacations/balances'),
   getById: (id) => api.get(`/vacations/${id}`),
   approve: (id, comentario) => api.post(`/vacations/${id}/approve`, { comentario }),
   reject: (id, comentario) => api.post(`/vacations/${id}/reject`, { comentario }),

@@ -126,4 +126,14 @@ select option {
   .no-print {
     display: none !important;
   }
+
+  /* Dos tantos por hoja: escala para que ambos quepan en una sola hoja */
+  .print-area .solicitud-duo,
+  .print-area .acta-duo {
+    zoom: 0.8;
+  }
+  .tanto,
+  .tanto-cortar {
+    page-break-inside: avoid;
+  }
 }

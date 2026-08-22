@@ -6,7 +6,7 @@ const VacationService = require('../../../src/services/vacaciones/vacation.servi
 
 jest.mock('@prisma/client', () => {
   const mockPrisma = {
-    employee: { findUnique: jest.fn() },
+    employee: { findUnique: jest.fn(), findMany: jest.fn() },
     vacationRequest: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() }
   };
   return { PrismaClient: jest.fn(() => mockPrisma) };
@@ -49,6 +49,69 @@ describe('🏖️ VacationService.getBalance', () => {
     const b = await VacationService.getBalance('e1');
     expect(b.diasUsados).toBe(0);
     expect(b.diasDisponibles).toBe(22);
+  });
+
+  test('menos de 6 meses de antigüedad → 0 días disponibles', async () => {
+    prisma.employee.findUnique.mockResolvedValue({ id: 'e1', fechaAlta: new Date('2026-06-01') });
+
+    const b = await VacationService.getBalance('e1');
+
+    expect(b.antiguedad).toBe(0);
+    expect(b.diasCorresponden).toBe(0);
+    expect(b.diasUsados).toBe(0);
+    expect(b.diasDisponibles).toBe(0);
+    expect(b.reglaAplicada).toBe('MENOR_6_MESES');
+  });
+
+  test('6 meses o más (primer año) → días según tabla (12)', async () => {
+    prisma.employee.findUnique.mockResolvedValue({ id: 'e1', fechaAlta: new Date('2026-02-01') });
+    prisma.vacationRequest.findMany.mockResolvedValue([]);
+
+    const b = await VacationService.getBalance('e1');
+
+    expect(b.diasCorresponden).toBe(12);
+    expect(b.diasDisponibles).toBe(12);
+    expect(b.reglaAplicada).toBeUndefined();
+  });
+});
+
+describe('🏖️ VacationService.listEmployeeBalances', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-08-17'));
+  });
+  afterEach(() => jest.useRealTimers());
+
+  test('devuelve lista con saldo por empleado activo', async () => {
+    prisma.employee.findMany.mockResolvedValue([
+      {
+        id: 'e1',
+        clave: '1001',
+        nombres: 'Juan',
+        apellidoPaterno: 'Perez',
+        apellidoMaterno: 'Lopez',
+        fechaAlta: new Date('2020-01-15'),
+        departamento: { nombre: 'Sistemas' },
+        puesto: { nombre: 'Analista' }
+      }
+    ]);
+    prisma.employee.findUnique.mockResolvedValue({ id: 'e1', fechaAlta: new Date('2020-01-15') });
+    prisma.vacationRequest.findMany.mockResolvedValue([]);
+
+    const list = await VacationService.listEmployeeBalances();
+
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({
+      id: 'e1',
+      clave: '1001',
+      nombreCompleto: 'Juan Perez Lopez',
+      departamento: 'Sistemas',
+      puesto: 'Analista',
+      diasCorresponden: 22,
+      diasUsados: 0,
+      diasDisponibles: 22
+    });
   });
 });
 

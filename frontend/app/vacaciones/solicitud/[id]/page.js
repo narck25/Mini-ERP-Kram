@@ -25,6 +25,116 @@ const ESTATUS_TEXT = {
   CANCELADA: 'Cancelada',
 };
 
+// Un "tanto" de la solicitud (original para RH o copia para el empleado).
+function SolicitudTanto({ vacation, emp, jefe, dias, copia }) {
+  const badge = copia === 'original'
+    ? { text: 'Original · RH', cls: 'bg-gray-800 text-white' }
+    : { text: 'Copia · Empleado', cls: 'border border-gray-800 text-gray-800' };
+
+  return (
+    <div className="tanto bg-white p-4">
+      {/* Encabezado */}
+      <div className="flex justify-between items-start border-b-2 border-gray-800 pb-2 mb-3">
+        <div>
+          <h1 className="text-lg font-bold uppercase tracking-wide leading-tight">Solicitud de Vacaciones</h1>
+          <p className="text-xs text-gray-600 mt-0.5">
+            Folio: {vacation.id.slice(0, 8).toUpperCase()} · Fecha de solicitud: {fmt(vacation.createdAt)}
+          </p>
+        </div>
+        <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${badge.cls}`}>{badge.text}</span>
+      </div>
+
+      {/* Datos del empleado */}
+      <div className="mb-3">
+        <h3 className="font-bold text-xs mb-1 border-b border-gray-300 pb-1 uppercase">Datos del empleado</h3>
+        <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-sm">
+          <p><span className="font-medium">Nombre:</span> {nombreCompleto(emp)}</p>
+          <p><span className="font-medium">Clave:</span> {emp?.clave || '—'}</p>
+          <p><span className="font-medium">Departamento:</span> {emp?.departamento?.nombre || '—'}</p>
+          <p><span className="font-medium">Puesto:</span> {emp?.puesto?.nombre || '—'}</p>
+          <p><span className="font-medium">Antigüedad:</span> {vacation.balance?.antiguedad ?? '—'} año(s)</p>
+          <p><span className="font-medium">Jefe directo:</span> {nombre(jefe)}</p>
+        </div>
+      </div>
+
+      {/* Periodo solicitado */}
+      <div className="mb-3">
+        <h3 className="font-bold text-xs mb-1 border-b border-gray-300 pb-1 uppercase">Periodo solicitado</h3>
+        <div className="grid grid-cols-3 gap-2 text-sm">
+          <p><span className="font-medium">Inicio:</span> {fmt(vacation.fechaInicio)}</p>
+          <p><span className="font-medium">Fin:</span> {fmt(vacation.fechaFin)}</p>
+          <p><span className="font-medium">Días:</span> {dias}</p>
+        </div>
+        <p className="mt-1 text-sm"><span className="font-medium">Motivo:</span> {vacation.motivo || '—'}</p>
+      </div>
+
+      {/* Saldo */}
+      {vacation.balance && (
+        <div className="mb-3">
+          <h3 className="font-bold text-xs mb-1 border-b border-gray-300 pb-1 uppercase">Saldo de vacaciones</h3>
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            <p><span className="font-medium">Corresponden:</span> {vacation.balance.diasCorresponden} días</p>
+            <p><span className="font-medium">Usados:</span> {vacation.balance.diasUsados} días</p>
+            <p><span className="font-medium">Disponibles:</span> {vacation.balance.diasDisponibles} días</p>
+          </div>
+        </div>
+      )}
+
+      {/* Autorizaciones */}
+      <div className="mb-3">
+        <h3 className="font-bold text-xs mb-1 border-b border-gray-300 pb-1 uppercase">Autorizaciones</h3>
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border border-gray-300 p-1 text-left text-xs">Rol</th>
+              <th className="border border-gray-300 p-1 text-left text-xs">Nombre</th>
+              <th className="border border-gray-300 p-1 text-left text-xs">Fecha</th>
+              <th className="border border-gray-300 p-1 text-left text-xs">Comentario</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="border border-gray-300 p-1">Jefe directo</td>
+              <td className="border border-gray-300 p-1">{vacation.jefeAutorizadoPor?.name || '—'}</td>
+              <td className="border border-gray-300 p-1">{fmt(vacation.jefeAutorizadoAt)}</td>
+              <td className="border border-gray-300 p-1">{vacation.comentarioJefe || '—'}</td>
+            </tr>
+            <tr>
+              <td className="border border-gray-300 p-1">RH</td>
+              <td className="border border-gray-300 p-1">{vacation.aprobadoPor?.name || '—'}</td>
+              <td className="border border-gray-300 p-1">{fmt(vacation.aprobadoAt)}</td>
+              <td className="border border-gray-300 p-1">{vacation.comentarioAprobacion || '—'}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p className="mt-1 text-sm"><span className="font-medium">Estado:</span> {ESTATUS_TEXT[vacation.estatus] || vacation.estatus}</p>
+      </div>
+
+      {/* Firmas */}
+      <div className="grid grid-cols-3 gap-4 mt-8">
+        <div className="text-center">
+          <div className="border-t border-gray-800 pt-1">
+            <p className="text-sm font-medium">{nombreCompleto(emp)}</p>
+            <p className="text-xs text-gray-600">Solicitante</p>
+          </div>
+        </div>
+        <div className="text-center">
+          <div className="border-t border-gray-800 pt-1">
+            <p className="text-sm font-medium">{nombre(jefe)}</p>
+            <p className="text-xs text-gray-600">Jefe directo</p>
+          </div>
+        </div>
+        <div className="text-center">
+          <div className="border-t border-gray-800 pt-1">
+            <p className="text-sm font-medium">{vacation.aprobadoPor?.name || ''}</p>
+            <p className="text-xs text-gray-600">Recursos Humanos</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SolicitudVacacionesPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -66,100 +176,19 @@ export default function SolicitudVacacionesPage() {
             </button>
           </div>
 
-          {/* Solicitud (se imprime) */}
-          <div className="print-area bg-white rounded-lg shadow p-8">
-            <div className="text-center mb-8 border-b-2 border-gray-800 pb-4">
-              <h1 className="text-2xl font-bold uppercase tracking-wide">Solicitud de Vacaciones</h1>
-              <p className="text-gray-600 mt-1">Folio: {vacation.id.slice(0, 8).toUpperCase()}</p>
-              <p className="text-gray-600">Fecha de solicitud: {fmt(vacation.createdAt)}</p>
-            </div>
+          {/* Dos tantos por hoja (se imprime) */}
+          <div className="print-area bg-white rounded-lg shadow">
+            <div className="solicitud-duo p-6">
+              <SolicitudTanto vacation={vacation} emp={emp} jefe={jefe} dias={dias} copia="original" />
 
-            {/* Datos del empleado */}
-            <div className="mb-6">
-              <h3 className="font-bold mb-2 border-b border-gray-300 pb-1">Datos del empleado</h3>
-              <div className="grid grid-cols-2 gap-2">
-                <p><span className="font-medium">Nombre:</span> {nombreCompleto(emp)}</p>
-                <p><span className="font-medium">Clave:</span> {emp?.clave || '—'}</p>
-                <p><span className="font-medium">Departamento:</span> {emp?.departamento?.nombre || '—'}</p>
-                <p><span className="font-medium">Puesto:</span> {emp?.puesto?.nombre || '—'}</p>
-                <p><span className="font-medium">Antigüedad:</span> {vacation.balance?.antiguedad ?? '—'} año(s)</p>
-                <p><span className="font-medium">Jefe directo:</span> {nombre(jefe)}</p>
+              {/* Línea divisoria para corte */}
+              <div className="tanto-cortar flex items-center gap-3 my-2 text-gray-500">
+                <div className="flex-1 border-t-2 border-dashed border-gray-400" />
+                <span className="text-xs font-semibold uppercase tracking-wide">✂️ Cortar aquí</span>
+                <div className="flex-1 border-t-2 border-dashed border-gray-400" />
               </div>
-            </div>
 
-            {/* Periodo solicitado */}
-            <div className="mb-6">
-              <h3 className="font-bold mb-2 border-b border-gray-300 pb-1">Periodo solicitado</h3>
-              <div className="grid grid-cols-3 gap-2">
-                <p><span className="font-medium">Inicio:</span> {fmt(vacation.fechaInicio)}</p>
-                <p><span className="font-medium">Fin:</span> {fmt(vacation.fechaFin)}</p>
-                <p><span className="font-medium">Días:</span> {dias}</p>
-              </div>
-              <p className="mt-2"><span className="font-medium">Motivo:</span> {vacation.motivo || '—'}</p>
-            </div>
-
-            {/* Saldo */}
-            {vacation.balance && (
-              <div className="mb-6">
-                <h3 className="font-bold mb-2 border-b border-gray-300 pb-1">Saldo de vacaciones</h3>
-                <div className="grid grid-cols-3 gap-2">
-                  <p><span className="font-medium">Corresponden:</span> {vacation.balance.diasCorresponden} días</p>
-                  <p><span className="font-medium">Usados:</span> {vacation.balance.diasUsados} días</p>
-                  <p><span className="font-medium">Disponibles:</span> {vacation.balance.diasDisponibles} días</p>
-                </div>
-              </div>
-            )}
-
-            {/* Autorizaciones */}
-            <div className="mb-6">
-              <h3 className="font-bold mb-2 border-b border-gray-300 pb-1">Autorizaciones</h3>
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border border-gray-300 p-2 text-left">Rol</th>
-                    <th className="border border-gray-300 p-2 text-left">Nombre</th>
-                    <th className="border border-gray-300 p-2 text-left">Fecha</th>
-                    <th className="border border-gray-300 p-2 text-left">Comentario</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="border border-gray-300 p-2">Jefe directo</td>
-                    <td className="border border-gray-300 p-2">{vacation.jefeAutorizadoPor?.name || '—'}</td>
-                    <td className="border border-gray-300 p-2">{fmt(vacation.jefeAutorizadoAt)}</td>
-                    <td className="border border-gray-300 p-2">{vacation.comentarioJefe || '—'}</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-gray-300 p-2">RH</td>
-                    <td className="border border-gray-300 p-2">{vacation.aprobadoPor?.name || '—'}</td>
-                    <td className="border border-gray-300 p-2">{fmt(vacation.aprobadoAt)}</td>
-                    <td className="border border-gray-300 p-2">{vacation.comentarioAprobacion || '—'}</td>
-                  </tr>
-                </tbody>
-              </table>
-              <p className="mt-2"><span className="font-medium">Estado:</span> {ESTATUS_TEXT[vacation.estatus] || vacation.estatus}</p>
-            </div>
-
-            {/* Firmas */}
-            <div className="grid grid-cols-3 gap-8 mt-16">
-              <div className="text-center">
-                <div className="border-t border-gray-800 pt-2">
-                  <p className="font-medium">{nombreCompleto(emp)}</p>
-                  <p className="text-sm text-gray-600">Solicitante</p>
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="border-t border-gray-800 pt-2">
-                  <p className="font-medium">{nombre(jefe)}</p>
-                  <p className="text-sm text-gray-600">Jefe directo</p>
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="border-t border-gray-800 pt-2">
-                  <p className="font-medium">{vacation.aprobadoPor?.name || ''}</p>
-                  <p className="text-sm text-gray-600">Recursos Humanos</p>
-                </div>
-              </div>
+              <SolicitudTanto vacation={vacation} emp={emp} jefe={jefe} dias={dias} copia="copia" />
             </div>
           </div>
         </div>

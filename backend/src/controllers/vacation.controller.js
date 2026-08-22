@@ -39,6 +39,15 @@ class VacationController {
     }
   }
 
+  static async listEmployeeBalances(req, res) {
+    try {
+      const data = await VacationService.listEmployeeBalances();
+      res.json({ data });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   static async getPendingForJefe(req, res) {
     try {
       const data = await VacationService.getPendingForJefe(req.user);

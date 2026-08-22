@@ -22,6 +22,16 @@ function getPeriodoActualStart(fechaAlta) {
   return aniv;
 }
 
+// Meses completos de antigüedad desde la fecha de ingreso.
+function calcularMesesDesdeIngreso(fechaAlta) {
+  if (!fechaAlta) return 0;
+  const alta = new Date(fechaAlta);
+  const hoy = new Date();
+  let meses = (hoy.getFullYear() - alta.getFullYear()) * 12 + (hoy.getMonth() - alta.getMonth());
+  if (hoy.getDate() < alta.getDate()) meses--;
+  return Math.max(0, meses);
+}
+
 // Formatea una fecha a DD/MM/YYYY para los emails.
 function formatDateForEmail(date) {
   const d = new Date(date);
@@ -61,10 +71,30 @@ class VacationService {
    * Calcula el saldo de vacaciones de un empleado según su antigüedad (LFT).
    * diasDisponibles = días que corresponden - días ya usados (solicitudes APROBADAS)
    * dentro del periodo vigente (desde el último aniversario laboral).
+   *
+   * Regla de negocio: con menos de 6 meses de antigüedad no hay derecho a vacaciones
+   * (0 días). A partir de los 6 meses se puede solicitar conforme a la tabla del año 1;
+   * los días "adelantados" se descuentan del saldo dentro del periodo vigente.
    */
   static async getBalance(employeeId) {
     const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
     if (!employee) throw new Error('Empleado no encontrado');
+
+    const meses = calcularMesesDesdeIngreso(employee.fechaAlta);
+
+    // Menos de 6 meses de antigüedad → 0 días disponibles.
+    if (meses < 6) {
+      return {
+        antiguedad: 0,
+        meses,
+        diasCorresponden: 0,
+        diasUsados: 0,
+        diasDisponibles: 0,
+        periodoInicio: null,
+        periodoFin: null,
+        reglaAplicada: 'MENOR_6_MESES'
+      };
+    }
 
     const antiguedad = calcularAntiguedad(employee.fechaAlta);
     const diasCorresponden = obtenerFactorPorAntiguedad(antiguedad).diasVacaciones;
@@ -86,12 +116,59 @@ class VacationService {
 
     return {
       antiguedad,
+      meses,
       diasCorresponden,
       diasUsados,
       diasDisponibles: diasCorresponden - diasUsados,
       periodoInicio,
       periodoFin
     };
+  }
+
+  /**
+   * Reporte de saldos de vacaciones de todos los empleados activos (vista RH/ADMIN).
+   * Reutiliza getBalance para mantener la misma regla de negocio (antigüedad + 6 meses).
+   */
+  static async listEmployeeBalances() {
+    const employees = await prisma.employee.findMany({
+      where: { estatus: 'Activo' },
+      select: {
+        id: true,
+        clave: true,
+        nombres: true,
+        apellidoPaterno: true,
+        apellidoMaterno: true,
+        fechaAlta: true,
+        departamento: { select: { nombre: true } },
+        puesto: { select: { nombre: true } }
+      },
+      orderBy: [
+        { apellidoPaterno: 'asc' },
+        { apellidoMaterno: 'asc' },
+        { nombres: 'asc' }
+      ]
+    });
+
+    const balances = await Promise.all(
+      employees.map(async (emp) => {
+        const b = await this.getBalance(emp.id);
+        return {
+          id: emp.id,
+          clave: emp.clave,
+          nombreCompleto: [emp.nombres, emp.apellidoPaterno, emp.apellidoMaterno].filter(Boolean).join(' '),
+          departamento: emp.departamento?.nombre || null,
+          puesto: emp.puesto?.nombre || null,
+          antiguedad: b.antiguedad,
+          meses: b.meses,
+          diasCorresponden: b.diasCorresponden,
+          diasUsados: b.diasUsados,
+          diasDisponibles: b.diasDisponibles,
+          reglaAplicada: b.reglaAplicada || null
+        };
+      })
+    );
+
+    return balances;
   }
 
   static async create(data, user) {
@@ -118,9 +195,12 @@ class VacationService {
       throw new Error('No tienes un expediente de empleado asociado');
     }
 
-    // Validar saldo disponible de vacaciones (según antigüedad LFT)
+    // Validar saldo disponible de vacaciones (antigüedad LFT + regla de 6 meses)
     const requestedDays = calcDias(inicio, fin);
     const balance = await this.getBalance(employee.id);
+    if (balance.reglaAplicada === 'MENOR_6_MESES') {
+      throw new Error('No puedes solicitar vacaciones: debes tener al menos 6 meses de antigüedad en la empresa');
+    }
     if (requestedDays > balance.diasDisponibles) {
       throw new Error(`Días insuficientes: solicitas ${requestedDays} día(s) pero solo tienes ${balance.diasDisponibles} disponible(s)`);
     }

@@ -45,6 +45,10 @@ export default function VacacionesPage() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
+  const [tab, setTab] = useState('solicitudes');
+  const [balances, setBalances] = useState([]);
+  const [balancesLoading, setBalancesLoading] = useState(false);
+  const [balanceSearch, setBalanceSearch] = useState('');
 
   const fetchRequests = async () => {
     try {
@@ -60,10 +64,28 @@ export default function VacacionesPage() {
     }
   };
 
+  const fetchBalances = async () => {
+    try {
+      setBalancesLoading(true);
+      const res = await vacationApi.getAllBalances();
+      setBalances(res.data?.data || []);
+    } catch (error) {
+      console.error(error);
+      toast.error('Error al cargar el saldo de empleados');
+    } finally {
+      setBalancesLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchRequests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
+
+  useEffect(() => {
+    if (tab === 'saldos') fetchBalances();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   const handleApprove = async (id) => {
     try {
@@ -85,31 +107,59 @@ export default function VacacionesPage() {
     }
   };
 
+  const filteredBalances = balances.filter((b) => {
+    if (!balanceSearch) return true;
+    const q = balanceSearch.toLowerCase();
+    return (
+      (b.nombreCompleto || '').toLowerCase().includes(q) ||
+      (b.clave || '').toLowerCase().includes(q)
+    );
+  });
+
   return (
     <ProtectedRoute requiredModule="VACACIONES" allowedRoles={['ADMIN', 'RH']} redirectTo="/dashboard/mi-espacio">
       <DashboardLayout>
         <div className="p-6">
-          <div className="mb-8 flex justify-between items-start">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Gestión de Vacaciones</h1>
-              <p className="text-gray-600">Aprueba o rechaza las solicitudes de vacaciones del personal</p>
-            </div>
-            <div>
-              <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-              >
-                <option value="">Todos los estados</option>
-                <option value="AUTORIZADA">Autorizadas (por jefe)</option>
-                <option value="PENDIENTE">Pendientes</option>
-                <option value="APROBADA">Aprobadas</option>
-                <option value="RECHAZADA">Rechazadas</option>
-                <option value="CANCELADA">Canceladas</option>
-              </select>
-            </div>
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">Gestión de Vacaciones</h1>
+            <p className="text-gray-600">Aprueba solicitudes y consulta el saldo de vacaciones del personal</p>
           </div>
 
+          <div className="mb-6 border-b border-gray-200">
+            <nav className="flex gap-6">
+              <button
+                onClick={() => setTab('solicitudes')}
+                className={`pb-2 px-1 text-sm font-medium border-b-2 ${tab === 'solicitudes' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                Solicitudes
+              </button>
+              <button
+                onClick={() => setTab('saldos')}
+                className={`pb-2 px-1 text-sm font-medium border-b-2 ${tab === 'saldos' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                Saldo por empleado
+              </button>
+            </nav>
+          </div>
+
+          {tab === 'solicitudes' && (
+          <div className="mb-6 flex justify-end">
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+            >
+              <option value="">Todos los estados</option>
+              <option value="AUTORIZADA">Autorizadas (por jefe)</option>
+              <option value="PENDIENTE">Pendientes</option>
+              <option value="APROBADA">Aprobadas</option>
+              <option value="RECHAZADA">Rechazadas</option>
+              <option value="CANCELADA">Canceladas</option>
+            </select>
+          </div>
+          )}
+
+          {tab === 'solicitudes' && (
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             {loading ? (
               <div className="px-6 py-8 text-center text-gray-500">Cargando...</div>
@@ -170,6 +220,64 @@ export default function VacacionesPage() {
               </div>
             )}
           </div>
+          )}
+
+          {tab === 'saldos' && (
+            <>
+              <div className="mb-6 flex justify-end">
+                <input
+                  type="text"
+                  value={balanceSearch}
+                  onChange={(e) => setBalanceSearch(e.target.value)}
+                  placeholder="Buscar por nombre o número de empleado"
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm w-80"
+                />
+              </div>
+              <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                {balancesLoading ? (
+                  <div className="px-6 py-8 text-center text-gray-500">Cargando...</div>
+                ) : filteredBalances.length === 0 ? (
+                  <div className="px-6 py-8 text-center text-gray-500">No hay empleados activos.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Núm.</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Empleado</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Departamento</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Puesto</th>
+                          <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Antigüedad</th>
+                          <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Corresponden</th>
+                          <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Usados</th>
+                          <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Disponibles</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {filteredBalances.map((b) => (
+                          <tr key={b.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 text-sm text-gray-900">{b.clave || '—'}</td>
+                            <td className="px-6 py-4 text-sm font-medium text-gray-900">{b.nombreCompleto}</td>
+                            <td className="px-6 py-4 text-sm text-gray-500">{b.departamento || '—'}</td>
+                            <td className="px-6 py-4 text-sm text-gray-500">{b.puesto || '—'}</td>
+                            <td className="px-6 py-4 text-sm text-center text-gray-900">{b.antiguedad} años</td>
+                            <td className="px-6 py-4 text-sm text-center text-gray-900">{b.diasCorresponden}</td>
+                            <td className="px-6 py-4 text-sm text-center text-gray-900">{b.diasUsados}</td>
+                            <td className="px-6 py-4 text-sm text-center">
+                              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${b.diasDisponibles > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                                {b.diasDisponibles}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
         </div>
       </DashboardLayout>
     </ProtectedRoute>

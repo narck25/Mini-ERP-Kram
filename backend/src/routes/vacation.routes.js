@@ -29,6 +29,13 @@ router.get('/vacations/balance',
   VacationController.getBalance
 );
 
+// Reporte de saldos de vacaciones de todos los empleados (solo ADMIN/RH).
+router.get('/vacations/balances',
+  AuthMiddleware.verifyToken,
+  AuthMiddleware.requireRole(['ADMIN', 'RH']),
+  VacationController.listEmployeeBalances
+);
+
 // Solicitudes pendientes de autorizar por el jefe directo.
 router.get('/vacations/pending-for-jefe',
   AuthMiddleware.verifyToken,
