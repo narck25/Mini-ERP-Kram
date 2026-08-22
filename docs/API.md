@@ -249,7 +249,8 @@
 |---|---|---|---|
 | POST | `/vacations` | module VACACIONES | Crear solicitud (PENDIENTE si hay jefe; AUTORIZADA si no) |
 | GET | `/vacations/my` | module VACACIONES | Mis solicitudes |
-| GET | `/vacations/balance` | module VACACIONES | Saldo: antigüedad, corresponden, usados, disponibles |
+| GET | `/vacations/balance` | module VACACIONES | Saldo propio: antigüedad, corresponden, usados, disponibles (0 días si < 6 meses) |
+| GET | `/vacations/balances` | requireRole(['ADMIN','RH']) | Saldo de vacaciones de todos los empleados activos (vista RH/ADMIN) |
 | GET | `/vacations/pending-for-jefe` | module VACACIONES | Pendientes de autorizar (jefe directo) |
 | GET | `/vacations` | module VACACIONES | Todas (ADMIN/RH) o propias (scoping) |
 | GET | `/vacations/:id` | module VACACIONES | Detalle |

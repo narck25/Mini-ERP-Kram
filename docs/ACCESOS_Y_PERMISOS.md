@@ -1,7 +1,7 @@
 # 🗂️ ERP KRAM — Guía Completa de Accesos y Permisos
 
 > Documento consolidado: roles, módulos, **quién puede ver qué** y **qué acceso requiere** cada funcionalidad del proyecto.
-> Última actualización: 16/08/2026
+> Última actualización: 22/08/2026
 
 ---
 
@@ -161,6 +161,7 @@ Todos los endpoints (`/departments`, `/job-positions`, `/organization/stats`) �
 | `/vacations/my` | GET | 🧩 VACACIONES |
 | `/vacations` | GET | 🧩 VACACIONES |
 | `/vacations/balance` | GET | 🧩 VACACIONES |
+| `/vacations/balances` | GET | 👥 RH/ADMIN |
 | `/vacations/pending-for-jefe` | GET | 🧩 VACACIONES (jefe directo) |
 | `/vacations/:id` | GET | 🧩 VACACIONES |
 | `/vacations/:id/authorize-jefe` | POST | 🧩 VACACIONES (jefe directo) |
@@ -169,6 +170,8 @@ Todos los endpoints (`/departments`, `/job-positions`, `/organization/stats`) �
 | `/vacations/:id/cancel` | POST | 🧩 VACACIONES |
 
 **Flujo de estados:** `PENDIENTE → AUTORIZADA (jefe) → APROBADA (RH/ADMIN) / RECHAZADA / CANCELADA`.
+
+**Regla de saldo (antigüedad):** menos de **6 meses** → **0 días** disponibles. A partir de los 6 meses se puede solicitar (días "adelantados" conforme a la tabla LFT, año 1 = 12 días), que se descuentan al cumplir el aniversario. `/vacations/balances` devuelve el saldo (corresponden/usados/disponibles) de todos los empleados activos para RH/ADMIN.
 
 ### 6.7 Incapacidades (`/api`)
 **Quién puede ver:** solo **RH y ADMIN** (Nivel C).

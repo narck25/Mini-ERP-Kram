@@ -134,21 +134,41 @@ Vista consolidada de indicadores (empleados, vacantes, incidencias) para RH/Admi
 - **Ajuste**: COMPRAS *solicita* un ajuste; RH/Admin lo **aprueban o rechazan** en "Aprobaciones de Inventario".
 - **Kardex**: consulta todos los movimientos (entradas/salidas/ajustes) en "Movimientos de Inventario".
 
-## 8. Módulo Incidencias (Asistencia)
+## 8. Módulo Vacaciones
+
+### 8.1 Solicitar vacaciones (empleado)
+1. Entra a "Mis Vacaciones" (`/vacaciones/mis-solicitudes`).
+2. El panel muestra tu saldo: **días disponibles**, **corresponden** (según antigüedad) y **usados**.
+3. Selecciona fecha de inicio y fin; el sistema valida que no excedas tu saldo disponible.
+4. Si tienes **jefe directo**, la solicitud queda **Pendiente** y se le notifica; si no, va directa a RH (**Autorizada**).
+
+### 8.2 Regla de saldo (antigüedad)
+- **Menos de 6 meses** de antigüedad → **0 días** (no puedes solicitar).
+- **6 meses o más** → días conforme a la tabla LFT (año 1 = 12 días). Los días "adelantados" se descuentan al cumplir el aniversario.
+
+### 8.3 Flujo de aprobación
+1. **Jefe directo** autoriza (PENDIENTE → AUTORIZADA).
+2. **RH/ADMIN** aprueba (AUTORIZADA → APROBADA) o rechaza en `/rh/vacaciones`.
+3. La solicitud imprimible está en `/vacaciones/solicitud/[id]`.
+
+### 8.4 Vista RH — Saldo por empleado
+En `/rh/vacaciones`, pestaña **"Saldo por empleado"**, RH/ADMIN ve una tabla con: número de empleado, nombre completo, departamento, puesto, antigüedad y días (corresponden, usados, disponibles).
+
+## 9. Módulo Incidencias (Asistencia)
 
 1. Entra a `/rh/incidencias`.
 2. **Sube el CSV** del reloj checador (ZKTeco).
 3. El sistema procesa las checadas y genera el **reporte de incidencias** (faltas, retardos).
 4. Filtra por rango de fechas y empleado para consultar.
 
-## 9. Módulo Configuración
+## 10. Módulo Configuración
 
-### 9.1 Gestión de Accesos (`/dashboard/accesos`)
+### 10.1 Gestión de Accesos (`/dashboard/accesos`)
 - **Asignar/retirar módulos**: expande un usuario y marca/desmarca módulos.
 - **Aplicar preset** (solo ADMIN): asigna los módulos típicos de un rol (cambia rol + módulos, con confirmación).
 - **Roles personalizados** (solo ADMIN): crea, edita o elimina roles.
 
-### 9.2 Gestión de Usuarios (`/dashboard/usuarios`)
+### 10.2 Gestión de Usuarios (`/dashboard/usuarios`)
 - **Crear usuario**: nombre, correo, contraseña y rol.
 - **Editar usuario**: cambia nombre, correo, rol, estado y contraseña.
 - **Eliminar usuario**: borra la cuenta.
@@ -156,7 +176,7 @@ Vista consolidada de indicadores (empleados, vacantes, incidencias) para RH/Admi
 
 > ⚠️ No puedes modificar tus **propios** permisos (para evitar bloquearte).
 
-## 10. Preguntas frecuentes
+## 11. Preguntas frecuentes
 
 **¿Puedo reutilizar el correo de un empleado que se dio de baja?**
 Sí. Al dar de baja se libera automáticamente el correo institucional; puedes asignarlo a la siguiente persona del puesto.
@@ -170,7 +190,7 @@ Solo ADMIN (operación crítica de Nivel C).
 **¿El Dashboard se puede quitar a un usuario?**
 No, el Dashboard está siempre activo para todos.
 
-## 11. Documentación relacionada
+## 12. Documentación relacionada
 
 - **Manuales por módulo**: `docs/modules/`
 - **Flujos de negocio** (con diagramas): `docs/flujos/`

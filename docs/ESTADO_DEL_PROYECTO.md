@@ -1,6 +1,6 @@
 # Estado del Proyecto
 
-> Última actualización: 16/08/2026
+> Última actualización: 22/08/2026
 
 ## Módulos
 
@@ -12,8 +12,8 @@
 | Compras | ✅ Completo | ✅ | ✅ | Solicitudes, OC, papelería, uniformes, inventario (kardex y ajustes) |
 | Incidencias | ✅ Funcional | ✅ | ✅ | Asistencia (checador ZKTeco) y reporte de incidencias |
 | Configuración | ✅ Completo | ✅ | ✅ | Accesos, usuarios y roles personalizados |
-| Vacaciones | ❌ Deshabilitado | — | — | Sin implementación |
-| Reportes | ❌ Deshabilitado | — | — | Sin implementación |
+| Vacaciones | ✅ Completo | ✅ | ✅ | Solicitud → jefe → RH; regla de 6 meses (0 días si < 6 meses); saldo por empleado (RH) |
+| Reportes | ✅ Completo | ✅ | ✅ | 5 reportes con exportación a Excel |
 
 ## Infraestructura
 
@@ -34,6 +34,7 @@
 
 ## Cambios recientes
 
+- **Vacaciones**: regla de saldo por antigüedad (0 días si < 6 meses) y vista "Saldo por empleado" para RH/ADMIN.
 - Flujo de **ajuste de inventario** (solicitud → aprobación RH/Admin) + **kardex** + **restock**.
 - **Acta imprimible** de entrega de uniformes.
 - **Baja de empleado** con motivo, fecha automática y **liberación del correo institucional**.
@@ -42,5 +43,4 @@
 
 ## Pendiente / siguientes pasos
 
-- Implementar `VACACIONES` y `REPORTES` si el negocio los requiere.
 - Ver mejoras priorizadas en [DEUDA_TECNICA.md](DEUDA_TECNICA.md).
