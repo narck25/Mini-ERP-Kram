@@ -1,6 +1,7 @@
  require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const path = require('path');
 const fs = require('fs');
 
@@ -110,6 +111,14 @@ const getCorsOrigins = () => {
 };
 
 // Middlewares
+// contentSecurityPolicy desactivado: API JSON pura, no sirve HTML renderizado.
+// crossOriginResourcePolicy en "cross-origin": /uploads se consume desde erp.kramhub.site
+// (origen distinto al de apierp.kramhub.site), y el default "same-origin" de helmet lo bloquearía.
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
+
 app.use(cors({
   origin: getCorsOrigins(),
   credentials: true,
