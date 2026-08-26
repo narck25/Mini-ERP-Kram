@@ -52,7 +52,7 @@ router.delete('/stationery/inventory/:id',
 router.post('/stationery/inventory/:id/restock',
   AuthMiddleware.verifyToken,
   AuthMiddleware.requireModule('COMPRAS'),
-  AuthMiddleware.requireRole(['ADMIN', 'RH']),
+  AuthMiddleware.requireRole(['ADMIN', 'RH', 'COMPRAS']),
   StationeryController.restockInventoryItem
 );
 
