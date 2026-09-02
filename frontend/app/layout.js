@@ -12,6 +12,9 @@ const inter = Inter({
 export const metadata = {
   title: 'ERP KRAM - Sistema de Gestión Empresarial',
   description: 'Sistema ERP para la gestión integral de la empresa KRAM',
+  icons: {
+    icon: '/Kram-logo-web.png',
+  },
 }
 
 export default function RootLayout({ children }) {

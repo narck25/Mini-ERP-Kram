@@ -122,7 +122,9 @@ const generatePDF = (orderData) => {
       doc.rect(50, 50, 515, 4).fill(PRIMARY);
 
       // ── Logo de KRAM (lado izquierdo) ──
-      const LOGO_PATH = path.join(__dirname, '..', '..', '..', 'uploads', 'logo-kram.png');
+      // Fuera de /uploads a propósito: esa carpeta es un volumen persistente en producción
+      // que no se actualiza con el contenido de una imagen nueva una vez creado.
+      const LOGO_PATH = path.join(__dirname, '..', '..', 'assets', 'logo-kram.png');
       if (fs.existsSync(LOGO_PATH)) {
         doc.image(LOGO_PATH, 50, 65, { width: 70, height: 70 });
       }

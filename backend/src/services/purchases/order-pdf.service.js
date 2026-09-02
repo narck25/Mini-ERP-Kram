@@ -24,7 +24,9 @@ const generatePDF = (d) => new Promise((resolve, reject) => {
     doc.pipe(s);
 
     doc.rect(50, 50, 515, 4).fill(C.PRIMARY);
-    const lp = path.join(__dirname, '..', '..', '..', 'uploads', 'logo-kram.png');
+    // Logo fuera de /uploads a propósito: esa carpeta es un volumen persistente en producción
+    // que no se actualiza con el contenido de una imagen nueva una vez creado.
+    const lp = path.join(__dirname, '..', '..', 'assets', 'logo-kram.png');
     if (fs.existsSync(lp)) doc.image(lp, 50, 65, { width: 70, height: 70 });
 
     doc.fontSize(9).font('Helvetica-Bold').fillColor(C.PRIMARY).text(COMPANY_INFO.name, 50, 145);
