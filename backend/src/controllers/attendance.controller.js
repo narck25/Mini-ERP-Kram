@@ -1,13 +1,14 @@
 const { PrismaClient } = require('@prisma/client');
 const csv = require('csv-parser');
 const multer = require('multer');
+const { parseZKTecoDate, buildDateFilter } = require('../utils/attendance.utils');
 
 const prisma = new PrismaClient();
 
 // Configure multer for memory storage (as requested)
 const storage = multer.memoryStorage();
 
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
@@ -17,21 +18,6 @@ const upload = multer({
     }
   }
 });
-
-/**
- * LÓGICA CRÍTICA DE FECHAS: El CSV viene con el header "Tiempo" y valores como "25/02/2026 08:26:17 a. m."
- * Usa esta lógica exacta para convertirlo antes de guardarlo en Prisma
- */
-function parseZKTecoDate(dateStr) {
-  // Espera formato: "25/02/2026 08:26:17 a. m." o "p. m."
-  const parts = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2}):(\d{2}) (a\. m\.|p\. m\.)/);
-  if (!parts) return new Date();
-  let [_, day, month, year, hours, minutes, seconds, ampm] = parts;
-  hours = parseInt(hours);
-  if (ampm === 'p. m.' && hours < 12) hours += 12;
-  if (ampm === 'a. m.' && hours === 12) hours = 0;
-  return new Date(`${year}-${month}-${day}T${hours.toString().padStart(2, '0')}:${minutes}:${seconds}`);
-}
 
 class AttendanceController {
   /**
@@ -135,31 +121,17 @@ class AttendanceController {
       }
 
       // Obtener los parámetros
-      let dateFilter = {};
-      
-      if (startDate && endDate) {
-        // Al concatenar 'T00:00:00' Node lo interpreta en la zona horaria local del servidor
-        const start = new Date(`${startDate}T00:00:00.000`);
-        const end = new Date(`${endDate}T23:59:59.999`);
-        
-        // Validar que las fechas sean válidas
-        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-          return res.status(400).json({
-            success: false,
-            message: 'Formato de fecha inválido. Use formato ISO (YYYY-MM-DD)'
-          });
-        }
-        
-        dateFilter = {
-          fechaHora: {
-            gte: start,
-            lte: end
-          }
-        };
+      const { valid, filter } = buildDateFilter(startDate, endDate);
+
+      if (!valid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Formato de fecha inválido. Use formato ISO (YYYY-MM-DD)'
+        });
       }
 
       const records = await prisma.attendanceRecord.findMany({
-        where: dateFilter,
+        where: filter,
         orderBy: {
           fechaHora: 'asc'
         },
