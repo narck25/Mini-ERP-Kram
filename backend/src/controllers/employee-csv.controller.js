@@ -5,6 +5,7 @@ const csv = require('csv-parser');
 const { Readable } = require('stream');
 const fs = require('fs');
 const { mapEmployeeFromCsv, validateEmployeeData, prepareForPrisma, validateCsvHeaders } = require('../utils/csvMapper');
+const { topologicalSort } = require('../utils/topoSort');
 
 // Importar empleados desde CSV
 exports.importEmployees = async (req, res) => {
@@ -132,6 +133,17 @@ exports.importEmployees = async (req, res) => {
       });
     }
 
+    // Reordenar por jerarquía (jefe antes que subordinado) para que la inserción secuencial
+    // dentro de la transacción pueda enlazar reportaAId aunque el CSV no venga ordenado.
+    // Se conserva el número de fila ORIGINAL (no el índice tras reordenar) para que los
+    // mensajes de error sigan señalando la fila real del archivo que subió el usuario.
+    const originalRowNumberByItem = new Map(results.map((item, idx) => [item, idx + 1]));
+    const orderedResults = topologicalSort(
+      results,
+      (r) => r.clave,
+      (r) => r.jefeDirectoClave
+    );
+
     // Iniciar transacción para importación atómica
     transaction = await prisma.$transaction(async (tx) => {
       const importedEmployees = [];
@@ -139,11 +151,11 @@ exports.importEmployees = async (req, res) => {
       const skippedEmployees = [];
       const createdUsers = [];
       const batchErrors = [];
-      
+
       // Verificar duplicados en la base de datos antes de insertar
-      for (let i = 0; i < results.length; i++) {
-        const employeeData = results[i];
-        const rowNumber = i + 1;
+      for (let i = 0; i < orderedResults.length; i++) {
+        const employeeData = orderedResults[i];
+        const rowNumber = originalRowNumberByItem.get(employeeData);
 
         try {
           // Verificar si ya existe un empleado con el mismo RFC, CURP o NSS
@@ -171,7 +183,8 @@ exports.importEmployees = async (req, res) => {
                 id: existingEmployee.id,
                 nombre: existingEmployee.nombre,
                 rfc: existingEmployee.rfc,
-                motivo: 'Ya existente en BD'
+                motivo: 'Ya existente en BD',
+                _rowNumber: rowNumber
               });
               console.log(`⏭️ Empleado omitido (ya existe): ${existingEmployee.nombre} (RFC: ${existingEmployee.rfc})`);
               continue;
@@ -193,7 +206,8 @@ exports.importEmployees = async (req, res) => {
                 nombre: updated.nombre,
                 rfc: updated.rfc,
                 curp: updated.curp,
-                nss: updated.nss
+                nss: updated.nss,
+                _rowNumber: rowNumber
               });
 
               console.log(`🔄 Empleado actualizado: ${updated.nombre} (RFC: ${updated.rfc})`);
@@ -263,7 +277,8 @@ exports.importEmployees = async (req, res) => {
             nombre: employee.nombre,
             rfc: employee.rfc,
             curp: employee.curp,
-            nss: employee.nss
+            nss: employee.nss,
+            _rowNumber: rowNumber
           };
 
           // Si se solicita crear usuarios automáticamente
@@ -341,6 +356,15 @@ exports.importEmployees = async (req, res) => {
 
       return { importedEmployees, updatedEmployees, skippedEmployees, createdUsers, batchErrors };
     });
+
+    // El reordenamiento por jerarquía cambia el orden de procesamiento interno; se restaura
+    // el orden original del archivo en la respuesta y se quita el campo interno _rowNumber
+    // para no alterar el shape que ya consume el frontend.
+    const byOriginalRow = (a, b) => a._rowNumber - b._rowNumber;
+    const stripRowNumber = ({ _rowNumber, ...rest }) => rest;
+    transaction.importedEmployees = transaction.importedEmployees.sort(byOriginalRow).map(stripRowNumber);
+    transaction.updatedEmployees = transaction.updatedEmployees.sort(byOriginalRow).map(stripRowNumber);
+    transaction.skippedEmployees = transaction.skippedEmployees.sort(byOriginalRow).map(stripRowNumber);
 
     const responseData = {
       message: '',
