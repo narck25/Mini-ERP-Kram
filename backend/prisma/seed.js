@@ -13,6 +13,19 @@ async function main() {
   await prisma.candidateRH.deleteMany();
   await prisma.vacancyComment.deleteMany();
   await prisma.employeeDocument.deleteMany();
+  // Modelos que referencian Employee/User sin cascada automática — deben limpiarse
+  // ANTES de employee.deleteMany()/user.deleteMany() o la FK truena (ver purchaseItem,
+  // purchaseQuote, purchaseComment, purchaseOrder, purchaseOrderItem y purchaseApprover
+  // no necesitan deleteMany propio: todos cascadean desde purchaseRequest).
+  await prisma.purchaseRequest.deleteMany();
+  await prisma.stationeryRequest.deleteMany();
+  await prisma.uniformDelivery.deleteMany();
+  await prisma.inventoryAdjustmentRequest.deleteMany();
+  await prisma.inventoryMovement.deleteMany();
+  await prisma.vacationRequest.deleteMany();
+  await prisma.notificationLog.deleteMany();
+  await prisma.incapacidad.deleteMany();
+  await prisma.salaryHistory.deleteMany();
   await prisma.employee.deleteMany();
   await prisma.jobPosition.deleteMany(); // Eliminar puestos antes que departamentos
   await prisma.department.deleteMany();
@@ -22,12 +35,16 @@ async function main() {
   console.log('✅ Datos anteriores eliminados');
 
   // Crear roles
+  // NOTA: los roles de sistema (ADMIN/RH/SISTEMAS/COMPRAS/PRODUCCION) están hardcodeados
+  // como SYSTEM_ROLES en backend/src/routes/roles.routes.js — la tabla Role es solo para
+  // roles PERSONALIZADOS (isCustom: true por default en el schema). Se guardan aquí con
+  // isCustom: false para no aparecer como "roles personalizados" en Gestión de Accesos.
   const roles = [
-    { name: 'ADMIN', description: 'Administrador del sistema', permissions: ['*'] },
-    { name: 'RH', description: 'Recursos Humanos', permissions: ['users.read', 'users.write', 'vacancies.*'] },
-    { name: 'SISTEMAS', description: 'Departamento de Sistemas', permissions: ['system.*', 'vacancies.create'] },
-    { name: 'COMPRAS', description: 'Departamento de Compras', permissions: ['purchases.*', 'vacancies.create'] },
-    { name: 'PRODUCCION', description: 'Departamento de Producción', permissions: ['production.*', 'vacancies.create'] }
+    { name: 'ADMIN', description: 'Administrador del sistema', isCustom: false },
+    { name: 'RH', description: 'Recursos Humanos', isCustom: false },
+    { name: 'SISTEMAS', description: 'Departamento de Sistemas', isCustom: false },
+    { name: 'COMPRAS', description: 'Departamento de Compras', isCustom: false },
+    { name: 'PRODUCCION', description: 'Departamento de Producción', isCustom: false }
   ];
 
   for (const roleData of roles) {
@@ -340,6 +357,62 @@ async function main() {
   }
 
   console.log('✅ Empleados creados');
+
+  // ─── Fixtures para pruebas automatizadas (Compras y Vacaciones) ───
+  // Cuentas dedicadas a tests/10-other-modules.test.js y tests/12-vacaciones.test.js.
+  // No tocan los usuarios @kram.com de arriba; usan dominio @kram.mx para no chocar.
+  const fixtureUsersData = [
+    { email: 'compras@kram.mx', password: await bcrypt.hash('Kram2026!', 10), name: 'Compras Fixture (Test)', role: 'COMPRAS', accessibleModules: ['DASHBOARD', 'COMPRAS', 'VACACIONES'], isActive: true },
+    // Módulo COMPRAS pero SIN el rol: reproduce el hueco de permisos que ya corregimos (solo módulo, sin rol).
+    { email: 'nayely.mendez@kram.mx', password: await bcrypt.hash('123456', 10), name: 'Nayely Mendez Fixture (Test)', role: 'EMPLEADO_BASICO', accessibleModules: ['DASHBOARD', 'COMPRAS'], isActive: true },
+    { email: 'jefe.vacaciones@kram.mx', password: await bcrypt.hash('Kram2026!', 10), name: 'Jefe Vacaciones Fixture (Test)', role: 'EMPLEADO_BASICO', accessibleModules: ['DASHBOARD', 'VACACIONES'], isActive: true },
+    { email: 'empleado.vacaciones@kram.mx', password: await bcrypt.hash('Kram2026!', 10), name: 'Empleado Vacaciones Fixture (Test)', role: 'EMPLEADO_BASICO', accessibleModules: ['DASHBOARD', 'VACACIONES'], isActive: true }
+  ];
+  const createdFixtureUsers = [];
+  for (const userData of fixtureUsersData) {
+    createdFixtureUsers.push(await prisma.user.create({ data: userData }));
+  }
+
+  const comprasFixtureUser = createdFixtureUsers.find(u => u.email === 'compras@kram.mx');
+  const nayelyFixtureUser = createdFixtureUsers.find(u => u.email === 'nayely.mendez@kram.mx');
+  const jefeVacacionesUser = createdFixtureUsers.find(u => u.email === 'jefe.vacaciones@kram.mx');
+  const empleadoVacacionesUser = createdFixtureUsers.find(u => u.email === 'empleado.vacaciones@kram.mx');
+  const departamentoFixtures = createdDepartments.find(d => d.nombre === 'COMPRAS').id;
+
+  await prisma.employee.create({
+    data: {
+      nombre: 'Compras Fixture (Test)', rfc: 'CFIX900101AB1', curp: 'CFIX900101HDFXXX01', nss: '90000000001',
+      fechaAlta: new Date('2020-01-01'), estatus: 'Activo', userId: comprasFixtureUser.id, departamento_id: departamentoFixtures
+    }
+  });
+
+  await prisma.employee.create({
+    data: {
+      nombre: 'Nayely Mendez Fixture (Test)', rfc: 'NFIX900101AB2', curp: 'NFIX900101MDFXXX02', nss: '90000000002',
+      fechaAlta: new Date('2020-01-01'), estatus: 'Activo', userId: nayelyFixtureUser.id, departamento_id: departamentoFixtures
+    }
+  });
+
+  const jefeVacacionesEmployee = await prisma.employee.create({
+    data: {
+      nombre: 'Jefe Vacaciones Fixture (Test)', rfc: 'JFIX900101AB3', curp: 'JFIX900101HDFXXX03', nss: '90000000003',
+      fechaAlta: new Date('2020-01-01'), estatus: 'Activo', userId: jefeVacacionesUser.id, departamento_id: departamentoFixtures
+    }
+  });
+
+  // fechaAlta calculada dinámicamente (3 años atrás) para que siempre tenga saldo de vacaciones disponible.
+  const fechaAltaEmpleadoVacaciones = new Date();
+  fechaAltaEmpleadoVacaciones.setFullYear(fechaAltaEmpleadoVacaciones.getFullYear() - 3);
+
+  await prisma.employee.create({
+    data: {
+      nombre: 'Empleado Vacaciones Fixture (Test)', rfc: 'EFIX900101AB4', curp: 'EFIX900101MDFXXX04', nss: '90000000004',
+      fechaAlta: fechaAltaEmpleadoVacaciones, estatus: 'Activo', userId: empleadoVacacionesUser.id,
+      reportaAId: jefeVacacionesEmployee.id, departamento_id: departamentoFixtures
+    }
+  });
+
+  console.log('✅ Fixtures de pruebas (Compras/Vacaciones) creados');
 
   // Crear vacantes de ejemplo (usando el nuevo esquema)
   const vacancies = [

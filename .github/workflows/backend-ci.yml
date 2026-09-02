@@ -79,6 +79,22 @@ jobs:
           JWT_SECRET: 'ci-test-secret'
           JWT_EXPIRES_IN: '1h'
 
+      - name: Start backend server
+        run: |
+          cd backend
+          nohup node src/index.js > server.log 2>&1 &
+          echo $! > server.pid
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:4000/api/health && break
+            sleep 1
+          done
+          curl -sf http://localhost:4000/api/health || (echo "❌ El servidor no respondió a tiempo" && cat server.log && exit 1)
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          JWT_SECRET: 'ci-test-secret'
+          JWT_EXPIRES_IN: '1h'
+          PORT: 4000
+
       - name: Run integration tests
         run: |
           cd backend
@@ -88,6 +104,14 @@ jobs:
           JWT_SECRET: 'ci-test-secret'
           JWT_EXPIRES_IN: '1h'
           PORT: 4000
+          TEST_BASE_URL: 'http://localhost:4000'
+
+      - name: Stop backend server
+        if: always()
+        run: |
+          cd backend
+          if [ -f server.pid ]; then kill "$(cat server.pid)" 2>/dev/null || true; fi
+          cat server.log 2>/dev/null || true
 
       - name: Run unit tests
         run: |
