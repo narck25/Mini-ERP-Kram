@@ -21,6 +21,16 @@ router.post('/seed/reset',
   authMiddleware.requireRole(['ADMIN']),
   async (req, res) => {
     try {
+      // Deshabilitado por default: borra TODA la base de datos. Una vez que hay datos
+      // reales/de demo cargados, este endpoint queda apagado salvo que se habilite a
+      // propósito (ej. en un ambiente de staging vacío) con ALLOW_SEED_RESET=true.
+      if (process.env.ALLOW_SEED_RESET !== 'true') {
+        return res.status(403).json({
+          error: 'Endpoint deshabilitado',
+          message: 'El reseteo de base de datos está deshabilitado en este ambiente. Define ALLOW_SEED_RESET=true para habilitarlo temporalmente.'
+        });
+      }
+
       const { confirm } = req.body;
 
       if (confirm !== true) {
