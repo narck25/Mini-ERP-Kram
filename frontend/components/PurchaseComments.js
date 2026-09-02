@@ -322,28 +322,6 @@ export default function PurchaseComments({ requestId }) {
     });
   };
 
-  const getRoleBadge = (role) => {
-    const badges = {
-      'ADMIN': 'bg-red-100 text-red-800',
-      'COMPRAS': 'bg-blue-100 text-blue-800',
-      'RH': 'bg-purple-100 text-purple-800',
-      'SISTEMAS': 'bg-green-100 text-green-800',
-      'PRODUCCION': 'bg-yellow-100 text-yellow-800'
-    };
-    return badges[role] || 'bg-gray-100 text-gray-800';
-  };
-
-  const getRoleName = (role) => {
-    const names = {
-      'ADMIN': 'Admin',
-      'COMPRAS': 'Compras',
-      'RH': 'RH',
-      'SISTEMAS': 'Sistemas',
-      'PRODUCCION': 'Producción'
-    };
-    return names[role] || role;
-  };
-
   const getInitials = (name) => {
     if (!name) return '?';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -401,8 +379,7 @@ export default function PurchaseComments({ requestId }) {
           comments.map((comment) => {
             const isOwnMessage = comment.user?.id === user?.id;
             const userName = comment.user?.employee?.nombre || comment.user?.name || 'Usuario';
-            const userRole = comment.user?.role || '';
-            
+
             return (
               <div
                 key={comment.id}
@@ -439,9 +416,6 @@ export default function PurchaseComments({ requestId }) {
                     </div>
                     <div className={`flex items-center gap-2 mt-1 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
                       <span className="text-xs text-gray-500">{userName}</span>
-                      <span className={`px-1.5 py-0.5 text-xs rounded ${getRoleBadge(userRole)}`}>
-                        {getRoleName(userRole)}
-                      </span>
                       <span className="text-xs text-gray-400">{formatDateTime(comment.createdAt)}</span>
                     </div>
                   </div>

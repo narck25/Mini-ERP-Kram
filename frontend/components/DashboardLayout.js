@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { getRoleName } from '@/lib/rolesConfig'
 import { myPortalNavigation, adminNavigation, userNavigation } from '@/constants/navigation'
 
 export default function DashboardLayout({ children }) {
@@ -219,8 +218,7 @@ export default function DashboardLayout({ children }) {
             <div className="flex items-center w-full">
               <div className="ml-3 flex-1 relative">
                 <div className="text-sm font-medium text-gray-800">{user?.name || 'Usuario'}</div>
-                <div className="text-xs font-medium text-gray-500">{getRoleName(user?.role)}</div>
-                
+
                 {/* Menú desplegable del usuario - SOLO PARA DESKTOP */}
                 <div className="relative mt-2">
                   <button

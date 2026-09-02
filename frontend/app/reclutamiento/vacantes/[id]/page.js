@@ -641,12 +641,7 @@ function VacancyDetailPageContent() {
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <span className="font-medium text-gray-900">{comment.user?.name}</span>
-                          <span className="text-sm text-gray-500 ml-2">
-                            ({comment.user?.role === 'RH' ? 'Recursos Humanos' : 
-                              comment.user?.role === 'SISTEMAS' ? 'Jefe de Sistemas' :
-                              comment.user?.role === 'COMPRAS' ? 'Jefe de Compras' :
-                              comment.user?.role})
-                          </span>
+                          {/* No se muestra el rol de nadie aquí: evita comparaciones/jerarquías entre empleados. */}
                         </div>
                         <span className="text-sm text-gray-500">
                           {new Date(comment.createdAt).toLocaleDateString('es-MX', {

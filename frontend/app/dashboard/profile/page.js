@@ -83,17 +83,6 @@ function ProfilePageContent() {
     }
   };
 
-  const getRoleName = (role) => {
-    const roles = {
-      ADMIN: 'Administrador',
-      RH: 'Recursos Humanos',
-      SISTEMAS: 'Sistemas',
-      COMPRAS: 'Compras',
-      PRODUCCION: 'Producción'
-    };
-    return roles[role] || role;
-  };
-
   const formatDate = (dateString) => {
     if (!dateString) return 'No especificada';
     const date = new Date(dateString);
@@ -167,10 +156,8 @@ function ProfilePageContent() {
                       </h2>
                       <p className="text-gray-600">{employee.puesto?.nombre || 'Sin puesto asignado'}</p>
                       <div className="flex items-center mt-2">
-                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                          {getRoleName(user?.role)}
-                        </span>
-                        <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${employee.estatus === 'Activo' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {/* No se muestra el rol aquí: evita comparaciones/jerarquías entre empleados. */}
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${employee.estatus === 'Activo' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                           {employee.estatus}
                         </span>
                       </div>
@@ -294,10 +281,7 @@ function ProfilePageContent() {
                       <p className="text-sm font-medium text-gray-500">Correo Electrónico</p>
                       <p className="text-gray-900">{user?.email || 'No especificado'}</p>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Rol</p>
-                      <p className="text-gray-900">{getRoleName(user?.role)}</p>
-                    </div>
+                    {/* No se muestra el rol aquí: evita comparaciones/jerarquías entre empleados. */}
                     <div>
                       <p className="text-sm font-medium text-gray-500">Estado de Cuenta</p>
                       <p className="text-gray-900">{user?.isActive ? 'Activa' : 'Inactiva'}</p>
