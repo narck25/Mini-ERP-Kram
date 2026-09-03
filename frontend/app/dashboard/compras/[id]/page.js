@@ -1244,8 +1244,11 @@ export default function ComprasDetailPage() {
                               )}
                             </div>
                             
-                            {/* Botón de editar cotización (solo Admin/Compras) */}
-                            {canEdit && !quote.isSelected && (
+                            {/* Botón de editar cotización (solo Admin/Compras) — se permite aunque ya
+                                esté seleccionada/aceptada, para corregir montos mal capturados; el
+                                backend recalcula si se requiere autorización según el nuevo monto.
+                                Solo se bloquea en estados terminales (ENTREGADO/CANCELADO). */}
+                            {canEdit && request.estatus !== 'CANCELADO' && request.estatus !== 'ENTREGADO' && (
                               <button
                                 onClick={() => startEditingQuote(quote)}
                                 className="w-full mt-2 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-50 flex items-center justify-center gap-1"
