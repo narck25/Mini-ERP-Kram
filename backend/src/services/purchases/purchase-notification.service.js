@@ -12,6 +12,41 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 // ─────────────────────────────────────────────────────────────
+// 0. Notificar a Compras que se creó/envió una nueva solicitud
+// ─────────────────────────────────────────────────────────────
+exports.notifyComprasNewRequest = async (requestId) => {
+  const request = await prisma.purchaseRequest.findUnique({
+    where: { id: requestId },
+    include: {
+      solicitante: { select: { nombre: true } },
+      departamento: { select: { nombre: true } }
+    }
+  });
+
+  if (!request) return;
+
+  const destinatarios = await prisma.user.findMany({
+    where: { role: { in: ['COMPRAS', 'ADMIN'] }, isActive: true },
+    select: { email: true, name: true }
+  });
+
+  if (destinatarios.length === 0) return;
+
+  const emailService = require('../email.service');
+  await Promise.allSettled(
+    destinatarios.map(u =>
+      emailService.sendPurchaseRequestCreated(u.email, u.name || 'Usuario', {
+        id: request.id,
+        folio: request.folio,
+        solicitante: request.solicitante?.nombre || 'N/A',
+        departamento: request.departamento?.nombre || 'N/A',
+        justificacion: request.justificacion || ''
+      })
+    )
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
 // 1. Enviar autorización manual a aprobadores seleccionados
 // ─────────────────────────────────────────────────────────────
 exports.sendAuthorization = async (requestId, approverEmails) => {

@@ -33,8 +33,9 @@ class PurchaseController {
   // ───────────────────────────────────────────────────────────
   static async createRequest(req, res) {
     try {
-      const { justificacion, items } = req.body;
-      const result = await PurchaseService.createRequest(req.user.id, justificacion, items);
+      const { justificacion, items, guardarComoBorrador } = req.body;
+      const isDraft = guardarComoBorrador === true || guardarComoBorrador === 'true';
+      const result = await PurchaseService.createRequest(req.user.id, justificacion, items, isDraft);
 
       // Auditoría: creación de solicitud
       await audit.logWithReq(
@@ -43,15 +44,24 @@ class PurchaseController {
         audit.ACCIONES.CREACION,
         null,
         {
-          estatus: 'NUEVO',
+          estatus: result.purchaseRequest.estatus,
           justificacion,
-          items: items.map(i => ({ productoServicio: i.productoServicio, cantidad: i.cantidad }))
+          items: (items || []).map(i => ({ productoServicio: i.productoServicio, cantidad: i.cantidad }))
         },
         req
       );
 
+      // Notificar a Compras solo cuando la solicitud queda realmente NUEVA (no en un borrador)
+      if (!isDraft) {
+        try {
+          await NotificationService.notifyComprasNewRequest(result.purchaseRequest.id);
+        } catch (notifErr) {
+          console.warn('⚠️ Error al enviar notificación de nueva solicitud:', notifErr.message);
+        }
+      }
+
       res.status(201).json({
-        message: 'Solicitud de compra creada exitosamente',
+        message: isDraft ? 'Borrador guardado exitosamente' : 'Solicitud de compra creada exitosamente',
         data: {
           request: result.purchaseRequest,
           items: result.purchaseItems
@@ -609,6 +619,74 @@ class PurchaseController {
       res.status(500).json({
         error: 'Error interno del servidor',
         message: 'No se pudo cancelar la solicitud'
+      });
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // Guardar cambios en un borrador (justificación + items)
+  // ───────────────────────────────────────────────────────────
+  static async updateDraft(req, res) {
+    try {
+      const { id } = req.params;
+      const { justificacion, items } = req.body;
+      const result = await PurchaseService.updateDraft(req.user.id, id, justificacion, items);
+
+      res.json({
+        message: 'Borrador actualizado exitosamente',
+        data: {
+          request: result.purchaseRequest,
+          items: result.purchaseItems
+        }
+      });
+    } catch (error) {
+      if (error.status) {
+        return res.status(error.status).json({ error: error.error, message: error.message });
+      }
+      console.error("🔥 ERROR PRISMA:", error);
+      res.status(500).json({
+        error: 'Error interno del servidor',
+        message: 'No se pudo actualizar el borrador'
+      });
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // Enviar un borrador (BORRADOR -> NUEVO)
+  // AUDITORÍA: CREACION (queda registrada como la creación real de la solicitud)
+  // ───────────────────────────────────────────────────────────
+  static async submitDraft(req, res) {
+    try {
+      const { id } = req.params;
+      const updatedRequest = await PurchaseService.submitDraft(req.user.id, id);
+
+      await audit.logWithReq(
+        id,
+        req.user.id,
+        audit.ACCIONES.CREACION,
+        { estatus: 'BORRADOR' },
+        { estatus: 'NUEVO' },
+        req
+      );
+
+      try {
+        await NotificationService.notifyComprasNewRequest(id);
+      } catch (notifErr) {
+        console.warn('⚠️ Error al enviar notificación de nueva solicitud:', notifErr.message);
+      }
+
+      res.json({
+        message: 'Solicitud enviada exitosamente',
+        data: updatedRequest
+      });
+    } catch (error) {
+      if (error.status) {
+        return res.status(error.status).json({ error: error.error, message: error.message });
+      }
+      console.error("🔥 ERROR PRISMA:", error);
+      res.status(500).json({
+        error: 'Error interno del servidor',
+        message: 'No se pudo enviar la solicitud'
       });
     }
   }

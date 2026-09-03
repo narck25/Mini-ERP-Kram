@@ -402,6 +402,7 @@ enum StationeryStatus {
 }
 
 enum PurchaseStatus {
+  BORRADOR
   NUEVO
   PENDIENTE
   EN_AUTORIZACION

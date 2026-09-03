@@ -529,6 +529,37 @@ exports.sendDailySummaryToRH = async (email, rhName, birthdayList, anniversaryLi
 };
 
 /**
+ * Notificar a Compras que se creó una nueva solicitud de compra.
+ */
+exports.sendPurchaseRequestCreated = async (email, nombreCompras, request) => {
+  const title = '🛒 Nueva solicitud de compra';
+  const content = `
+    <p>Hola <strong>${nombreCompras}</strong>,</p>
+    <p>Se ha creado una nueva solicitud de compra:</p>
+
+    <div class="info-box">
+      <strong>Folio:</strong> #${request.folio}<br>
+      <strong>Solicitante:</strong> ${request.solicitante}<br>
+      <strong>Departamento:</strong> ${request.departamento}<br>
+      <strong>Justificación:</strong> ${request.justificacion || 'Sin justificación'}<br>
+      <strong>Estatus:</strong> <span class="status-badge status-solicitada">Nueva</span>
+    </div>
+
+    <center>
+      <a href="${FRONTEND_URL}/dashboard/compras/${request.id}" class="button">
+        Ver Solicitud
+      </a>
+    </center>
+    <p style="color: #71717a; font-size: 13px; text-align: center;">
+      O copia este enlace en tu navegador:<br>
+      <span style="font-size: 11px;">${FRONTEND_URL}/dashboard/compras/${request.id}</span>
+    </p>
+  `;
+
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
+/**
  * Notificar que se requiere autorización para una compra > $50,000
  * El link apunta a la página pública de autorización (no requiere módulo COMPRAS)
  */

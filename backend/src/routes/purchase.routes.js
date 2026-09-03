@@ -102,6 +102,18 @@ router.put('/purchases/:id/items',
   PurchaseController.updateItems
 );
 
+// Ruta para actualizar un borrador (justificación + items) - solo el dueño, solo BORRADOR
+router.put('/purchases/:id/draft',
+  AuthMiddleware.requireModule('COMPRAS'),
+  PurchaseController.updateDraft
+);
+
+// Ruta para enviar un borrador (BORRADOR -> NUEVO) - solo el dueño
+router.post('/purchases/:id/submit',
+  AuthMiddleware.requireModule('COMPRAS'),
+  PurchaseController.submitDraft
+);
+
 // Ruta para cancelar una solicitud
 router.post('/purchases/:id/cancel',
   AuthMiddleware.requireModule('COMPRAS'),

@@ -80,14 +80,9 @@ const REQUEST_INCLUDE = {
 };
 
 // ─────────────────────────────────────────────────────────────
-// 1. Crear una nueva solicitud de compra
+// Validación estricta de items (usada al crear directo y al enviar un borrador)
 // ─────────────────────────────────────────────────────────────
-exports.createRequest = async (userId, justificacion, items) => {
-  const employee = await getEmployeeByUserId(userId);
-  if (!employee) {
-    throw { status: 404, error: 'Empleado no encontrado', message: 'El usuario no tiene un empleado asociado' };
-  }
-
+const validateItemsStrict = (items) => {
   if (!items || !Array.isArray(items) || items.length === 0) {
     throw { status: 400, error: 'Datos inválidos', message: 'Debe incluir al menos un ítem en la solicitud' };
   }
@@ -97,6 +92,35 @@ exports.createRequest = async (userId, justificacion, items) => {
       throw { status: 400, error: 'Datos inválidos', message: 'Cada ítem debe tener productoServicio y cantidad' };
     }
   }
+};
+
+// Saneo permisivo de items para borradores: nunca truena, completa lo que falte
+// con placeholders vacíos para no violar las columnas NOT NULL de PurchaseItem.
+const sanitizeItemsForDraft = (items) => {
+  if (!items || !Array.isArray(items)) return [];
+  return items.map(item => ({
+    productoServicio: (item.productoServicio || '').toString().trim(),
+    cantidad: parseFloat(item.cantidad) || 0,
+    descripcion: item.descripcion || null
+  }));
+};
+
+// ─────────────────────────────────────────────────────────────
+// 1. Crear una nueva solicitud de compra (o guardarla como borrador)
+// ─────────────────────────────────────────────────────────────
+exports.createRequest = async (userId, justificacion, items, isDraft = false) => {
+  const employee = await getEmployeeByUserId(userId);
+  if (!employee) {
+    throw { status: 404, error: 'Empleado no encontrado', message: 'El usuario no tiene un empleado asociado' };
+  }
+
+  let itemsToCreate;
+  if (isDraft) {
+    itemsToCreate = sanitizeItemsForDraft(items);
+  } else {
+    validateItemsStrict(items);
+    itemsToCreate = items;
+  }
 
   return prisma.$transaction(async (tx) => {
     const purchaseRequest = await tx.purchaseRequest.create({
@@ -104,14 +128,14 @@ exports.createRequest = async (userId, justificacion, items) => {
         solicitanteId: employee.id,
         departamentoId: employee.departamento_id,
         justificacion: justificacion || null,
-        estatus: 'NUEVO',
+        estatus: isDraft ? 'BORRADOR' : 'NUEVO',
         fechaSolicitud: new Date(),
         requiereAutorizacion: false
       }
     });
 
     const purchaseItems = await Promise.all(
-      items.map(item =>
+      itemsToCreate.map(item =>
         tx.purchaseItem.create({
           data: {
             requestId: purchaseRequest.id,
@@ -124,6 +148,88 @@ exports.createRequest = async (userId, justificacion, items) => {
     );
 
     return { purchaseRequest, purchaseItems };
+  });
+};
+
+// ─────────────────────────────────────────────────────────────
+// 1b. Actualizar un borrador existente (justificación + reemplazar items)
+// ─────────────────────────────────────────────────────────────
+exports.updateDraft = async (userId, requestId, justificacion, items) => {
+  const employee = await getEmployeeByUserId(userId);
+  if (!employee) {
+    throw { status: 404, error: 'Empleado no encontrado', message: 'El usuario no tiene un empleado asociado' };
+  }
+
+  const request = await prisma.purchaseRequest.findUnique({ where: { id: requestId } });
+  if (!request) {
+    throw { status: 404, error: 'Solicitud no encontrada', message: 'La solicitud de compra no existe' };
+  }
+
+  if (request.solicitanteId !== employee.id) {
+    throw { status: 403, error: 'Acceso denegado', message: 'No tiene permisos para editar esta solicitud' };
+  }
+
+  if (request.estatus !== 'BORRADOR') {
+    throw { status: 400, error: 'Estado inválido', message: 'Solo se pueden editar solicitudes en estado BORRADOR' };
+  }
+
+  const itemsToCreate = sanitizeItemsForDraft(items);
+
+  return prisma.$transaction(async (tx) => {
+    const purchaseRequest = await tx.purchaseRequest.update({
+      where: { id: requestId },
+      data: { justificacion: justificacion || null }
+    });
+
+    await tx.purchaseItem.deleteMany({ where: { requestId } });
+
+    const purchaseItems = await Promise.all(
+      itemsToCreate.map(item =>
+        tx.purchaseItem.create({
+          data: {
+            requestId,
+            productoServicio: item.productoServicio,
+            cantidad: parseFloat(item.cantidad),
+            descripcion: item.descripcion || null
+          }
+        })
+      )
+    );
+
+    return { purchaseRequest, purchaseItems };
+  });
+};
+
+// ─────────────────────────────────────────────────────────────
+// 1c. Enviar un borrador (BORRADOR -> NUEVO), validando estrictamente
+// ─────────────────────────────────────────────────────────────
+exports.submitDraft = async (userId, requestId) => {
+  const employee = await getEmployeeByUserId(userId);
+  if (!employee) {
+    throw { status: 404, error: 'Empleado no encontrado', message: 'El usuario no tiene un empleado asociado' };
+  }
+
+  const request = await prisma.purchaseRequest.findUnique({
+    where: { id: requestId },
+    include: { items: true }
+  });
+  if (!request) {
+    throw { status: 404, error: 'Solicitud no encontrada', message: 'La solicitud de compra no existe' };
+  }
+
+  if (request.solicitanteId !== employee.id) {
+    throw { status: 403, error: 'Acceso denegado', message: 'No tiene permisos para enviar esta solicitud' };
+  }
+
+  if (request.estatus !== 'BORRADOR') {
+    throw { status: 400, error: 'Estado inválido', message: 'Solo se pueden enviar solicitudes en estado BORRADOR' };
+  }
+
+  validateItemsStrict(request.items);
+
+  return prisma.purchaseRequest.update({
+    where: { id: requestId },
+    data: { estatus: 'NUEVO', fechaSolicitud: new Date() }
   });
 };
 
@@ -503,14 +609,18 @@ exports.authorizeRequest = async (userId, requestId) => {
 //     → Elimina la solicitud y todo lo relacionado (cascada)
 // ─────────────────────────────────────────────────────────────
 exports.deleteRequest = async (userId, userRole, requestId) => {
-  const isAdminOrCompras = ['ADMIN', 'COMPRAS'].includes(userRole);
-  if (!isAdminOrCompras) {
-    throw { status: 403, error: 'Acceso denegado', message: 'Solo ADMIN o COMPRAS pueden eliminar solicitudes' };
-  }
-
   const request = await prisma.purchaseRequest.findUnique({ where: { id: requestId } });
   if (!request) {
     throw { status: 404, error: 'Solicitud no encontrada', message: 'La solicitud de compra no existe' };
+  }
+
+  const isAdminOrCompras = ['ADMIN', 'COMPRAS'].includes(userRole);
+  // El dueño de un borrador puede descartarlo sin ser ADMIN/COMPRAS - nunca llegó a enviarse.
+  const employee = await getEmployeeByUserId(userId);
+  const isOwnerOfDraft = !!employee && request.solicitanteId === employee.id && request.estatus === 'BORRADOR';
+
+  if (!isAdminOrCompras && !isOwnerOfDraft) {
+    throw { status: 403, error: 'Acceso denegado', message: 'Solo ADMIN o COMPRAS pueden eliminar solicitudes' };
   }
 
   // Eliminar la solicitud (onDelete: Cascade eliminará items, quotes, comments, approvers, purchaseOrder, etc.)
