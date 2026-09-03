@@ -9,7 +9,7 @@ import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 
 const STATUS_ICONS = {
-  NUEVO: '🆕', PENDIENTE: '⏳', EN_AUTORIZACION: '📋', APROBADO: '✅', ENTREGADO: '📦', CANCELADO: '❌'
+  BORRADOR: '📝', NUEVO: '🆕', PENDIENTE: '⏳', EN_AUTORIZACION: '📋', APROBADO: '✅', ENTREGADO: '📦', CANCELADO: '❌'
 };
 
 export default function MisSolicitudesComprasPage() {
@@ -118,8 +118,10 @@ export default function MisSolicitudesComprasPage() {
               const total = calculateTotal(request);
               const selectedQuote = request?.quotes?.find(q => q.isSelected);
               const isAdminOrCompras = ['ADMIN', 'COMPRAS'].includes(user?.role);
+              const isBorrador = request.estatus === 'BORRADOR';
               const canCancel = ['NUEVO', 'PENDIENTE'].includes(request.estatus);
               const canSelectQuote = request.estatus === 'PENDIENTE' && request.quotes?.length > 0;
+              const canDelete = (isAdminOrCompras && ['NUEVO', 'PENDIENTE', 'CANCELADO'].includes(request.estatus)) || isBorrador;
 
               return (
                 <div key={request.id} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
@@ -130,7 +132,7 @@ export default function MisSolicitudesComprasPage() {
                         {/* Icono de estado */}
                           <div className={`hidden sm:flex w-12 h-12 rounded-full items-center justify-center text-2xl ${
                             request.estatus === 'APROBADO' || request.estatus === 'ENTREGADO' ? 'bg-green-100' :
-                            request.estatus === 'CANCELADO' ? 'bg-gray-100' :
+                            request.estatus === 'CANCELADO' || request.estatus === 'BORRADOR' ? 'bg-gray-100' :
                             request.estatus === 'EN_AUTORIZACION' ? 'bg-blue-100' :
                             'bg-yellow-100'
                           }`}>
@@ -211,12 +213,21 @@ export default function MisSolicitudesComprasPage() {
 
                     {/* Acciones */}
                     <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
-                      <Link
-                        href={`/compras/mis-solicitudes/${request.id}`}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium"
-                      >
-                        Ver Detalle
-                      </Link>
+                      {isBorrador ? (
+                        <Link
+                          href={`/compras/nueva-solicitud?id=${request.id}`}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium"
+                        >
+                          Continuar editando
+                        </Link>
+                      ) : (
+                        <Link
+                          href={`/compras/mis-solicitudes/${request.id}`}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium"
+                        >
+                          Ver Detalle
+                        </Link>
+                      )}
 
                       {canSelectQuote && (
                         <Link
@@ -237,8 +248,8 @@ export default function MisSolicitudesComprasPage() {
                         </button>
                       )}
 
-                      {/* Eliminar: solo ADMIN/COMPRAS en estados permitidos */}
-                      {isAdminOrCompras && ['NUEVO', 'PENDIENTE', 'CANCELADO'].includes(request.estatus) && (
+                      {/* Eliminar: ADMIN/COMPRAS en estados permitidos, o el dueño si es un borrador */}
+                      {canDelete && (
                         <button
                           onClick={async () => {
                             if (!window.confirm('¿Eliminar solicitud? Esta acción no se puede deshacer.')) return;

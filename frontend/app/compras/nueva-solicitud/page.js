@@ -1,24 +1,102 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
 import usePurchaseItems from '@/hooks/usePurchaseItems';
 import { toast } from 'react-hot-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function NuevaSolicitudComprasPage() {
+  return (
+    <Suspense fallback={
+      <DashboardLayout>
+        <div className="p-6 text-center py-16">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      </DashboardLayout>
+    }>
+      <NuevaSolicitudComprasContent />
+    </Suspense>
+  );
+}
+
+function NuevaSolicitudComprasContent() {
   const { user } = useAuth();
   const router = useRouter();
-  const { items, handleItemChange, addItem, removeItem, validateItems, getItemsPayload } = usePurchaseItems();
+  const searchParams = useSearchParams();
+  const draftIdFromUrl = searchParams.get('id');
+
+  const { items, setItems, handleItemChange, addItem, removeItem, validateItems, getItemsPayload } = usePurchaseItems();
 
   const [formData, setFormData] = useState({ justificacion: '' });
   const [loading, setLoading] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftId, setDraftId] = useState(draftIdFromUrl || null);
+  const [loadingDraft, setLoadingDraft] = useState(!!draftIdFromUrl);
+
+  // Si viene ?id=, cargar el borrador existente para continuar editándolo.
+  useEffect(() => {
+    if (!draftIdFromUrl) return;
+    (async () => {
+      try {
+        const res = await api.get(`/purchases/details/${draftIdFromUrl}`);
+        const request = res.data.data.request;
+        if (request.estatus !== 'BORRADOR') {
+          toast.error('Esta solicitud ya fue enviada y no se puede editar aquí');
+          router.push('/compras/mis-solicitudes');
+          return;
+        }
+        setFormData({ justificacion: request.justificacion || '' });
+        setItems(
+          (res.data.data.items || []).map(item => ({
+            productoServicio: item.productoServicio || '',
+            cantidad: item.cantidad ? String(item.cantidad) : '',
+            descripcion: item.descripcion || ''
+          }))
+        );
+      } catch (error) {
+        console.error('Error loading draft:', error);
+        toast.error('No se pudo cargar el borrador');
+        router.push('/compras/mis-solicitudes');
+      } finally {
+        setLoadingDraft(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftIdFromUrl]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Guardar como borrador: no valida nada, solo guarda lo que haya capturado.
+  const handleSaveDraft = async () => {
+    try {
+      setSavingDraft(true);
+      if (draftId) {
+        await api.put(`/purchases/${draftId}/draft`, {
+          justificacion: formData.justificacion,
+          items
+        });
+        toast.success('Borrador actualizado');
+      } else {
+        const res = await api.post('/purchases', {
+          justificacion: formData.justificacion,
+          items,
+          guardarComoBorrador: true
+        });
+        setDraftId(res.data.data.request.id);
+        toast.success('Borrador guardado');
+      }
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      toast.error(error.response?.data?.message || 'Error al guardar el borrador');
+    } finally {
+      setSavingDraft(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -31,10 +109,19 @@ export default function NuevaSolicitudComprasPage() {
 
     try {
       setLoading(true);
-      await api.post('/purchases', {
-        justificacion: formData.justificacion,
-        items: getItemsPayload()
-      });
+      if (draftId) {
+        // Ya existe como borrador: primero sincroniza los últimos cambios, luego lo envía.
+        await api.put(`/purchases/${draftId}/draft`, {
+          justificacion: formData.justificacion,
+          items
+        });
+        await api.post(`/purchases/${draftId}/submit`);
+      } else {
+        await api.post('/purchases', {
+          justificacion: formData.justificacion,
+          items: getItemsPayload()
+        });
+      }
       toast.success('Solicitud de compra creada exitosamente');
       router.push('/compras/mis-solicitudes');
     } catch (error) {
@@ -44,6 +131,17 @@ export default function NuevaSolicitudComprasPage() {
       setLoading(false);
     }
   };
+
+  if (loadingDraft) {
+    return (
+      <DashboardLayout>
+        <div className="p-6 text-center py-16">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <p className="mt-2 text-gray-600">Cargando borrador...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (!user || !user.accessibleModules?.includes('COMPRAS')) {
     return (
@@ -229,13 +327,28 @@ export default function NuevaSolicitudComprasPage() {
                 type="button"
                 onClick={() => router.push('/compras/mis-solicitudes')}
                 className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
-                disabled={loading}
+                disabled={loading || savingDraft}
               >
                 Cancelar
               </button>
               <button
+                type="button"
+                onClick={handleSaveDraft}
+                disabled={loading || savingDraft}
+                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingDraft ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500"></div>
+                    Guardando...
+                  </>
+                ) : (
+                  'Guardar como Borrador'
+                )}
+              </button>
+              <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || savingDraft}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
@@ -248,6 +361,9 @@ export default function NuevaSolicitudComprasPage() {
                 )}
               </button>
             </div>
+            <p className="text-right text-xs text-gray-500 mt-2">
+              &ldquo;Guardar como Borrador&rdquo; no exige llenar todo — úsalo si necesitas terminar la solicitud después.
+            </p>
           </form>
         </div>
 
