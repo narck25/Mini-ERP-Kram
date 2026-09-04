@@ -51,10 +51,10 @@ function buildEmailPayload(vacation, employee) {
   };
 }
 
-// Obtiene los destinatarios RH/ADMIN activos para notificaciones.
+// Obtiene los destinatarios RH activos para notificaciones.
 async function getRHDestinatarios() {
   return prisma.user.findMany({
-    where: { role: { in: ['RH', 'ADMIN'] }, isActive: true },
+    where: { role: 'RH', isActive: true },
     select: { email: true, name: true }
   });
 }

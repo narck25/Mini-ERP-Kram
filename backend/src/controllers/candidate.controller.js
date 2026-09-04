@@ -243,7 +243,7 @@ exports.updateCandidateVote = async (req, res) => {
     if (vote !== 'reset') {
       try {
         const rhUsers = await prisma.user.findMany({
-          where: { role: { in: ['RH', 'ADMIN'] } },
+          where: { role: 'RH' },
           select: { email: true, name: true }
         });
         for (const rhUser of rhUsers) {
@@ -332,7 +332,7 @@ exports.selectCandidate = async (req, res) => {
     // Notificar a RH que se seleccionó candidato final
     try {
       const rhUsers = await prisma.user.findMany({
-        where: { role: { in: ['RH', 'ADMIN'] } },
+        where: { role: 'RH' },
         select: { email: true, name: true }
       });
       for (const rhUser of rhUsers) {

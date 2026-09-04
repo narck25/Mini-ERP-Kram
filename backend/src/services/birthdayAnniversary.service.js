@@ -82,12 +82,12 @@ async function registrarLog(tipo, employeeId, employeeName, email, estatus, erro
 }
 
 /**
- * Obtiene los usuarios RH y ADMIN para enviar resumen
+ * Obtiene los usuarios RH para enviar resumen
  */
 async function getDestinatariosRH() {
   return prisma.user.findMany({
     where: {
-      role: { in: ['RH', 'ADMIN'] },
+      role: 'RH',
       isActive: true
     },
     select: {

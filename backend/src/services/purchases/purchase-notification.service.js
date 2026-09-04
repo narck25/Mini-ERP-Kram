@@ -26,7 +26,7 @@ exports.notifyComprasNewRequest = async (requestId) => {
   if (!request) return;
 
   const destinatarios = await prisma.user.findMany({
-    where: { role: { in: ['COMPRAS', 'ADMIN'] }, isActive: true },
+    where: { role: 'COMPRAS', isActive: true },
     select: { email: true, name: true }
   });
 

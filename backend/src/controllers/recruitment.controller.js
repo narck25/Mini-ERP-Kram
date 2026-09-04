@@ -261,9 +261,9 @@ exports.createVacancy = async (req, res) => {
     // Notificar por email según el flujo
     try {
       if (!['RH', 'ADMIN'].includes(role)) {
-        // Un solicitante (jefe de área) creó la solicitud → notificar a RH/ADMIN
+        // Un solicitante (jefe de área) creó la solicitud → notificar a RH
         const rhUsers = await prisma.user.findMany({
-          where: { role: { in: ['RH', 'ADMIN'] } },
+          where: { role: 'RH' },
           select: { email: true, name: true }
         });
         const solicitanteNombre = vacancy.solicitante?.user?.name || req.user.name;
@@ -766,7 +766,7 @@ exports.createJobActivities = async (req, res) => {
     // Notificar a RH que se definieron las actividades
     try {
       const rhUsers = await prisma.user.findMany({
-        where: { role: { in: ['RH', 'ADMIN'] } },
+        where: { role: 'RH' },
         select: { email: true, name: true }
       });
       const solicitanteNombre = updatedVacancy.solicitante?.user?.name || req.user.name;
