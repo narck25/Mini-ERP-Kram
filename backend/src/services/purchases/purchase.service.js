@@ -562,7 +562,7 @@ exports.getPublicRequestDetails = async (req) => {
 //     → Solo cambia estado a APROBADO.
 //     → El área de Compras genera la Orden de Compra manualmente.
 // ─────────────────────────────────────────────────────────────
-exports.authorizeRequest = async (userId, requestId) => {
+exports.authorizeRequest = async (userId, userRole, requestId) => {
 
   const employee = await getEmployeeByUserId(userId);
 
@@ -575,14 +575,21 @@ exports.authorizeRequest = async (userId, requestId) => {
     throw { status: 400, error: 'Estado inválido', message: 'Solo se pueden autorizar solicitudes en estado EN_AUTORIZACION' };
   }
 
+  // ── Verificar que quien autoriza sea uno de los aprobadores asignados, o ADMIN ──
+  // (ADMIN siempre puede autorizar aunque no tenga empleado asociado o no esté en la lista)
+  const isAdmin = userRole === 'ADMIN';
+  const approverRecord = employee
+    ? await prisma.purchaseApprover.findFirst({ where: { requestId, employeeId: employee.id } })
+    : null;
+
+  if (!isAdmin && !approverRecord) {
+    throw { status: 403, error: 'Acceso denegado', message: 'No fuiste seleccionado como aprobador de esta solicitud' };
+  }
+
   // ── Actualizar estado del aprobador (PurchaseApprover) ──
-  // Solo si el usuario tiene un empleado asociado (ADMIN puede no tenerlo)
-  if (employee) {
-    await prisma.purchaseApprover.updateMany({
-      where: {
-        requestId,
-        employeeId: employee.id
-      },
+  if (approverRecord) {
+    await prisma.purchaseApprover.update({
+      where: { id: approverRecord.id },
       data: {
         estatus: 'APROBADO',
         fechaRespuesta: new Date()

@@ -47,7 +47,7 @@ class PurchasePublicController {
   static async authorizeRequest(req, res) {
     try {
       const { id } = req.params;
-      const updatedRequest = await PurchaseService.authorizeRequest(req.user.id, id);
+      const updatedRequest = await PurchaseService.authorizeRequest(req.user.id, req.user.role, id);
 
       // Auditoría: aprobación
       await audit.logWithReq(

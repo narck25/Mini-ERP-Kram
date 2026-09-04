@@ -25,55 +25,68 @@ exports.getPotentialApprovers = async (requestId) => {
     throw { status: 404, error: 'Solicitud no encontrada' };
   }
 
-  // Buscar empleados con nivel jerárquico gerencial
-  const gerentes = await prisma.employee.findMany({
+  const EMPLOYEE_SELECT = {
+    id: true,
+    nombres: true,
+    apellidoPaterno: true,
+    apellidoMaterno: true,
+    nombre: true,
+    nivelJerarquico: true,
+    departamento_id: true,
+    departamento: { select: { nombre: true } },
+    user: { select: { id: true, email: true, role: true } }
+  };
+
+  // Director general: nivel DIRECTOR que reporta directamente al Presidente.
+  // (Excluye subdirecciones, que en la captura también quedan marcadas como DIRECTOR
+  // pero reportan al Director general, no al Presidente.)
+  const directores = await prisma.employee.findMany({
     where: {
-      nivelJerarquico: { in: ['GERENTE', 'DIRECTOR', 'PRESIDENTE'] },
-      estatus: 'Activo'
+      nivelJerarquico: 'DIRECTOR',
+      estatus: 'Activo',
+      reportaA: { nivelJerarquico: 'PRESIDENTE' }
     },
-    select: {
-      id: true,
-      nombres: true,
-      apellidoPaterno: true,
-      apellidoMaterno: true,
-      nombre: true,
-      nivelJerarquico: true,
-      departamento_id: true,
-      departamento: { select: { nombre: true } },
-      user: { select: { id: true, email: true, role: true } }
-    },
-    orderBy: [
-      { nivelJerarquico: 'asc' },
-      { nombre: 'asc' }
-    ]
+    select: EMPLOYEE_SELECT
   });
 
-  // También buscar usuarios ADMIN/RH que no estén en la lista
-  const adminRHUsers = await prisma.user.findMany({
+  // Gerente de Finanzas: nivel GERENTE dentro del área de Finanzas
+  // (el nivel GERENTE por sí solo incluye también Ventas, Operaciones, etc.)
+  const gerentesFinanzas = await prisma.employee.findMany({
     where: {
-      role: { in: ['ADMIN', 'RH'] },
+      nivelJerarquico: 'GERENTE',
+      estatus: 'Activo',
+      area: { contains: 'FINANZAS', mode: 'insensitive' }
+    },
+    select: EMPLOYEE_SELECT
+  });
+
+  // Usuarios ADMIN (pueden aprobar cualquier compra, tengan o no empleado asociado)
+  const adminUsers = await prisma.user.findMany({
+    where: {
+      role: 'ADMIN',
       employee: { isNot: null }
     },
     select: {
-      employee: {
-        select: {
-          id: true,
-          nombres: true,
-          apellidoPaterno: true,
-          apellidoMaterno: true,
-          nombre: true,
-          nivelJerarquico: true,
-          departamento_id: true,
-          departamento: { select: { nombre: true } }
-        }
-      }
+      employee: { select: EMPLOYEE_SELECT }
+    }
+  });
+
+  // Jefe de Compras: rol COMPRAS + nivel JEFE (no el resto del equipo de Compras,
+  // que también tiene rol COMPRAS pero nivel OPERATIVO/ANALISTA)
+  const jefesCompras = await prisma.user.findMany({
+    where: {
+      role: 'COMPRAS',
+      employee: { nivelJerarquico: 'JEFE' }
+    },
+    select: {
+      employee: { select: EMPLOYEE_SELECT }
     }
   });
 
   // Combinar y deduplicar
   const gerentesMap = new Map();
-  gerentes.forEach(g => gerentesMap.set(g.id, g));
-  adminRHUsers.forEach(u => {
+  [...directores, ...gerentesFinanzas].forEach(g => gerentesMap.set(g.id, g));
+  [...adminUsers, ...jefesCompras].forEach(u => {
     if (u.employee && !gerentesMap.has(u.employee.id)) {
       gerentesMap.set(u.employee.id, u.employee);
     }
