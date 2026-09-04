@@ -446,7 +446,7 @@ class PurchaseController {
       const prisma = new PrismaClient();
       const quoteAnterior = await prisma.purchaseQuote.findUnique({ where: { id: quoteId } });
 
-      const updatedQuote = await PurchaseService.updateQuote(id, quoteId, { proveedor, monto, archivoUrl });
+      const updatedQuote = await PurchaseService.updateQuote(id, quoteId, { proveedor, monto, archivoUrl }, req.user.role);
 
       // Auditoría: edición de cotización
       const valorAnterior = {};

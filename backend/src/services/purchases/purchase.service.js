@@ -446,14 +446,19 @@ exports.uploadQuoteFileForNewQuote = async (requestId, filename, quoteIndex) => 
 // ─────────────────────────────────────────────────────────────
 // 9. Actualizar datos de una cotización (proveedor, monto, archivo)
 // ─────────────────────────────────────────────────────────────
-exports.updateQuote = async (requestId, quoteId, data) => {
+exports.updateQuote = async (requestId, quoteId, data, userRole) => {
   const request = await prisma.purchaseRequest.findUnique({ where: { id: requestId } });
   if (!request) {
     throw { status: 404, error: 'Solicitud no encontrada', message: 'La solicitud de compra no existe' };
   }
 
-  if (request.estatus === 'ENTREGADO' || request.estatus === 'CANCELADO') {
-    throw { status: 400, error: 'Estado inválido', message: 'No se puede modificar cotizaciones en solicitudes ENTREGADAS o CANCELADAS' };
+  if (request.estatus === 'CANCELADO') {
+    throw { status: 400, error: 'Estado inválido', message: 'No se puede modificar cotizaciones en solicitudes CANCELADAS' };
+  }
+
+  // ENTREGADO: solo ADMIN puede corregir cotizaciones de compras ya entregadas.
+  if (request.estatus === 'ENTREGADO' && userRole !== 'ADMIN') {
+    throw { status: 403, error: 'Acceso denegado', message: 'Solo un ADMIN puede modificar cotizaciones de solicitudes ya ENTREGADAS' };
   }
 
   const quote = await prisma.purchaseQuote.findFirst({
