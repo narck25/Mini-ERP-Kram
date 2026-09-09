@@ -49,6 +49,16 @@ exports.getPotentialApprovers = async (requestId) => {
     select: EMPLOYEE_SELECT
   });
 
+  // Presidente: siempre elegible, además cubre el hueco cuando no hay nadie
+  // en nivel DIRECTOR (p. ej. si la captura de RH aún no tiene un Director real).
+  const presidentes = await prisma.employee.findMany({
+    where: {
+      nivelJerarquico: 'PRESIDENTE',
+      estatus: 'Activo'
+    },
+    select: EMPLOYEE_SELECT
+  });
+
   // Gerente de Finanzas: nivel GERENTE dentro del área de Finanzas
   // (el nivel GERENTE por sí solo incluye también Ventas, Operaciones, etc.)
   const gerentesFinanzas = await prisma.employee.findMany({
@@ -85,7 +95,7 @@ exports.getPotentialApprovers = async (requestId) => {
 
   // Combinar y deduplicar
   const gerentesMap = new Map();
-  [...directores, ...gerentesFinanzas].forEach(g => gerentesMap.set(g.id, g));
+  [...directores, ...presidentes, ...gerentesFinanzas].forEach(g => gerentesMap.set(g.id, g));
   [...adminUsers, ...jefesCompras].forEach(u => {
     if (u.employee && !gerentesMap.has(u.employee.id)) {
       gerentesMap.set(u.employee.id, u.employee);
