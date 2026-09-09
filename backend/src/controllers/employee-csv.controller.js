@@ -355,6 +355,11 @@ exports.importEmployees = async (req, res) => {
       }
 
       return { importedEmployees, updatedEmployees, skippedEmployees, createdUsers, batchErrors };
+    }, {
+      // Default de Prisma es 5s; con lotes grandes (decenas/cientos de filas, cada una con
+      // varias consultas por fila) eso se agota antes de terminar. Se sube a un margen amplio.
+      timeout: 120000,
+      maxWait: 10000
     });
 
     // El reordenamiento por jerarquía cambia el orden de procesamiento interno; se restaura
