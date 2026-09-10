@@ -633,8 +633,10 @@ model StationeryItem {
   id              String            @id @default(cuid())
   requestId       String
   producto        String
+  categoria       String            @default("OTRO") // PAPELERIA | PERIFERICO | OTRO
   cantidad        Int
   unidad          String            @default("pzas")
+  observaciones   String?
   request         StationeryRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   @@map("stationery_items")

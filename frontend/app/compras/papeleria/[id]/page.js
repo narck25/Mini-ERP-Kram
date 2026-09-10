@@ -94,8 +94,10 @@ export default function DetalleSolicitudPapeleria() {
               <tr className="bg-gray-100">
                 <th className="p-3 text-left">#</th>
                 <th className="p-3 text-left">Artículo</th>
+                <th className="p-3 text-left">Categoría</th>
                 <th className="p-3 text-center">Cantidad</th>
                 <th className="p-3 text-left">Unidad</th>
+                <th className="p-3 text-left">Observaciones</th>
               </tr>
             </thead>
             <tbody>
@@ -103,8 +105,10 @@ export default function DetalleSolicitudPapeleria() {
                 <tr key={index} className="border-t">
                   <td className="p-3">{index + 1}</td>
                   <td className="p-3 font-medium">{item.producto}</td>
+                  <td className="p-3 text-sm text-gray-600">{item.categoria || '-'}</td>
                   <td className="p-3 text-center">{item.cantidad}</td>
                   <td className="p-3 text-sm text-gray-600">{item.unidad || '-'}</td>
+                  <td className="p-3 text-sm text-gray-600">{item.observaciones || '-'}</td>
                 </tr>
               ))}
             </tbody>

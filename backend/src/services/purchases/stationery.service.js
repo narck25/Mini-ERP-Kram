@@ -58,22 +58,39 @@ class StationeryService {
    * Crear solicitud de papelería
    */
   static async createRequest(data, employeeId) {
-    const { items, justificacion, departamentoId } = data;
+    const { items, justificacion, observaciones, departamentoId } = data;
 
     if (!items || items.length === 0) {
       throw new Error('Debe agregar al menos un artículo');
     }
 
+    // El departamento es obligatorio en el modelo; si el formulario no lo manda
+    // (caso de "mi solicitud"), se toma el del propio solicitante.
+    let departamento_id = departamentoId;
+    if (!departamento_id) {
+      const employee = await prisma.employee.findUnique({
+        where: { id: employeeId },
+        select: { departamento_id: true }
+      });
+      departamento_id = employee?.departamento_id;
+    }
+
+    if (!departamento_id) {
+      throw new Error('No se pudo determinar el departamento de la solicitud');
+    }
+
     return prisma.stationeryRequest.create({
       data: {
         solicitanteId: employeeId,
-        departamentoId,
-        justificacion,
+        departamentoId: departamento_id,
+        justificacion: justificacion || observaciones || null,
         items: {
           create: items.map(item => ({
-            producto: item.producto,
+            producto: item.nombre || item.producto,
+            categoria: item.categoria || 'OTRO',
             cantidad: parseInt(item.cantidad) || 1,
-            unidad: item.unidad || 'pzas'
+            unidad: item.unidad || 'pzas',
+            observaciones: item.observaciones || null
           }))
         }
       },
