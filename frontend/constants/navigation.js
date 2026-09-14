@@ -11,6 +11,8 @@
 // Sección 1: "Mi Portal" (Autoservicio y Equipo)
 export const myPortalNavigation = [
   { name: 'Mi Espacio', href: '/dashboard/mi-espacio', icon: '🌟', module: 'DASHBOARD' },
+  { name: 'Mis Documentos', href: '/dashboard/mis-documentos', icon: '📁', module: 'DASHBOARD' },
+  { name: 'Mi Asistencia', href: '/dashboard/mi-asistencia', icon: '⏱️', module: 'DASHBOARD' },
   { name: 'Mi Equipo', href: '/rh/empleados', icon: '👥', module: 'EMPLEADOS' },
   { name: 'Mis Vacantes', href: '/reclutamiento/mis-solicitudes', icon: '📝', module: 'RECLUTAMIENTO' },
   { name: 'Mis Compras', href: '/compras/mis-solicitudes', icon: '🛒', module: 'COMPRAS' },

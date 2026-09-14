@@ -7,6 +7,7 @@ export const employeeDocumentApi = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   delete: (documentId) => api.delete(`/employee-documents/${documentId}`),
+  download: (documentId) => api.get(`/employee-documents/${documentId}/download`, { responseType: 'blob' }),
 
   // Tipos de documentos permitidos
   getAllowedTypes: () => api.get('/employee-documents/allowed-types'),
