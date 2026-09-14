@@ -9,7 +9,7 @@ const fs = require('fs');
 // Inicialización de directorios de uploads
 // ============================================================
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
-const UPLOAD_SUBDIRS = ['photos', 'cvs', 'employee-documents', 'psych-tests', 'purchase-quotes', 'temp'];
+const UPLOAD_SUBDIRS = ['photos', 'cvs', 'employee-documents', 'psych-tests', 'purchase-quotes', 'temp', 'disciplinary-incidents'];
 
 try {
   UPLOAD_SUBDIRS.forEach(subdir => {
@@ -69,6 +69,9 @@ const seedRoutes = loadRoute('seed', './routes/seed.routes');
 const vacationRoutes = loadRoute('vacation', './routes/vacation.routes');
 const reportRoutes = loadRoute('report', './routes/report.routes');
 const incapacidadRoutes = loadRoute('incapacidad', './routes/incapacidad.routes');
+const hrAuditRoutes = loadRoute('hr-audit', './routes/hrAudit.routes');
+const probationEvaluationRoutes = loadRoute('probation-evaluation', './routes/probationEvaluation.routes');
+const disciplinaryIncidentRoutes = loadRoute('disciplinary-incident', './routes/disciplinaryIncident.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -174,6 +177,9 @@ app.use('/api/incidencias', attendanceRoutes);
 app.use('/api', vacationRoutes);
 app.use('/api', reportRoutes);
 app.use('/api', incapacidadRoutes);
+app.use('/api', hrAuditRoutes);
+app.use('/api', probationEvaluationRoutes);
+app.use('/api', disciplinaryIncidentRoutes);
 app.use('/api', rolesRoutes);
 app.use('/api', notificationsRoutes);
 app.use('/api', seedRoutes);
@@ -256,6 +262,22 @@ cron.schedule('0 8 * * *', async () => {
 });
 
 console.log('⏰ Scheduler diario configurado (8:00 AM)');
+
+// ============================================================
+// Scheduler diario para alertas de periodo de prueba (30/60/90 días)
+// ============================================================
+const { checkAndNotify: checkProbationAndNotify } = require('./services/probationPeriod.service');
+
+cron.schedule('0 8 * * *', async () => {
+  console.log('⏰ Ejecutando verificación diaria de periodos de prueba...');
+  try {
+    await checkProbationAndNotify();
+  } catch (err) {
+    console.error('❌ Error en scheduler de periodo de prueba:', err.message);
+  }
+});
+
+console.log('⏰ Scheduler de periodo de prueba configurado (8:00 AM)');
 
 // ============================================================
 // Inicio del servidor

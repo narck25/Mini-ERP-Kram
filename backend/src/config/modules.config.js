@@ -54,6 +54,12 @@ const MODULES_CONFIG = {
     label: 'Compras',
     description: 'Gestión de compras',
     enabled: true
+  },
+  DISCIPLINA: {
+    key: 'DISCIPLINA',
+    label: 'Disciplina',
+    description: 'Incidencias disciplinarias de empleados (retardos/faltas, actas administrativas)',
+    enabled: true
   }
 };
 

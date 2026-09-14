@@ -462,6 +462,43 @@ exports.sendAnniversaryWish = async (email, employeeName, antiguedad) => {
 };
 
 /**
+ * Recordatorio de evaluación de periodo de prueba próxima (enviado a los 20/50/80 días,
+ * 10 días antes de la evaluación de 30/60/90).
+ */
+exports.sendProbationReminder = async (email, destinatarioNombre, employeeName, diasTranscurridos, tipoEvaluacion) => {
+  const title = '📋 Evaluación de periodo de prueba próxima';
+  const content = `
+    <p>Hola <strong>${destinatarioNombre}</strong>,</p>
+    <p><strong>${employeeName}</strong> cumple hoy <strong>${diasTranscurridos} días</strong> en la empresa. En 10 días (a los ${tipoEvaluacion}) le corresponde su evaluación del periodo de prueba.</p>
+    <div class="info-box">
+      <strong>Empleado:</strong> ${employeeName}<br>
+      <strong>Evaluación:</strong> ${tipoEvaluacion}
+    </div>
+    <p>Prepara la evaluación con anticipación para que puedas capturarla en el sistema en cuanto se habilite.</p>
+    <center>
+      <a href="${FRONTEND_URL}/dashboard/mi-espacio" class="button">Ir a Mi Espacio</a>
+    </center>
+  `;
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
+/**
+ * Aviso de que la evaluación de periodo de prueba (30/60/90) ya está disponible
+ * para capturarse en el sistema.
+ */
+exports.sendProbationEvaluationDue = async (email, destinatarioNombre, employeeName, tipoEvaluacion) => {
+  const title = '📋 Evaluación de periodo de prueba lista para capturar';
+  const content = `
+    <p>Hola <strong>${destinatarioNombre}</strong>,</p>
+    <p><strong>${employeeName}</strong> llegó hoy a su evaluación de <strong>${tipoEvaluacion}</strong>. Ya puedes capturar el resultado en el sistema.</p>
+    <center>
+      <a href="${FRONTEND_URL}/dashboard/mi-espacio" class="button">Capturar evaluación</a>
+    </center>
+  `;
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
+/**
  * Enviar resumen diario a RH con cumpleaños y aniversarios del día
  */
 exports.sendDailySummaryToRH = async (email, rhName, birthdayList, anniversaryList) => {

@@ -2,6 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const bcrypt = require('bcryptjs');
 const { calcularTodo } = require('../utils/salaryCalculator');
+const hrAudit = require('../services/hrAudit.service');
 
 // Obtener todos los empleados con reglas de visibilidad basadas en jerarquía
 exports.getAllEmployees = async (req, res) => {
@@ -246,6 +247,11 @@ exports.createEmployee = async (req, res) => {
       }
     }
 
+    await hrAudit.logWithReq(
+      hrAudit.ENTIDADES.EMPLOYEE, employee.id, req.user?.id, hrAudit.ACCIONES.CREACION,
+      null, { nombre: employee.nombre, rfc: employee.rfc, estatus: employee.estatus }, req
+    ).catch(err => console.error('Error registrando auditoría de RH:', err.message));
+
     const response = { message: 'Empleado creado exitosamente', employee };
     if (createdUser) { response.user = createdUser; response.message += ' Usuario creado automáticamente.'; }
     res.status(201).json(response);
@@ -373,9 +379,18 @@ exports.updateEmployee = async (req, res) => {
 
     // Si el empleado fue dado de baja, desactivar su usuario y liberar el correo institucional
     let correoLiberado = null;
-    if (estatus === 'Inactivo' && existingEmployee.estatus !== 'Inactivo' && existingEmployee.userId) {
+    const esBaja = estatus === 'Inactivo' && existingEmployee.estatus !== 'Inactivo';
+    if (esBaja && existingEmployee.userId) {
       correoLiberado = await exports.releaseUserEmail(existingEmployee.userId, existingEmployee.rfc);
     }
+
+    await hrAudit.logWithReq(
+      hrAudit.ENTIDADES.EMPLOYEE, employee.id, req.user?.id,
+      esBaja ? hrAudit.ACCIONES.BAJA : hrAudit.ACCIONES.ACTUALIZACION,
+      { nombre: existingEmployee.nombre, estatus: existingEmployee.estatus, salarioMensual: existingEmployee.salarioMensual, reportaAId: existingEmployee.reportaAId },
+      { nombre: employee.nombre, estatus: employee.estatus, salarioMensual: employee.salarioMensual, reportaAId: employee.reportaAId, motivoBaja: employee.motivoBaja },
+      req
+    ).catch(err => console.error('Error registrando auditoría de RH:', err.message));
 
     res.json({ message: 'Empleado actualizado exitosamente', employee, correoLiberado });
   } catch (error) {

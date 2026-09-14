@@ -19,7 +19,8 @@ const ROLES_PRESETS = {
     'CONFIGURACION',
     'COMPRAS',
     'VACACIONES',
-    'REPORTES'
+    'REPORTES',
+    'DISCIPLINA'
   ],
   RH: [
     'DASHBOARD',
@@ -27,7 +28,8 @@ const ROLES_PRESETS = {
     'RECLUTAMIENTO',
     'INCIDENCIAS',
     'VACACIONES',
-    'REPORTES'
+    'REPORTES',
+    'DISCIPLINA'
   ],
   SISTEMAS: [
     'DASHBOARD',

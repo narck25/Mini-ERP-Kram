@@ -34,6 +34,7 @@ const PATHS = {
   employeeDocuments: path.join(UPLOAD_BASE, 'employee-documents'),
   psychTests: path.join(UPLOAD_BASE, 'psych-tests'),
   photos: path.join(UPLOAD_BASE, 'photos'),
+  disciplinaryIncidents: path.join(UPLOAD_BASE, 'disciplinary-incidents'),
 };
 
 // Asegurar que todos los directorios existan
@@ -139,6 +140,13 @@ const uploadPhoto = multer({
   limits: { fileSize: 5 * 1024 * 1024, files: 1 } // 5MB para fotos
 });
 
+// Upload para actas administrativas / incidencias disciplinarias
+const uploadDisciplinaryIncident = multer({
+  storage: createStorage(PATHS.disciplinaryIncidents),
+  fileFilter: fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 }
+});
+
 // ============================================================
 // Middleware para asegurar directorios
 // ============================================================
@@ -183,6 +191,7 @@ module.exports = {
   uploadPsychTest,
   uploadCandidate,
   uploadPhoto,
+  uploadDisciplinaryIncident,
   ensureUploadDirs,
   handleMulterError
 };

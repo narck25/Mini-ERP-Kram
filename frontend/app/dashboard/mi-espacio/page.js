@@ -7,6 +7,8 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import ProbationCaptureModal from '@/components/ProbationCaptureModal';
+import { probationApi } from '@/lib/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
 const fmt = (iso) => (iso ? new Date(iso).toISOString().substring(0, 10).split('-').reverse().join('/') : '—');
@@ -16,6 +18,11 @@ function MiEspacioPage() {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
+
+  // Evaluaciones de periodo de prueba pendientes de mis subordinados (independiente de
+  // accessibleModules — cualquier jefe con gente a cargo debe poder verlas).
+  const [pendingEvaluations, setPendingEvaluations] = useState([]);
+  const [captureModal, setCaptureModal] = useState(null);
 
   const hasAccess = user?.accessibleModules?.some(m => ['EMPLEADOS', 'RECLUTAMIENTO', 'COMPRAS', 'VACACIONES', 'INCIDENCIAS', 'DASHBOARD'].includes(m))
 
@@ -27,6 +34,38 @@ function MiEspacioPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.accessibleModules, dashboardData]);
+
+  useEffect(() => {
+    if (user?.id) fetchPendingEvaluations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const fetchPendingEvaluations = async () => {
+    try {
+      const res = await probationApi.getPendingForJefe();
+      setPendingEvaluations(res.data?.data || []);
+    } catch (error) {
+      console.error('Error fetching pending probation evaluations:', error);
+    }
+  };
+
+  const handleCaptureEvaluation = async (id, data) => {
+    try {
+      await probationApi.capture(id, data);
+      toast.success('Evaluación capturada');
+      await fetchPendingEvaluations();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Error al capturar la evaluación');
+      throw error;
+    }
+  };
+
+  const nombreEmpleadoEvaluacion = (emp) => {
+    if (!emp) return '—';
+    return `${emp.nombres || emp.nombre || ''} ${emp.apellidoPaterno || ''} ${emp.apellidoMaterno || ''}`.trim();
+  };
+
+  const TIPO_EVALUACION_LABELS = { DIA_30: '30 días', DIA_60: '60 días', DIA_90: '90 días' };
 
   const fetchDashboardData = async () => {
     try {
@@ -375,6 +414,33 @@ function MiEspacioPage() {
             </div>
             )}
 
+            {/* Evaluaciones de periodo de prueba pendientes (visible solo si tengo subordinados con evaluaciones pendientes) */}
+            {pendingEvaluations.length > 0 && (
+              <div className="bg-white rounded-xl shadow-md p-6 mb-8 border-l-4 border-orange-500">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <span className="text-orange-600">📋</span> Evaluaciones de Periodo de Prueba Pendientes
+                  </h2>
+                </div>
+                <div className="space-y-3">
+                  {pendingEvaluations.map((ev) => (
+                    <div key={ev.id} className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-gray-900">{nombreEmpleadoEvaluacion(ev.empleado)}</p>
+                        <p className="text-sm text-gray-600">Evaluación de {TIPO_EVALUACION_LABELS[ev.tipo] || ev.tipo}</p>
+                      </div>
+                      <button
+                        onClick={() => setCaptureModal(ev)}
+                        className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-md text-sm font-medium"
+                      >
+                        Capturar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Acciones rápidas */}
             <div className="bg-white rounded-xl shadow-md p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Acciones Rápidas</h2>
@@ -441,6 +507,12 @@ function MiEspacioPage() {
           </>
         )}
       </div>
+
+      <ProbationCaptureModal
+        evaluation={captureModal}
+        onClose={() => setCaptureModal(null)}
+        onSubmit={handleCaptureEvaluation}
+      />
     </DashboardLayout>
   );
 }

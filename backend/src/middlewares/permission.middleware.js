@@ -102,7 +102,8 @@ class PermissionMiddleware {
           'CONFIGURACION': 'Configuración',
           'REPORTES': 'Reportes',
           'DASHBOARD': 'Dashboard',
-          'COMPRAS': 'Compras'
+          'COMPRAS': 'Compras',
+          'DISCIPLINA': 'Disciplina'
         };
 
         const moduleDisplayName = moduleNames[moduleName] || moduleName;

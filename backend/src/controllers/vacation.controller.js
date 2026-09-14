@@ -1,9 +1,16 @@
 const VacationService = require('../services/vacaciones/vacation.service');
+const hrAudit = require('../services/hrAudit.service');
+
+const auditVacation = (data, userId, accion, req) => {
+  hrAudit.logWithReq(hrAudit.ENTIDADES.VACATION, data.id, userId, accion, null, { estatus: data.estatus }, req)
+    .catch(err => console.error('Error registrando auditoría de RH:', err.message));
+};
 
 class VacationController {
   static async create(req, res) {
     try {
       const data = await VacationService.create(req.body, req.user);
+      auditVacation(data, req.user.id, hrAudit.ACCIONES.CREACION, req);
       res.status(201).json({ data, message: 'Solicitud de vacaciones creada' });
     } catch (error) {
       res.status(400).json({ error: error.message });
@@ -60,6 +67,7 @@ class VacationController {
   static async authorizeByJefe(req, res) {
     try {
       const data = await VacationService.authorizeByJefe(req.params.id, req.user, req.body?.comentario);
+      auditVacation(data, req.user.id, hrAudit.ACCIONES.AUTORIZACION_JEFE, req);
       res.json({ data, message: 'Solicitud autorizada' });
     } catch (error) {
       res.status(400).json({ error: error.message });
@@ -79,6 +87,7 @@ class VacationController {
   static async approve(req, res) {
     try {
       const data = await VacationService.approve(req.params.id, req.user, req.body?.comentario);
+      auditVacation(data, req.user.id, hrAudit.ACCIONES.APROBACION, req);
       res.json({ data, message: 'Solicitud aprobada' });
     } catch (error) {
       res.status(400).json({ error: error.message });
@@ -88,6 +97,7 @@ class VacationController {
   static async reject(req, res) {
     try {
       const data = await VacationService.reject(req.params.id, req.user, req.body?.comentario);
+      auditVacation(data, req.user.id, hrAudit.ACCIONES.RECHAZO, req);
       res.json({ data, message: 'Solicitud rechazada' });
     } catch (error) {
       res.status(400).json({ error: error.message });
@@ -97,6 +107,7 @@ class VacationController {
   static async cancel(req, res) {
     try {
       const data = await VacationService.cancel(req.params.id, req.user);
+      auditVacation(data, req.user.id, hrAudit.ACCIONES.CANCELACION, req);
       res.json({ data, message: 'Solicitud cancelada' });
     } catch (error) {
       res.status(400).json({ error: error.message });

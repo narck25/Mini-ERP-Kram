@@ -142,6 +142,20 @@ function EmployeeProfilePage() {
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [newDocument, setNewDocument] = useState({ tipo_documento: '', document: null });
 
+  // Incidencias disciplinarias (visible solo para RH/ADMIN o el jefe directo — el backend
+  // decide con un 403 si no corresponde, y aquí simplemente se oculta la sección)
+  const [disciplinaryIncidents, setDisciplinaryIncidents] = useState([]);
+  const [disciplinaryResumen, setDisciplinaryResumen] = useState({ ultimos6Meses: 0 });
+  const [canViewDisciplina, setCanViewDisciplina] = useState(false);
+  const [showDisciplinaForm, setShowDisciplinaForm] = useState(false);
+  const [newIncident, setNewIncident] = useState({ tipo: '', fecha: '', motivo: '', archivo: null });
+  const [submittingIncident, setSubmittingIncident] = useState(false);
+
+  // Auditoría genérica de RH (mismo criterio de visibilidad que disciplina)
+  const [auditHistory, setAuditHistory] = useState([]);
+  const [loadingAudit, setLoadingAudit] = useState(false);
+  const [canViewAudit, setCanViewAudit] = useState(false);
+
   useEffect(() => {
     if (user && id) {
       fetchEmployee();
@@ -288,6 +302,8 @@ function EmployeeProfilePage() {
       setEmployee(response.data.employee);
       await fetchDocuments();
       await fetchAllowedDocumentTypes();
+      await fetchDisciplinaryIncidents();
+      await fetchAuditHistory();
     } catch (error) {
       console.error('Error fetching employee:', error);
       toast.error('Error al cargar información del empleado');
@@ -373,6 +389,81 @@ function EmployeeProfilePage() {
       console.error('Error deleting document:', error);
       toast.error(error.response?.data?.error || 'Error al eliminar documento');
     }
+  };
+
+  // ============================================================
+  // INCIDENCIAS DISCIPLINARIAS
+  // ============================================================
+  const fetchDisciplinaryIncidents = async () => {
+    try {
+      const response = await api.get(`/disciplinary-incidents/employee/${id}`);
+      setDisciplinaryIncidents(response.data.incidents || []);
+      setDisciplinaryResumen(response.data.resumen || { ultimos6Meses: 0 });
+      setCanViewDisciplina(true);
+    } catch (error) {
+      // 403 esperado para quien no es RH/ADMIN/jefe directo: se oculta la sección sin error visible
+      setCanViewDisciplina(false);
+    }
+  };
+
+  const handleIncidentFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) setNewIncident(prev => ({ ...prev, archivo: file }));
+  };
+
+  const handleCreateIncident = async () => {
+    if (!newIncident.tipo || !newIncident.fecha || !newIncident.motivo) {
+      toast.error('Completa tipo, fecha y motivo');
+      return;
+    }
+    setSubmittingIncident(true);
+    try {
+      const formData = new FormData();
+      formData.append('empleadoId', employee.id);
+      formData.append('tipo', newIncident.tipo);
+      formData.append('fecha', newIncident.fecha);
+      formData.append('motivo', newIncident.motivo);
+      if (newIncident.archivo) formData.append('archivo', newIncident.archivo);
+      await api.post('/disciplinary-incidents', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      toast.success('Incidencia registrada');
+      setNewIncident({ tipo: '', fecha: '', motivo: '', archivo: null });
+      setShowDisciplinaForm(false);
+      await fetchDisciplinaryIncidents();
+      await fetchAuditHistory();
+    } catch (error) {
+      console.error('Error creating disciplinary incident:', error);
+      toast.error(error.response?.data?.error || 'Error al registrar la incidencia');
+    } finally {
+      setSubmittingIncident(false);
+    }
+  };
+
+  const INCIDENT_TYPE_LABELS = {
+    RETARDO_FALTA_INJUSTIFICADA: 'Retardo / falta injustificada',
+    ACTA_ADMINISTRATIVA: 'Acta administrativa'
+  };
+
+  // ============================================================
+  // AUDITORÍA DE RH
+  // ============================================================
+  const fetchAuditHistory = async () => {
+    setLoadingAudit(true);
+    try {
+      const response = await api.get(`/hr-audit/employee/${id}`);
+      setAuditHistory(response.data.data || []);
+      setCanViewAudit(true);
+    } catch (error) {
+      setCanViewAudit(false);
+    } finally {
+      setLoadingAudit(false);
+    }
+  };
+
+  const ENTIDAD_LABELS = {
+    EMPLOYEE: 'Empleado', VACATION: 'Vacación', INCAPACIDAD: 'Incapacidad',
+    DISCIPLINARY_INCIDENT: 'Incidencia disciplinaria', PROBATION_EVALUATION: 'Evaluación de periodo de prueba'
   };
 
   // ============================================================
@@ -979,6 +1070,166 @@ function EmployeeProfilePage() {
             )}
           </div>
         </div>
+
+        {/* ============================================================ */}
+        {/* CARD FULL WIDTH: INCIDENCIAS DISCIPLINARIAS (solo RH/ADMIN o jefe directo) */}
+        {/* ============================================================ */}
+        {canViewDisciplina && (
+          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 mt-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <span className="text-red-600">⚠️</span> Incidencias Disciplinarias
+                {disciplinaryResumen.ultimos6Meses > 0 && (
+                  <span className={`ml-2 px-2 py-0.5 text-xs font-semibold rounded-full ${
+                    disciplinaryResumen.ultimos6Meses >= 3 ? 'bg-red-100 text-red-800' :
+                    disciplinaryResumen.ultimos6Meses >= 2 ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-gray-100 text-gray-700'
+                  }`}>
+                    {disciplinaryResumen.ultimos6Meses} en últimos 6 meses
+                  </span>
+                )}
+              </h3>
+              <button onClick={() => setShowDisciplinaForm(!showDisciplinaForm)} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium">
+                {showDisciplinaForm ? 'Cancelar' : 'Registrar Incidencia'}
+              </button>
+            </div>
+
+            {showDisciplinaForm && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <h4 className="font-medium text-red-900 mb-3">Registrar Nueva Incidencia</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
+                    <select value={newIncident.tipo} onChange={(e) => setNewIncident(prev => ({ ...prev, tipo: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" required>
+                      <option value="">Seleccionar tipo</option>
+                      <option value="RETARDO_FALTA_INJUSTIFICADA">Retardo / falta injustificada</option>
+                      <option value="ACTA_ADMINISTRATIVA">Acta administrativa</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha *</label>
+                    <input type="date" value={newIncident.fecha} onChange={(e) => setNewIncident(prev => ({ ...prev, fecha: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" required />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Motivo *</label>
+                    <textarea value={newIncident.motivo} onChange={(e) => setNewIncident(prev => ({ ...prev, motivo: e.target.value }))} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" required />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Archivo (acta escaneada, opcional)</label>
+                    <input type="file" onChange={handleIncidentFileChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                    {newIncident.archivo && <p className="mt-1 text-sm text-gray-600">Archivo seleccionado: {newIncident.archivo.name}</p>}
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <button onClick={handleCreateIncident} disabled={submittingIncident} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                    {submittingIncident ? 'Guardando...' : 'Registrar Incidencia'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              {disciplinaryIncidents.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Motivo</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Registrado por</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Archivo</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {disciplinaryIncidents.map((incident) => (
+                        <tr key={incident.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{formatDateSafe(incident.fecha)}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                              {INCIDENT_TYPE_LABELS[incident.tipo] || incident.tipo}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700 max-w-[300px]">{incident.motivo}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{incident.registradoPor?.name || '—'}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            {incident.archivoUrl ? (
+                              <a href={incident.archivoUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-900">
+                                Ver archivo
+                              </a>
+                            ) : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No hay incidencias disciplinarias registradas para este empleado.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* CARD FULL WIDTH: AUDITORÍA DE RH (solo RH/ADMIN o jefe directo) */}
+        {/* ============================================================ */}
+        {canViewAudit && (
+          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100 mt-6">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-6">
+              <span className="text-blue-600">🕵️</span> Auditoría
+            </h3>
+
+            {loadingAudit ? (
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+            ) : auditHistory.length > 0 ? (
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuario</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entidad</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acción</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Detalle</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {auditHistory.map((log) => (
+                      <tr key={log.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{new Date(log.createdAt).toLocaleString('es-MX')}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{log.usuario?.name || 'Desconocido'}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{ENTIDAD_LABELS[log.entidadTipo] || log.entidadTipo}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-50 text-blue-700">{log.accion}</span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-500 max-w-[300px]">
+                          {(log.valorAnterior || log.valorNuevo) && (
+                            <details>
+                              <summary className="cursor-pointer text-blue-600">Ver detalle</summary>
+                              <pre className="mt-2 text-xs bg-gray-50 p-2 rounded overflow-x-auto max-w-[280px]">
+                                {log.valorAnterior && `Antes: ${JSON.stringify(log.valorAnterior)}\n`}
+                                {log.valorNuevo && `Después: ${JSON.stringify(log.valorNuevo)}`}
+                              </pre>
+                            </details>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No hay registros de auditoría para este empleado.</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ============================================================ */}

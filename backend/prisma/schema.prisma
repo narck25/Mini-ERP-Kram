@@ -8,25 +8,27 @@ datasource db {
 }
 
 model User {
-  id                           String                       @id @default(cuid())
-  email                        String                       @unique
-  password                     String
-  name                         String
-  role                         String                       @default("EMPLEADO_BASICO")
-  accessibleModules            ModuleType[]                 @default([DASHBOARD])
-  isActive                     Boolean                      @default(true)
-  createdAt                    DateTime                     @default(now())
-  updatedAt                    DateTime                     @updatedAt
-  employee                     Employee?
-  sessions                     Session[]
-  VacancyComment               VacancyComment[]
-  purchaseComments             PurchaseComment[]
-  stationeryComments           StationeryComment[]
-  inventoryAdjustmentsApproved InventoryAdjustmentRequest[] @relation("AjusteAprobador")
-  inventoryMovements           InventoryMovement[]
-  vacationsApproved            VacationRequest[]            @relation("VacacionesAprobador")
-  vacationsAuthorizedAsJefe    VacationRequest[]            @relation("VacacionesJefe")
-  incapacidadesRegistradas     Incapacidad[]                @relation("IncapacidadRegistrador")
+  id                               String                       @id @default(cuid())
+  email                            String                       @unique
+  password                         String
+  name                             String
+  role                             String                       @default("EMPLEADO_BASICO")
+  accessibleModules                ModuleType[]                 @default([DASHBOARD])
+  isActive                         Boolean                      @default(true)
+  createdAt                        DateTime                     @default(now())
+  updatedAt                        DateTime                     @updatedAt
+  employee                         Employee?
+  sessions                         Session[]
+  VacancyComment                   VacancyComment[]
+  purchaseComments                 PurchaseComment[]
+  stationeryComments               StationeryComment[]
+  inventoryAdjustmentsApproved     InventoryAdjustmentRequest[] @relation("AjusteAprobador")
+  inventoryMovements               InventoryMovement[]
+  vacationsApproved                VacationRequest[]            @relation("VacacionesAprobador")
+  vacationsAuthorizedAsJefe        VacationRequest[]            @relation("VacacionesJefe")
+  incapacidadesRegistradas         Incapacidad[]                @relation("IncapacidadRegistrador")
+  probationEvaluationsAsEvaluador  ProbationEvaluation[]        @relation("ProbationEvaluador")
+  disciplinaryIncidentsRegistradas DisciplinaryIncident[]       @relation("DisciplinaryRegistrador")
 
   @@map("users")
 }
@@ -138,6 +140,8 @@ model Employee {
   inventoryAdjustmentsRequested InventoryAdjustmentRequest[] @relation("AjusteSolicitante")
   vacationRequests              VacationRequest[]            @relation("VacacionesSolicitante")
   incapacidades                 Incapacidad[]                @relation("IncapacidadEmpleado")
+  probationEvaluations          ProbationEvaluation[]        @relation("ProbationEmpleado")
+  disciplinaryIncidents         DisciplinaryIncident[]       @relation("DisciplinaryEmpleado")
 
   @@index([departamento_id, estatus])
   @@map("employees")
@@ -397,6 +401,7 @@ enum ModuleType {
   DASHBOARD
   REPORTES
   COMPRAS
+  DISCIPLINA
 }
 
 enum StationeryStatus {
@@ -630,6 +635,88 @@ model PurchaseAuditLog {
   @@index([accion])
   @@index([createdAt])
   @@map("purchase_audit_logs")
+}
+
+// ─── AUDITORÍA GENÉRICA DE RH ───
+
+model HrAuditLog {
+  id            String   @id @default(cuid())
+  entidadTipo   String // 'EMPLOYEE' | 'VACATION' | 'INCAPACIDAD' | 'DISCIPLINARY_INCIDENT' | 'PROBATION_EVALUATION'
+  entidadId     String
+  userId        String
+  accion        String // CREACION | ACTUALIZACION | BAJA | APROBACION | RECHAZO | CANCELACION | AUTORIZACION_JEFE | REINCORPORACION | EVALUACION_CAPTURADA
+  valorAnterior Json?
+  valorNuevo    Json?
+  ip            String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+
+  @@index([entidadTipo, entidadId])
+  @@index([userId])
+  @@index([accion])
+  @@index([createdAt])
+  @@map("hr_audit_logs")
+}
+
+// ─── PERIODO DE PRUEBA (EVALUACIONES 30/60/90 DÍAS) ───
+
+enum ProbationEvaluationType {
+  DIA_30
+  DIA_60
+  DIA_90
+}
+
+enum ProbationEvaluationResult {
+  PENDIENTE
+  APROBADO
+  NO_APROBADO
+  EXTENDIDO
+}
+
+model ProbationEvaluation {
+  id              String                    @id @default(cuid())
+  empleadoId      String
+  tipo            ProbationEvaluationType
+  fechaProgramada DateTime
+  fechaRealizada  DateTime?
+  resultado       ProbationEvaluationResult @default(PENDIENTE)
+  evaluadorId     String?
+  comentarios     String?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  empleado        Employee                  @relation("ProbationEmpleado", fields: [empleadoId], references: [id], onDelete: Cascade)
+  evaluador       User?                     @relation("ProbationEvaluador", fields: [evaluadorId], references: [id])
+
+  @@unique([empleadoId, tipo])
+  @@index([empleadoId])
+  @@index([resultado])
+  @@map("probation_evaluations")
+}
+
+// ─── INCIDENCIAS DISCIPLINARIAS ───
+
+enum DisciplinaryIncidentType {
+  RETARDO_FALTA_INJUSTIFICADA
+  ACTA_ADMINISTRATIVA
+}
+
+model DisciplinaryIncident {
+  id              String                   @id @default(cuid())
+  empleadoId      String
+  tipo            DisciplinaryIncidentType
+  fecha           DateTime
+  motivo          String
+  registradoPorId String
+  archivoUrl      String?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  empleado        Employee                 @relation("DisciplinaryEmpleado", fields: [empleadoId], references: [id], onDelete: Cascade)
+  registradoPor   User                     @relation("DisciplinaryRegistrador", fields: [registradoPorId], references: [id])
+
+  @@index([empleadoId])
+  @@index([tipo])
+  @@index([fecha])
+  @@map("disciplinary_incidents")
 }
 
 // ─── PAPELERÍA Y PERIFÉRICOS ───

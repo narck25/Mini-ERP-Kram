@@ -15,6 +15,9 @@ export { vacationApi } from './vacations'
 export { reportApi } from './reports'
 export { incapacidadApi } from './incapacidades'
 export { attendanceApi } from './attendance'
+export { hrAuditApi } from './hrAudit'
+export { probationApi } from './probation'
+export { disciplinaryIncidentApi } from './disciplinaryIncidents'
 
 export const healthApi = {
   check: () => require('./client').default.get('/health'),
