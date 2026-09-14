@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const { recordMovement } = require('./inventory-movement.service');
+const { isInventoryStrictMode } = require('../system-setting.service');
 
 const prisma = new PrismaClient();
 
@@ -79,22 +80,15 @@ class UniformService {
     const empleado = await prisma.employee.findUnique({ where: { id: empleadoId } });
     if (!empleado) throw new Error('Empleado no encontrado');
 
-    // Crear la entrega
-    const delivery = await prisma.uniformDelivery.create({
-      data: {
-        empleadoId,
-        items,
-        entregadoPorId,
-        observaciones
-      },
-      include: {
-        empleado: { select: { id: true, nombres: true, apellidoPaterno: true, clave: true } },
-        entregadoPor: { select: { id: true, nombres: true, apellidoPaterno: true } }
-      }
-    });
+    // Modo estricto (interruptor de Admin): bloquea si falta inventario o no
+    // alcanza el stock. Modo permisivo (default): registra la entrega igual,
+    // crea el renglón de inventario si no existe y deja el stock en negativo
+    // si hace falta — al cargar inventario real, el negativo se corrige solo.
+    const strict = await isInventoryStrictMode();
 
-    // Descontar del inventario
+    const entregas = [];
     for (const item of items) {
+      const cantidad = parseFloat(item.cantidad) || 1;
       const inventoryItem = await prisma.uniformInventory.findFirst({
         where: {
           tipo: item.tipo,
@@ -103,22 +97,70 @@ class UniformService {
         }
       });
 
-      if (inventoryItem) {
-        const nuevo = Math.max(0, inventoryItem.cantidadActual - (item.cantidad || 1));
-        await prisma.uniformInventory.update({
+      if (!inventoryItem) {
+        if (strict) {
+          throw new Error(`No existe en inventario: ${item.tipo} talla ${item.talla}${item.genero ? ` (${item.genero})` : ''}`);
+        }
+        entregas.push({ inventoryItem: null, item, cantidad });
+        continue;
+      }
+      if (strict && inventoryItem.cantidadActual < cantidad) {
+        throw new Error(`Stock insuficiente de ${inventoryItem.tipo} talla ${inventoryItem.talla}: hay ${inventoryItem.cantidadActual}, se requieren ${cantidad}`);
+      }
+
+      entregas.push({ inventoryItem, item, cantidad });
+    }
+
+    return prisma.$transaction(async (tx) => {
+      // Crear la entrega
+      const delivery = await tx.uniformDelivery.create({
+        data: {
+          empleadoId,
+          items,
+          entregadoPorId,
+          observaciones
+        },
+        include: {
+          empleado: { select: { id: true, nombres: true, apellidoPaterno: true, clave: true } },
+          entregadoPor: { select: { id: true, nombres: true, apellidoPaterno: true } }
+        }
+      });
+
+      // Descontar del inventario (o crearlo en negativo si no existía y estamos en modo permisivo)
+      for (const { inventoryItem, item, cantidad } of entregas) {
+        if (!inventoryItem) {
+          const nuevo = await tx.uniformInventory.create({
+            data: {
+              tipo: item.tipo,
+              talla: item.talla,
+              genero: item.genero || null,
+              cantidadActual: -cantidad
+            }
+          });
+          await recordMovement(tx, {
+            tipo: 'UNIFORMES', tipoMovimiento: 'SALIDA',
+            itemId: nuevo.id, itemDescripcion: `${nuevo.tipo} ${nuevo.talla} ${nuevo.genero || ''}`.trim(),
+            cantidad, stockAnterior: 0, stockNuevo: nuevo.cantidadActual,
+            referencia: 'Entrega de uniforme (sin inventario previo, modo permisivo)', usuarioId: userId
+          });
+          continue;
+        }
+
+        const nuevo = inventoryItem.cantidadActual - cantidad;
+        await tx.uniformInventory.update({
           where: { id: inventoryItem.id },
           data: { cantidadActual: nuevo }
         });
-        await recordMovement(null, {
+        await recordMovement(tx, {
           tipo: 'UNIFORMES', tipoMovimiento: 'SALIDA',
           itemId: inventoryItem.id, itemDescripcion: `${inventoryItem.tipo} ${inventoryItem.talla} ${inventoryItem.genero || ''}`.trim(),
-          cantidad: item.cantidad || 1, stockAnterior: inventoryItem.cantidadActual, stockNuevo: nuevo,
+          cantidad, stockAnterior: inventoryItem.cantidadActual, stockNuevo: nuevo,
           referencia: 'Entrega de uniforme', usuarioId: userId
         });
       }
-    }
 
-    return delivery;
+      return delivery;
+    });
   }
 
   static async getDeliveries(filters = {}) {

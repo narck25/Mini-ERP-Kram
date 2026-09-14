@@ -60,6 +60,7 @@ const stationeryRoutes = loadRoute('stationery', './routes/stationery.routes');
 const uniformRoutes = loadRoute('uniform', './routes/uniform.routes');
 const inventoryAdjustmentRoutes = loadRoute('inventory-adjustment', './routes/inventory-adjustment.routes');
 const inventoryMovementRoutes = loadRoute('inventory-movement', './routes/inventory-movement.routes');
+const systemSettingRoutes = loadRoute('system-setting', './routes/system-setting.routes');
 
 const attendanceRoutes = loadRoute('attendance', './routes/attendance.routes');
 const rolesRoutes = loadRoute('roles', './routes/roles.routes');
@@ -167,6 +168,7 @@ app.use('/api', stationeryRoutes);
 app.use('/api', uniformRoutes);
 app.use('/api', inventoryAdjustmentRoutes);
 app.use('/api', inventoryMovementRoutes);
+app.use('/api', systemSettingRoutes);
 app.use('/api/incidencias', attendanceRoutes);
 
 app.use('/api', vacationRoutes);

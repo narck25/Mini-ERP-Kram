@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { stationeryApi } from '@/lib/api'
 import DashboardLayout from '@/components/DashboardLayout'
+import InventoryStrictModeToggle from '@/components/InventoryStrictModeToggle'
 
 export default function AdminPapeleria() {
   const router = useRouter()
@@ -32,19 +33,10 @@ export default function AdminPapeleria() {
     }
   }
 
-  const handleDeliver = async (id) => {
-    if (!confirm('¿Marcar esta solicitud como entregada?')) return
-    try {
-      await stationeryApi.deliverRequest(id)
-      loadRequests()
-    } catch (err) {
-      alert(err.response?.data?.error || 'Error al entregar')
-    }
-  }
-
   const getStatusBadge = (estatus) => {
     const colors = {
       PENDIENTE: 'bg-yellow-100 text-yellow-800',
+      ENTREGADO_PARCIAL: 'bg-blue-100 text-blue-800',
       ENTREGADO: 'bg-green-100 text-green-800',
       CANCELADO: 'bg-red-100 text-red-800'
     }
@@ -73,6 +65,10 @@ export default function AdminPapeleria() {
 
       {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
 
+      <div className="mb-4">
+        <InventoryStrictModeToggle />
+      </div>
+
       {/* Filtros */}
       <div className="flex gap-2 mb-4">
         {['', 'PENDIENTE', 'ENTREGADO', 'CANCELADO'].map((estatus) => (
@@ -100,7 +96,7 @@ export default function AdminPapeleria() {
                 <th className="p-3 text-left">Fecha</th>
                 <th className="p-3 text-left">Artículos</th>
                 <th className="p-3 text-left">Estatus</th>
-                <th className="p-3 text-left">Acciones</th>
+                <th className="p-3 text-left">Acción</th>
               </tr>
             </thead>
             <tbody>
@@ -114,24 +110,16 @@ export default function AdminPapeleria() {
                   <td className="p-3">{req.items?.length || 0} artículos</td>
                   <td className="p-3">
                     <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadge(req.estatus)}`}>
-                      {req.estatus}
+                      {req.estatus.replace('_', ' ')}
                     </span>
                   </td>
                   <td className="p-3">
                     <button
                       onClick={() => router.push(`/compras/papeleria/${req.id}`)}
-                      className="text-blue-600 hover:underline text-sm mr-2"
+                      className="text-blue-600 hover:underline text-sm"
                     >
-                      Ver
+                      {['PENDIENTE', 'ENTREGADO_PARCIAL'].includes(req.estatus) ? 'Ver / Entregar' : 'Ver'}
                     </button>
-                    {req.estatus === 'PENDIENTE' && (
-                      <button
-                        onClick={() => handleDeliver(req.id)}
-                        className="text-green-600 hover:underline text-sm"
-                      >
-                        Entregar
-                      </button>
-                    )}
                   </td>
                 </tr>
               ))}

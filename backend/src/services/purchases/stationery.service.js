@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const { recordMovement } = require('./inventory-movement.service');
+const { isInventoryStrictMode } = require('../system-setting.service');
 
 const prisma = new PrismaClient();
 
@@ -47,7 +48,7 @@ class StationeryService {
       where: { id },
       include: {
         items: true,
-        solicitante: { select: { id: true, nombres: true, apellidoPaterno: true, clave: true } },
+        solicitante: { select: { id: true, userId: true, nombres: true, apellidoPaterno: true, clave: true } },
         departamento: { select: { id: true, nombre: true } },
         entregadoPor: { select: { id: true, nombres: true, apellidoPaterno: true } }
       }
@@ -119,39 +120,135 @@ class StationeryService {
   }
 
   /**
-   * Marcar solicitud como entregada (Admin/Compras)
+   * Marcar solicitud como entregada, total o parcialmente (Admin/Compras).
+   * @param {string} id
+   * @param {string} entregadoPorId
+   * @param {string} userId
+   * @param {Array<{itemId: string, cantidad: number}>} entregas - cantidad que se entrega
+   *   EN ESTA RONDA por cada ítem (no el acumulado). Los ítems que no aparezcan aquí, o
+   *   con cantidad 0, no se tocan. Se puede llamar varias veces sobre la misma solicitud
+   *   mientras queden ítems con saldo pendiente.
    */
-  static async deliverRequest(id, entregadoPorId, userId) {
+  static async deliverRequest(id, entregadoPorId, userId, entregas) {
     const request = await prisma.stationeryRequest.findUnique({
       where: { id },
       include: { items: true }
     });
 
     if (!request) throw new Error('Solicitud no encontrada');
-    if (request.estatus !== 'PENDIENTE') throw new Error('Solo puedes entregar solicitudes pendientes');
+    if (!['PENDIENTE', 'ENTREGADO_PARCIAL'].includes(request.estatus)) {
+      throw new Error('Solo puedes entregar solicitudes pendientes o parcialmente entregadas');
+    }
+    if (!entregas || entregas.length === 0) {
+      throw new Error('Debe indicar la cantidad a entregar de al menos un artículo');
+    }
 
-    // Descontar stock de papelería + registrar salida (kardex)
-    for (const item of request.items) {
+    const itemsById = new Map(request.items.map(item => [item.id, item]));
+    const entregasValidas = entregas.filter(e => e && parseInt(e.cantidad) > 0);
+
+    if (entregasValidas.length === 0) {
+      throw new Error('Debe indicar la cantidad a entregar de al menos un artículo');
+    }
+
+    // Validar que cada entrega no exceda el saldo pendiente del ítem
+    for (const entrega of entregasValidas) {
+      const item = itemsById.get(entrega.itemId);
+      if (!item) throw new Error(`El artículo ${entrega.itemId} no pertenece a esta solicitud`);
+      const saldo = item.cantidad - item.cantidadEntregada;
+      const cantidad = parseInt(entrega.cantidad);
+      if (cantidad > saldo) {
+        throw new Error(`No puedes entregar ${cantidad} de "${item.producto}", solo quedan ${saldo} pendientes`);
+      }
+    }
+
+    // Modo estricto (interruptor de Admin): bloquea si falta inventario o no
+    // alcanza el stock. Modo permisivo (default): registra la entrega igual,
+    // crea el renglón de inventario si no existe y deja el stock en negativo
+    // si hace falta — al cargar inventario real, el negativo se corrige solo.
+    const strict = await isInventoryStrictMode();
+
+    if (strict) {
+      for (const entrega of entregasValidas) {
+        const item = itemsById.get(entrega.itemId);
+        const cantidad = parseInt(entrega.cantidad);
+        const inv = await prisma.stationeryInventory.findUnique({ where: { producto: item.producto } });
+        if (!inv) {
+          throw new Error(`No existe en inventario: ${item.producto}`);
+        }
+        if (inv.cantidadActual < cantidad) {
+          throw new Error(`Stock insuficiente de ${item.producto}: hay ${inv.cantidadActual}, se requieren ${cantidad}`);
+        }
+      }
+    }
+
+    // Descontar stock de papelería + registrar salida (kardex) solo por lo entregado en esta ronda
+    for (const entrega of entregasValidas) {
+      const item = itemsById.get(entrega.itemId);
+      const cantidad = parseInt(entrega.cantidad);
+
+      await prisma.stationeryItem.update({
+        where: { id: item.id },
+        data: { cantidadEntregada: { increment: cantidad } }
+      });
+
       const inv = await prisma.stationeryInventory.findUnique({ where: { producto: item.producto } });
       if (inv) {
-        const nuevo = Math.max(0, inv.cantidadActual - item.cantidad);
+        const nuevo = inv.cantidadActual - cantidad;
         await prisma.stationeryInventory.update({ where: { id: inv.id }, data: { cantidadActual: nuevo } });
         await recordMovement(null, {
           tipo: 'PAPELERIA', tipoMovimiento: 'SALIDA',
           itemId: inv.id, itemDescripcion: inv.producto,
-          cantidad: item.cantidad, stockAnterior: inv.cantidadActual, stockNuevo: nuevo,
+          cantidad, stockAnterior: inv.cantidadActual, stockNuevo: nuevo,
           referencia: 'Entrega de papelería', usuarioId: userId
+        });
+      } else {
+        const nuevoInv = await prisma.stationeryInventory.create({
+          data: { producto: item.producto, categoria: item.categoria || 'OTRO', cantidadActual: -cantidad }
+        });
+        await recordMovement(null, {
+          tipo: 'PAPELERIA', tipoMovimiento: 'SALIDA',
+          itemId: nuevoInv.id, itemDescripcion: nuevoInv.producto,
+          cantidad, stockAnterior: 0, stockNuevo: nuevoInv.cantidadActual,
+          referencia: 'Entrega de papelería (sin inventario previo, modo permisivo)', usuarioId: userId
         });
       }
     }
 
+    // Recalcular el estatus general de la solicitud según lo entregado a la fecha
+    const itemsActualizados = await prisma.stationeryItem.findMany({ where: { requestId: id } });
+    const todoEntregado = itemsActualizados.every(item => item.cantidadEntregada >= item.cantidad);
+
     return prisma.stationeryRequest.update({
       where: { id },
       data: {
-        estatus: 'ENTREGADO',
+        estatus: todoEntregado ? 'ENTREGADO' : 'ENTREGADO_PARCIAL',
         fechaEntrega: new Date(),
         entregadoPorId
       },
+      include: {
+        items: true,
+        solicitante: { select: { id: true, nombres: true, apellidoPaterno: true } },
+        entregadoPor: { select: { id: true, nombres: true, apellidoPaterno: true } }
+      }
+    });
+  }
+
+  /**
+   * El solicitante cierra su propia solicitud parcialmente entregada,
+   * aceptando lo recibido sin esperar el resto.
+   */
+  static async closeRequest(id, employeeId) {
+    const request = await prisma.stationeryRequest.findUnique({ where: { id } });
+
+    if (!request) throw new Error('Solicitud no encontrada');
+    if (request.solicitanteId !== employeeId) throw new Error('No puedes cerrar una solicitud que no te pertenece');
+    if (request.estatus !== 'ENTREGADO_PARCIAL') {
+      throw new Error('Solo puedes cerrar solicitudes con entrega parcial');
+    }
+
+    return prisma.stationeryRequest.update({
+      where: { id },
+      data: { estatus: 'ENTREGADO' },
       include: {
         items: true,
         solicitante: { select: { id: true, nombres: true, apellidoPaterno: true } },

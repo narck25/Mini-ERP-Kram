@@ -43,6 +43,7 @@ export default function MisSolicitudesPapeleria() {
   const getStatusBadge = (estatus) => {
     const colors = {
       PENDIENTE: 'bg-yellow-100 text-yellow-800',
+      ENTREGADO_PARCIAL: 'bg-blue-100 text-blue-800',
       ENTREGADO: 'bg-green-100 text-green-800',
       CANCELADO: 'bg-red-100 text-red-800'
     }
@@ -95,7 +96,7 @@ export default function MisSolicitudesPapeleria() {
                   <td className="p-3">{req.items?.length || 0} artículos</td>
                   <td className="p-3">
                     <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadge(req.estatus)}`}>
-                      {req.estatus}
+                      {req.estatus.replace('_', ' ')}
                     </span>
                   </td>
                   <td className="p-3 text-sm text-gray-600 max-w-xs truncate">{req.justificacion || '-'}</td>

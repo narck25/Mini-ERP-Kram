@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { uniformApi } from '@/lib/api'
 import DashboardLayout from '@/components/DashboardLayout'
+import InventoryStrictModeToggle from '@/components/InventoryStrictModeToggle'
 
 export default function AdminUniformes() {
   const router = useRouter()
@@ -108,6 +109,10 @@ export default function AdminUniformes() {
       </div>
 
       {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
+
+      <div className="mb-4">
+        <InventoryStrictModeToggle />
+      </div>
 
       {deliveries.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">

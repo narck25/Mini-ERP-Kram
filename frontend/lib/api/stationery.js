@@ -5,11 +5,17 @@ export const stationeryApi = {
   getMyRequests: () => api.get('/stationery/my'),
   createRequest: (data) => api.post('/stationery', data),
   cancelRequest: (id) => api.post(`/stationery/${id}/cancel`),
+  closeRequest: (id) => api.post(`/stationery/${id}/close`),
 
   // Gestión (Admin/Compras)
   getAllRequests: (params) => api.get('/stationery', { params }),
   getRequestById: (id) => api.get(`/stationery/${id}`),
-  deliverRequest: (id) => api.post(`/stationery/${id}/deliver`),
+  // entregas: [{ itemId, cantidad }] con lo que se entrega en esta ronda
+  deliverRequest: (id, entregas) => api.post(`/stationery/${id}/deliver`, { entregas }),
+
+  // Comentarios
+  getComments: (id) => api.get(`/stationery/${id}/comments`),
+  addComment: (id, mensaje) => api.post(`/stationery/${id}/comments`, { mensaje }),
 
   // Inventario
   getInventory: (params) => api.get('/stationery/inventory', { params }),

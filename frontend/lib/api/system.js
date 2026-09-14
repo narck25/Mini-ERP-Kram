@@ -18,4 +18,9 @@ export const systemApi = {
 
   // Obtener presets de módulos por rol
   getRolePresets: () => api.get('/roles/presets'),
+
+  // Modo estricto de inventario (papelería/uniformes): si está apagado, las
+  // entregas se registran igual aunque no haya inventario o stock suficiente.
+  getInventoryStrictMode: () => api.get('/settings/inventory-strict-mode'),
+  setInventoryStrictMode: (enabled) => api.put('/settings/inventory-strict-mode', { enabled }),
 }

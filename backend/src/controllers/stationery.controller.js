@@ -65,6 +65,19 @@ class StationeryController {
       if (!request) {
         return res.status(404).json({ error: 'Solicitud no encontrada' });
       }
+
+      // El propio solicitante puede ver su solicitud sin necesidad del módulo
+      // COMPRAS (que por default no tienen ni EMPLEADO_BASICO, ni PRODUCCION,
+      // ni siquiera RH); Admin/Compras pueden ver cualquiera.
+      const isSolicitante = request.solicitante?.userId === req.user.id;
+      const isAdminOrCompras = ['ADMIN', 'COMPRAS'].includes(req.user.role);
+      if (!isSolicitante && !isAdminOrCompras) {
+        return res.status(403).json({
+          error: 'Acceso denegado',
+          message: 'No tiene permisos para ver esta solicitud'
+        });
+      }
+
       res.json({ data: request });
     } catch (error) {
       console.error('Error al obtener solicitud:', error);
@@ -78,10 +91,28 @@ class StationeryController {
       if (!entregadoPorId) {
         return res.status(400).json({ error: 'No tienes un empleado asociado' });
       }
-      const request = await StationeryService.deliverRequest(req.params.id, entregadoPorId, req.user.id);
-      res.json({ data: request, message: 'Solicitud marcada como entregada' });
+      const { entregas } = req.body;
+      const request = await StationeryService.deliverRequest(req.params.id, entregadoPorId, req.user.id, entregas);
+      const mensaje = request.estatus === 'ENTREGADO_PARCIAL'
+        ? 'Entrega parcial registrada'
+        : 'Solicitud marcada como entregada';
+      res.json({ data: request, message: mensaje });
     } catch (error) {
       console.error('Error al entregar solicitud:', error);
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  static async closeRequest(req, res) {
+    try {
+      const employeeId = req.user.employeeId;
+      if (!employeeId) {
+        return res.status(400).json({ error: 'No tienes un empleado asociado' });
+      }
+      const request = await StationeryService.closeRequest(req.params.id, employeeId);
+      res.json({ data: request, message: 'Solicitud cerrada' });
+    } catch (error) {
+      console.error('Error al cerrar solicitud:', error);
       res.status(400).json({ error: error.message });
     }
   }
