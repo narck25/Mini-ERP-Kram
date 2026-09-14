@@ -4,6 +4,7 @@ import { useState, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import DashboardLayout from '@/components/DashboardLayout';
+import api from '@/lib/api/client';
 
 export default function IncidenciasPage() {
   const { user } = useAuth();
@@ -198,19 +199,8 @@ export default function IncidenciasPage() {
     setMessage('');
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/api/incidencias/?startDate=${startDate}&endDate=${endDate}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al consultar registros');
-      }
-
-      const data = await response.json();
+      const response = await api.get('/incidencias/', { params: { startDate, endDate } });
+      const data = response.data;
       if (data.success) {
         setRecords(data.data);
         setMessage(`Se encontraron ${data.data.length} registros`);
@@ -219,7 +209,7 @@ export default function IncidenciasPage() {
       }
     } catch (error) {
       console.error('Error:', error);
-      setMessage('Error al consultar registros: ' + error.message);
+      setMessage('Error al consultar registros: ' + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
     }
@@ -236,16 +226,11 @@ export default function IncidenciasPage() {
     formData.append('csvFile', file);
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/incidencias/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
+      const response = await api.post('/incidencias/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      const data = await response.json();
+      const data = response.data;
       if (data.success) {
         setMessage(`CSV procesado: ${data.message}`);
         // Limpiar el input de archivo
@@ -257,7 +242,7 @@ export default function IncidenciasPage() {
       }
     } catch (error) {
       console.error('Error:', error);
-      setMessage('Error al subir CSV: ' + error.message);
+      setMessage('Error al subir CSV: ' + (error.response?.data?.message || error.message));
     } finally {
       setUploading(false);
     }

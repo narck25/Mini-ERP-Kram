@@ -137,17 +137,10 @@ export default function MisSolicitudesDetallePage() {
     // Cerrar el modal de selección de cotizaciones primero
     setShowQuotesModal(false);
     
-    // Construir la URL completa del archivo
-    // Nota: Las cotizaciones de compras ya tienen URLs completas desde el backend
-    let fileUrl = quote.archivoUrl;
-    
-    // Si la URL no comienza con http, asumir que es una ruta relativa
-    if (!fileUrl.startsWith('http')) {
-      // Agregar el dominio base del backend
-      fileUrl = `http://localhost:3001${fileUrl}`;
-    }
-    
-    const encodedUrl = encodeURI(fileUrl);
+    // La ruta del archivo ya viene relativa (ej. /uploads/purchase-quotes/x.pdf) y
+    // next.config.js reescribe /uploads/:path* hacia el backend, así que no hace
+    // falta anteponer ningún dominio — hacerlo rompía en producción.
+    const encodedUrl = encodeURI(quote.archivoUrl);
     setPdfUrl(encodedUrl);
     setPdfTitle(`Cotización - ${quote.proveedor} - ${formatCurrency(quote.monto)}`);
     
