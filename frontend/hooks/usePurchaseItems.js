@@ -6,7 +6,7 @@ import { toast } from 'react-hot-toast'
  * usePurchaseItems — Hook reutilizable para formularios con items dinámicos
  * Usado en: nueva-solicitud, editar items de mis-solicitudes
  */
-export default function usePurchaseItems(initialItems = [{ productoServicio: '', cantidad: '', descripcion: '' }]) {
+export default function usePurchaseItems(initialItems = [{ productoServicio: '', tipo: 'PRODUCTO', cantidad: '', descripcion: '' }]) {
   const [items, setItems] = useState(initialItems)
 
   const handleItemChange = (index, field, value) => {
@@ -16,7 +16,7 @@ export default function usePurchaseItems(initialItems = [{ productoServicio: '',
   }
 
   const addItem = () => {
-    setItems(prev => [...prev, { productoServicio: '', cantidad: '', descripcion: '' }])
+    setItems(prev => [...prev, { productoServicio: '', tipo: 'PRODUCTO', cantidad: '', descripcion: '' }])
   }
 
   const removeItem = (index) => {
@@ -43,6 +43,7 @@ export default function usePurchaseItems(initialItems = [{ productoServicio: '',
 
   const getItemsPayload = () => items.map(item => ({
     productoServicio: item.productoServicio.trim(),
+    tipo: item.tipo === 'SERVICIO' ? 'SERVICIO' : 'PRODUCTO',
     cantidad: parseFloat(item.cantidad),
     descripcion: item.descripcion?.trim() || null
   }))

@@ -59,6 +59,11 @@ export default function ComprasDetailPage() {
   const [loadingOrder, setLoadingOrder] = useState(false);
   const [showPurchaseOrderModal, setShowPurchaseOrderModal] = useState(false);
 
+  // Estado para el modal de entrega (responsiva)
+  const [showDeliverModal, setShowDeliverModal] = useState(false);
+  const [deliverObservaciones, setDeliverObservaciones] = useState('');
+  const [delivering, setDelivering] = useState(false);
+
   useEffect(() => {
     if (user && (user.role === 'ADMIN' || user.role === 'COMPRAS' || user.accessibleModules?.includes('COMPRAS'))) {
       fetchRequestDetails();
@@ -221,16 +226,19 @@ export default function ComprasDetailPage() {
     }
   };
 
-  const handleMarkAsDelivered = async () => {
-    if (!confirm('¿Marcar esta solicitud como entregada?')) return;
-    
+  const handleConfirmDelivery = async () => {
+    setDelivering(true);
     try {
-      await api.post(`/purchases/${requestId}/deliver`);
+      await api.post(`/purchases/${requestId}/deliver`, { observaciones: deliverObservaciones });
       toast.success('Solicitud marcada como entregada');
+      setShowDeliverModal(false);
+      setDeliverObservaciones('');
       fetchRequestDetails();
     } catch (error) {
       console.error('Error marking as delivered:', error);
       toast.error(error.response?.data?.message || 'Error al marcar como entregada');
+    } finally {
+      setDelivering(false);
     }
   };
 
@@ -420,6 +428,7 @@ export default function ComprasDetailPage() {
     setEditedItems(request.items?.map(item => ({
       id: item.id,
       productoServicio: item.productoServicio,
+      tipo: item.tipo || 'PRODUCTO',
       cantidad: item.cantidad.toString(),
       descripcion: item.descripcion || ''
     })) || []);
@@ -438,7 +447,7 @@ export default function ComprasDetailPage() {
   };
 
   const addItemRow = () => {
-    setEditedItems(prev => [...prev, { id: null, productoServicio: '', cantidad: '', descripcion: '' }]);
+    setEditedItems(prev => [...prev, { id: null, productoServicio: '', tipo: 'PRODUCTO', cantidad: '', descripcion: '' }]);
   };
 
   const removeItemRow = (index) => {
@@ -467,6 +476,7 @@ export default function ComprasDetailPage() {
       setSavingItems(true);
       const itemsToSend = editedItems.map(item => ({
         productoServicio: item.productoServicio.trim(),
+        tipo: item.tipo === 'SERVICIO' ? 'SERVICIO' : 'PRODUCTO',
         cantidad: parseFloat(item.cantidad),
         descripcion: item.descripcion?.trim() || null
       }));
@@ -839,6 +849,7 @@ export default function ComprasDetailPage() {
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto/Servicio</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
@@ -856,6 +867,16 @@ export default function ComprasDetailPage() {
                                 className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 placeholder="Producto o servicio"
                               />
+                            </td>
+                            <td className="px-4 py-2">
+                              <select
+                                value={item.tipo || 'PRODUCTO'}
+                                onChange={(e) => handleItemChange(index, 'tipo', e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              >
+                                <option value="PRODUCTO">Producto</option>
+                                <option value="SERVICIO">Servicio</option>
+                              </select>
                             </td>
                             <td className="px-4 py-2">
                               <input
@@ -942,7 +963,9 @@ export default function ComprasDetailPage() {
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto/Servicio</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entregado</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
                       </tr>
                     </thead>
@@ -953,8 +976,16 @@ export default function ComprasDetailPage() {
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                             {item.productoServicio}
                           </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${item.tipo === 'SERVICIO' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                              {item.tipo === 'SERVICIO' ? 'Servicio' : 'Producto'}
+                            </span>
+                          </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                             {item.cantidad}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                            {item.tipo === 'SERVICIO' ? '-' : `${item.cantidadEntregada || 0} / ${item.cantidad}`}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-900">
                             {item.descripcion || '-'}
@@ -1689,13 +1720,80 @@ export default function ComprasDetailPage() {
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Gestión de entrega</h2>
               <p className="text-sm text-gray-600 mb-4">
                 Marca esta solicitud como entregada cuando se complete la compra.
+                {request.items?.some(i => i.tipo !== 'SERVICIO') && (
+                  <> Se generará una responsiva de entrega para los artículos.</>
+                )}
               </p>
               <button
-                onClick={handleMarkAsDelivered}
+                onClick={() => setShowDeliverModal(true)}
                 className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium"
               >
                 ✅ Marcar como Entregado
               </button>
+            </div>
+
+            {/* Responsivas de entrega ya generadas */}
+            {request.responsivas?.length > 0 && (
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Responsiva de entrega</h2>
+                {request.responsivas.map((r) => (
+                  <div key={r.id} className="border border-gray-200 rounded-md p-4 mb-3 last:mb-0 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                      <p><span className="text-gray-500">Recibió:</span> <span className="font-medium">{r.entregadoA?.nombre}</span></p>
+                      <p><span className="text-gray-500">Área:</span> <span className="font-medium">{r.departamento?.nombre}</span></p>
+                      <p><span className="text-gray-500">Entregó:</span> <span className="font-medium">{r.entregadoPor?.nombre}</span></p>
+                      <p><span className="text-gray-500">Fecha:</span> <span className="font-medium">{new Date(r.fechaEntrega).toLocaleString()}</span></p>
+                    </div>
+                    <ul className="list-disc list-inside text-gray-700">
+                      {(Array.isArray(r.items) ? r.items : []).map((it, idx) => (
+                        <li key={idx}>{it.producto} — {it.cantidad}</li>
+                      ))}
+                    </ul>
+                    {r.observaciones && <p className="mt-2 text-gray-600 italic">"{r.observaciones}"</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Modal de confirmación de entrega (responsiva) */}
+        {showDeliverModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <h3 className="text-lg font-semibold mb-2">Confirmar entrega</h3>
+              {request.items?.some(i => i.tipo !== 'SERVICIO') ? (
+                <p className="text-sm text-gray-600 mb-4">
+                  Se registrará como entregada a <strong>{request.solicitante?.nombre}</strong>, a nombre del área
+                  de <strong>{request.departamento?.nombre}</strong>, y se generará su responsiva.
+                </p>
+              ) : (
+                <p className="text-sm text-gray-600 mb-4">Esta solicitud es de servicio(s), no genera responsiva de inventario.</p>
+              )}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Observaciones (opcional)</label>
+              <textarea
+                value={deliverObservaciones}
+                onChange={(e) => setDeliverObservaciones(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                placeholder="Notas sobre la entrega..."
+              />
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowDeliverModal(false)}
+                  disabled={delivering}
+                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleConfirmDelivery}
+                  disabled={delivering}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium disabled:opacity-50"
+                >
+                  {delivering ? 'Confirmando...' : 'Confirmar entrega'}
+                </button>
+              </div>
             </div>
           </div>
         )}

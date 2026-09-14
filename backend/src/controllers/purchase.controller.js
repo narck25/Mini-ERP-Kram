@@ -287,7 +287,8 @@ class PurchaseController {
   static async markAsDelivered(req, res) {
     try {
       const { id } = req.params;
-      const updatedRequest = await PurchaseService.markAsDelivered(id);
+      const { entregadoAId, departamentoId, observaciones } = req.body;
+      const updatedRequest = await PurchaseService.markAsDelivered(req.user.id, id, { entregadoAId, departamentoId, observaciones });
 
       // Auditoría: entrega
       await audit.logWithReq(

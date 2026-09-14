@@ -59,6 +59,13 @@ const REQUEST_INCLUDE = {
   },
   items: true,
   quotes: true,
+  responsivas: {
+    include: {
+      entregadoA: { select: { id: true, nombre: true } },
+      entregadoPor: { select: { id: true, nombre: true } },
+      departamento: { select: { id: true, nombre: true } }
+    }
+  },
   autorizadoPor: {
     select: { id: true, nombre: true }
   },
@@ -100,6 +107,7 @@ const sanitizeItemsForDraft = (items) => {
   if (!items || !Array.isArray(items)) return [];
   return items.map(item => ({
     productoServicio: (item.productoServicio || '').toString().trim(),
+    tipo: item.tipo === 'SERVICIO' ? 'SERVICIO' : 'PRODUCTO',
     cantidad: parseFloat(item.cantidad) || 0,
     descripcion: item.descripcion || null
   }));
@@ -140,6 +148,7 @@ exports.createRequest = async (userId, justificacion, items, isDraft = false) =>
           data: {
             requestId: purchaseRequest.id,
             productoServicio: item.productoServicio,
+            tipo: item.tipo === 'SERVICIO' ? 'SERVICIO' : 'PRODUCTO',
             cantidad: parseFloat(item.cantidad),
             descripcion: item.descripcion || null
           }
@@ -189,6 +198,7 @@ exports.updateDraft = async (userId, requestId, justificacion, items) => {
           data: {
             requestId,
             productoServicio: item.productoServicio,
+            tipo: item.tipo === 'SERVICIO' ? 'SERVICIO' : 'PRODUCTO',
             cantidad: parseFloat(item.cantidad),
             descripcion: item.descripcion || null
           }
@@ -377,8 +387,11 @@ exports.cancelRequest = async (userId, userRole, requestId) => {
 // ─────────────────────────────────────────────────────────────
 // 6. Marcar solicitud como ENTREGADA
 // ─────────────────────────────────────────────────────────────
-exports.markAsDelivered = async (requestId) => {
-  const request = await prisma.purchaseRequest.findUnique({ where: { id: requestId } });
+exports.markAsDelivered = async (userId, requestId, { entregadoAId, departamentoId, observaciones } = {}) => {
+  const request = await prisma.purchaseRequest.findUnique({
+    where: { id: requestId },
+    include: { items: true }
+  });
   if (!request) {
     throw { status: 404, error: 'Solicitud no encontrada', message: 'La solicitud de compra no existe' };
   }
@@ -387,9 +400,55 @@ exports.markAsDelivered = async (requestId) => {
     throw { status: 400, error: 'Estado inválido', message: 'Solo se pueden marcar como entregadas solicitudes en estado APROBADO' };
   }
 
-  return prisma.purchaseRequest.update({
-    where: { id: requestId },
-    data: { estatus: 'ENTREGADO' }
+  const entregadoPor = await getEmployeeByUserId(userId);
+  if (!entregadoPor) {
+    throw { status: 404, error: 'Empleado no encontrado', message: 'El usuario no tiene un empleado asociado' };
+  }
+
+  // Solo los ítems PRODUCTO pasan por inventario/responsiva; los SERVICIO se
+  // entregan igual que antes (solo cambia el estatus de la solicitud).
+  const itemsProducto = request.items.filter(item => item.tipo === 'PRODUCTO');
+
+  return prisma.$transaction(async (tx) => {
+    if (itemsProducto.length > 0) {
+      await tx.purchaseResponsiva.create({
+        data: {
+          requestId,
+          entregadoAId: entregadoAId || request.solicitanteId,
+          entregadoPorId: entregadoPor.id,
+          departamentoId: departamentoId || request.departamentoId,
+          observaciones: observaciones || null,
+          items: itemsProducto.map(item => ({
+            producto: item.productoServicio,
+            cantidad: item.cantidad
+          }))
+        }
+      });
+
+      await Promise.all(
+        itemsProducto.map(item =>
+          tx.purchaseItem.update({
+            where: { id: item.id },
+            data: { cantidadEntregada: item.cantidad }
+          })
+        )
+      );
+    }
+
+    return tx.purchaseRequest.update({
+      where: { id: requestId },
+      data: { estatus: 'ENTREGADO' },
+      include: {
+        items: true,
+        responsivas: {
+          include: {
+            entregadoA: { select: { id: true, nombre: true } },
+            entregadoPor: { select: { id: true, nombre: true } },
+            departamento: { select: { id: true, nombre: true } }
+          }
+        }
+      }
+    });
   });
 };
 
@@ -691,6 +750,7 @@ exports.updateItems = async (userId, userRole, requestId, items) => {
           data: {
             requestId,
             productoServicio: item.productoServicio,
+            tipo: item.tipo === 'SERVICIO' ? 'SERVICIO' : 'PRODUCTO',
             cantidad: parseFloat(item.cantidad),
             descripcion: item.descripcion || null
           }

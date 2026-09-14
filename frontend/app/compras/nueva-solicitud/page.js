@@ -254,7 +254,7 @@ function NuevaSolicitudComprasContent() {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       {/* Producto/Servicio */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -268,6 +268,22 @@ function NuevaSolicitudComprasContent() {
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           required
                         />
+                      </div>
+
+                      {/* Tipo */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Tipo *
+                        </label>
+                        <select
+                          value={item.tipo || 'PRODUCTO'}
+                          onChange={(e) => handleItemChange(index, 'tipo', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="PRODUCTO">Producto</option>
+                          <option value="SERVICIO">Servicio</option>
+                        </select>
+                        <p className="text-xs text-gray-400 mt-1">Los productos pasan por inventario y responsiva al entregarse.</p>
                       </div>
 
                       {/* Cantidad */}
