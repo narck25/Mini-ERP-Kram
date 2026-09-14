@@ -485,6 +485,7 @@ model PurchaseQuote {
   id                   String          @id @default(cuid())
   requestId            String
   proveedor            String
+  proveedorId          String?
   monto                Float
   fechaCotizacion      DateTime        @default(now())
   archivoUrl           String?
@@ -492,6 +493,7 @@ model PurchaseQuote {
   comentarios          String?
   fechaEstimadaEntrega DateTime?
   request              PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  supplier             Supplier?       @relation(fields: [proveedorId], references: [id])
 
   @@map("purchase_quotes")
 }
@@ -577,6 +579,7 @@ model PurchaseOrder {
   purchaseRequestId String              @unique
   numero            String              @unique // Formato: OC-AAAA-000001
   proveedor         String
+  proveedorId       String?
   monto             Float
   subtotal          Float?
   iva               Float?
@@ -588,8 +591,25 @@ model PurchaseOrder {
   createdAt         DateTime            @default(now())
   request           PurchaseRequest     @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
   items             PurchaseOrderItem[]
+  supplier          Supplier?           @relation(fields: [proveedorId], references: [id])
 
   @@map("purchase_orders")
+}
+
+model Supplier {
+  id        String          @id @default(cuid())
+  nombre    String
+  rfc       String?
+  contacto  String?
+  telefono  String?
+  email     String?
+  activo    Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  quotes    PurchaseQuote[]
+  orders    PurchaseOrder[]
+
+  @@map("suppliers")
 }
 
 model PurchaseOrderItem {

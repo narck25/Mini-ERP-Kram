@@ -440,19 +440,19 @@ class PurchaseController {
   static async updateQuote(req, res) {
     try {
       const { id, quoteId } = req.params;
-      const { proveedor, monto, archivoUrl } = req.body;
+      const { proveedorId, monto, archivoUrl } = req.body;
 
       // Obtener valor anterior antes de actualizar
       const { PrismaClient } = require('@prisma/client');
       const prisma = new PrismaClient();
       const quoteAnterior = await prisma.purchaseQuote.findUnique({ where: { id: quoteId } });
 
-      const updatedQuote = await PurchaseService.updateQuote(id, quoteId, { proveedor, monto, archivoUrl }, req.user.role);
+      const updatedQuote = await PurchaseService.updateQuote(id, quoteId, { proveedorId, monto, archivoUrl }, req.user.role);
 
       // Auditoría: edición de cotización
       const valorAnterior = {};
       const valorNuevo = {};
-      if (proveedor !== undefined) {
+      if (proveedorId !== undefined) {
         valorAnterior.proveedor = quoteAnterior?.proveedor;
         valorNuevo.proveedor = updatedQuote.proveedor;
       }

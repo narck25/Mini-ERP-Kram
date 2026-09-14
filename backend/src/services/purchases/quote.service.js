@@ -12,7 +12,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { _helpers } = require('./purchase.service');
-const { buildFileUrl, getEmployeeByUserId } = _helpers;
+const { buildFileUrl, getEmployeeByUserId, resolveSupplier } = _helpers;
 
 const UMBRAL_AUTORIZACION = 50000;
 
@@ -38,10 +38,13 @@ exports.uploadQuotes = async (req) => {
   }
 
   for (const quote of quotes) {
-    if (!quote.proveedor || !quote.monto) {
-      throw { status: 400, error: 'Datos inválidos', message: 'Cada cotización debe tener proveedor y monto' };
+    if (!quote.proveedorId || !quote.monto) {
+      throw { status: 400, error: 'Datos inválidos', message: 'Cada cotización debe tener un proveedor del catálogo y un monto' };
     }
   }
+
+  // Resolver todos los proveedores antes de la transacción (valida que existan)
+  const suppliers = await Promise.all(quotes.map(quote => resolveSupplier(quote.proveedorId)));
 
   const result = await prisma.$transaction(async (tx) => {
     const existingQuotes = await tx.purchaseQuote.findMany({
@@ -49,11 +52,12 @@ exports.uploadQuotes = async (req) => {
     });
 
     const purchaseQuotes = await Promise.all(
-      quotes.map(quote =>
+      quotes.map((quote, index) =>
         tx.purchaseQuote.create({
           data: {
             requestId: id,
-            proveedor: quote.proveedor,
+            proveedor: suppliers[index].nombre,
+            proveedorId: suppliers[index].id,
             monto: parseFloat(quote.monto),
             archivoUrl: quote.archivoUrl || null,
             fechaCotizacion: new Date(),
@@ -162,7 +166,7 @@ exports.selectQuote = async (req) => {
 // ─────────────────────────────────────────────────────────────
 exports.uploadQuoteWithFile = async (req) => {
   const { id } = req.params;
-  const { proveedor, monto, archivoUrl: bodyArchivoUrl } = req.body;
+  const { proveedorId, monto, archivoUrl: bodyArchivoUrl } = req.body;
 
   const request = await prisma.purchaseRequest.findUnique({ where: { id } });
   if (!request) {
@@ -173,9 +177,11 @@ exports.uploadQuoteWithFile = async (req) => {
     throw { status: 400, error: 'Estado inválido', message: 'Solo se pueden subir cotizaciones a solicitudes en estado NUEVO o PENDIENTE' };
   }
 
-  if (!proveedor || !monto) {
-    throw { status: 400, error: 'Datos inválidos', message: 'Debe proporcionar proveedor y monto' };
+  if (!monto) {
+    throw { status: 400, error: 'Datos inválidos', message: 'Debe proporcionar el monto' };
   }
+
+  const supplier = await resolveSupplier(proveedorId);
 
   const montoNum = parseFloat(monto);
   if (isNaN(montoNum) || montoNum <= 0) {
@@ -193,7 +199,8 @@ exports.uploadQuoteWithFile = async (req) => {
     const purchaseQuote = await tx.purchaseQuote.create({
       data: {
         requestId: id,
-        proveedor: proveedor.trim(),
+        proveedor: supplier.nombre,
+        proveedorId: supplier.id,
         monto: montoNum,
         archivoUrl,
         fechaCotizacion: new Date(),

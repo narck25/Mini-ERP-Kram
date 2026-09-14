@@ -274,6 +274,79 @@ export default function ComprasAdminPage() {
     return Object.values(deptos).sort((a, b) => b.total - a.total);
   })();
 
+  // ─────────────────────────────────────────────────────────────
+  // Calcular gastos por proveedor (mismo criterio: APROBADO/ENTREGADO)
+  // Agrupa por el nombre snapshot del proveedor (siempre presente,
+  // incluso en cotizaciones anteriores al catálogo de proveedores).
+  // ─────────────────────────────────────────────────────────────
+  const gastosPorProveedor = (() => {
+    const proveedores = {};
+    const estadosGasto = ['APROBADO', 'ENTREGADO'];
+
+    requests.forEach(req => {
+      if (!estadosGasto.includes(req.estatus)) return;
+      if (!req?.quotes?.length) return;
+      const selectedQuote = req.quotes.find(q => q.isSelected);
+      const quote = selectedQuote || req.quotes.reduce((lowest, current) => current.monto < lowest.monto ? current : lowest);
+      const proveedor = quote?.proveedor || 'Sin proveedor';
+      const monto = calculateTotal(req);
+
+      if (!proveedores[proveedor]) {
+        proveedores[proveedor] = { proveedor, total: 0, cantidad: 0 };
+      }
+      proveedores[proveedor].total += monto;
+      proveedores[proveedor].cantidad += 1;
+    });
+
+    return Object.values(proveedores).sort((a, b) => b.total - a.total);
+  })();
+
+  const exportGastosPorProveedor = () => {
+    if (!gastosPorProveedor.length) {
+      toast.error('No hay datos de gastos para exportar');
+      return;
+    }
+    try {
+      const totalGeneral = gastosPorProveedor.reduce((s, p) => s + p.total, 0);
+      const totalCantidad = gastosPorProveedor.reduce((s, p) => s + p.cantidad, 0);
+
+      const dataToExport = [
+        ...gastosPorProveedor.map(p => ({
+          "Proveedor": p.proveedor,
+          "Solicitudes Completadas": p.cantidad,
+          "Total Gastado": p.total,
+          "Total Formateado": formatCurrency(p.total)
+        })),
+        {
+          "Proveedor": "TOTAL GENERAL",
+          "Solicitudes Completadas": totalCantidad,
+          "Total Gastado": totalGeneral,
+          "Total Formateado": formatCurrency(totalGeneral)
+        }
+      ];
+
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const maxWidth = dataToExport.reduce((acc, row) => {
+        Object.keys(row).forEach(key => {
+          const cellValue = String(row[key] || '');
+          acc[key] = Math.max(acc[key] || 0, cellValue.length);
+        });
+        return acc;
+      }, {});
+      worksheet['!cols'] = Object.keys(maxWidth).map(key => ({ wch: Math.min(maxWidth[key] + 2, 50) }));
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Gastos por Proveedor");
+
+      const fecha = new Date().toISOString().split('T')[0].replace(/-/g, '');
+      XLSX.writeFile(workbook, `Gastos_por_Proveedor_${fecha}.xlsx`);
+      toast.success('Reporte de gastos por proveedor exportado exitosamente');
+    } catch (error) {
+      console.error('Error exporting gastos:', error);
+      toast.error('Error al exportar el reporte de gastos');
+    }
+  };
+
   const exportGastosPorDepartamento = () => {
     if (!gastosPorDepto.length) {
       toast.error('No hay datos de gastos para exportar');
@@ -473,6 +546,60 @@ export default function ComprasAdminPage() {
           </div>
         )}
 
+        {/* Gasto por Proveedor */}
+        {requests.length > 0 && (
+          <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Gasto por Proveedor</h2>
+              <button
+                onClick={() => exportGastosPorProveedor()}
+                className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Exportar
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              Montos totales de solicitudes aprobadas y entregadas, agrupados por proveedor de la cotización usada.
+            </p>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={gastosPorProveedor}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="proveedor" />
+                <YAxis tickFormatter={(val) => `$${(val/1000).toFixed(0)}k`} />
+                <Tooltip formatter={(val) => formatCurrency(val)} />
+                <Bar dataKey="total" radius={[4, 4, 0, 0]} fill="#8B5CF6" />
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-3 font-medium text-gray-600">Proveedor</th>
+                    <th className="text-right py-2 px-3 font-medium text-gray-600">Solicitudes</th>
+                    <th className="text-right py-2 px-3 font-medium text-gray-600">Total Gastado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gastosPorProveedor.map((prov, idx) => (
+                    <tr key={idx} className="border-b hover:bg-gray-50">
+                      <td className="py-2 px-3 font-medium">{prov.proveedor}</td>
+                      <td className="py-2 px-3 text-right">{prov.cantidad}</td>
+                      <td className="py-2 px-3 text-right font-semibold">{formatCurrency(prov.total)}</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-gray-50 font-semibold">
+                    <td className="py-2 px-3">TOTAL GENERAL</td>
+                    <td className="py-2 px-3 text-right">{gastosPorProveedor.reduce((s, p) => s + p.cantidad, 0)}</td>
+                    <td className="py-2 px-3 text-right">{formatCurrency(gastosPorProveedor.reduce((s, p) => s + p.total, 0))}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Filtros */}
         <div className="mb-6 bg-white border border-gray-200 rounded-lg p-4">

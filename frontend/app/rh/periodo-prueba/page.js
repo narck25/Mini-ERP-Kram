@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import DashboardLayout from '@/components/DashboardLayout';
-import { probationApi } from '@/lib/api';
+import { probationApi } from '@/lib/api/probation';
 import { toast } from 'react-hot-toast';
 import ProbationCaptureModal from '@/components/ProbationCaptureModal';
 

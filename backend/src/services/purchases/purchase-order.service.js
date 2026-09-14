@@ -487,6 +487,7 @@ const generateOrder = async (requestId, userId, customItems = null, extraData = 
         purchaseRequestId: requestId,
         numero,
         proveedor: selectedQuote.proveedor,
+        proveedorId: selectedQuote.proveedorId,
         monto: montoTotal,
         subtotal: subtotal > 0 ? subtotal : null,
         iva: iva > 0 ? iva : null,

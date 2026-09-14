@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import ProbationCaptureModal from '@/components/ProbationCaptureModal';
-import { probationApi } from '@/lib/api';
+import { probationApi } from '@/lib/api/probation';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
 const fmt = (iso) => (iso ? new Date(iso).toISOString().substring(0, 10).split('-').reverse().join('/') : '—');

@@ -34,6 +34,22 @@ const getEmployeeByUserId = async (userId) => {
 };
 
 // ─────────────────────────────────────────────────────────────
+// Función auxiliar: resolver un proveedor del catálogo por id.
+// Devuelve su nombre para guardarlo como snapshot en el campo
+// `proveedor` (texto), además de conservar `proveedorId`.
+// ─────────────────────────────────────────────────────────────
+const resolveSupplier = async (proveedorId) => {
+  if (!proveedorId) {
+    throw { status: 400, error: 'Datos inválidos', message: 'Debe seleccionar un proveedor del catálogo' };
+  }
+  const supplier = await prisma.supplier.findUnique({ where: { id: proveedorId } });
+  if (!supplier) {
+    throw { status: 404, error: 'Proveedor no encontrado', message: 'El proveedor seleccionado no existe en el catálogo' };
+  }
+  return supplier;
+};
+
+// ─────────────────────────────────────────────────────────────
 // Función auxiliar: transformar URLs de cotizaciones
 // ─────────────────────────────────────────────────────────────
 const transformQuoteUrls = (req, quotes) => {
@@ -531,11 +547,10 @@ exports.updateQuote = async (requestId, quoteId, data, userRole) => {
   // Construir objeto de actualización solo con campos proporcionados
   const updateData = {};
 
-  if (data.proveedor !== undefined) {
-    if (!data.proveedor || !data.proveedor.trim()) {
-      throw { status: 400, error: 'Datos inválidos', message: 'El nombre del proveedor no puede estar vacío' };
-    }
-    updateData.proveedor = data.proveedor.trim();
+  if (data.proveedorId !== undefined) {
+    const supplier = await resolveSupplier(data.proveedorId);
+    updateData.proveedorId = supplier.id;
+    updateData.proveedor = supplier.nombre;
   }
 
   if (data.monto !== undefined) {
@@ -770,6 +785,7 @@ exports._helpers = {
 
   buildFileUrl,
   getEmployeeByUserId,
+  resolveSupplier,
   transformQuoteUrls,
   REQUEST_INCLUDE
 };

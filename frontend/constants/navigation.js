@@ -31,6 +31,7 @@ export const adminNavigation = [
   { name: 'Vacaciones', href: '/rh/vacaciones', icon: '🏖️', module: 'VACACIONES', roles: ['ADMIN', 'RH'] },
   { name: 'Reportes', href: '/dashboard/reportes', icon: '📊', module: 'REPORTES', roles: ['ADMIN', 'RH'] },
   { name: 'Gestión de Compras', href: '/dashboard/compras', icon: '🛒', module: 'COMPRAS', roles: ['ADMIN', 'COMPRAS'] },
+  { name: 'Proveedores', href: '/dashboard/compras/proveedores', icon: '🏭', module: 'COMPRAS', roles: ['ADMIN', 'COMPRAS'] },
   { name: 'Papelería', href: '/dashboard/compras/papeleria', icon: '📄', module: 'COMPRAS', roles: ['ADMIN', 'COMPRAS'] },
   { name: 'Uniformes', href: '/dashboard/compras/uniformes', icon: '👕', module: 'COMPRAS', roles: ['ADMIN', 'RH', 'COMPRAS'] },
   { name: 'Aprobaciones de Inventario', href: '/dashboard/compras/aprobaciones-inventario', icon: '✅', module: 'COMPRAS', roles: ['ADMIN', 'RH'] },

@@ -10,6 +10,7 @@ import Link from 'next/link';
 import QuoteSelectionModal from '@/components/QuoteSelectionModal';
 import PurchaseOrderModal from '@/components/PurchaseOrderModal';
 import PurchaseComments from '@/components/PurchaseComments';
+import SupplierSelect from '@/components/SupplierSelect';
 
 export default function ComprasDetailPage() {
   const { user } = useAuth();
@@ -23,9 +24,9 @@ export default function ComprasDetailPage() {
   
   // Estado para las cotizaciones
   const [quotes, setQuotes] = useState([
-    { proveedor: '', monto: '', archivoUrl: '', fileName: '' },
-    { proveedor: '', monto: '', archivoUrl: '', fileName: '' },
-    { proveedor: '', monto: '', archivoUrl: '', fileName: '' }
+    { proveedorId: '', monto: '', archivoUrl: '', fileName: '' },
+    { proveedorId: '', monto: '', archivoUrl: '', fileName: '' },
+    { proveedorId: '', monto: '', archivoUrl: '', fileName: '' }
   ]);
   
   // Estado para el modal de PDF
@@ -35,7 +36,7 @@ export default function ComprasDetailPage() {
   
   // Estado para edición de cotizaciones (proveedor + monto)
   const [editingQuoteId, setEditingQuoteId] = useState(null);
-  const [editingQuoteData, setEditingQuoteData] = useState({ proveedor: '', monto: '' });
+  const [editingQuoteData, setEditingQuoteData] = useState({ proveedorId: '', monto: '' });
   const [updatingAmount, setUpdatingAmount] = useState(false);
 
   // Estado para edición de items
@@ -83,7 +84,7 @@ export default function ComprasDetailPage() {
         response.data.request.quotes.forEach((quote, index) => {
           if (index < 3) {
             existingQuotes[index] = {
-              proveedor: quote.proveedor || '',
+              proveedorId: quote.proveedorId || '',
               monto: quote.monto?.toString() || '',
               archivoUrl: quote.archivoUrl || ''
             };
@@ -110,10 +111,10 @@ export default function ComprasDetailPage() {
 
   const handleUploadQuotes = async () => {
     // Validar que al menos una cotización tenga proveedor y monto
-    const validQuotes = quotes.filter(q => q.proveedor.trim() && q.monto.trim());
-    
+    const validQuotes = quotes.filter(q => q.proveedorId && q.monto.trim());
+
     if (validQuotes.length === 0) {
-      toast.error('Debe ingresar al menos una cotización con proveedor y monto');
+      toast.error('Debe seleccionar al menos un proveedor del catálogo e ingresar el monto');
       return;
     }
 
@@ -126,9 +127,9 @@ export default function ComprasDetailPage() {
 
     try {
       setUploading(true);
-      
+
       const quotesToSend = validQuotes.map(q => ({
-        proveedor: q.proveedor.trim(),
+        proveedorId: q.proveedorId,
         monto: parseFloat(q.monto),
         archivoUrl: q.archivoUrl.trim() || null
       }));
@@ -150,8 +151,8 @@ export default function ComprasDetailPage() {
     const quote = quotes[index];
     
     // Validar que la cotización tenga proveedor y monto
-    if (!quote.proveedor?.trim() || !quote.monto?.trim()) {
-      toast.error('Debe ingresar proveedor y monto para esta cotización');
+    if (!quote.proveedorId || !quote.monto?.trim()) {
+      toast.error('Debe seleccionar un proveedor del catálogo e ingresar el monto para esta cotización');
       return;
     }
 
@@ -185,7 +186,7 @@ export default function ComprasDetailPage() {
       
       // Crear FormData con todos los datos (archivo + cotización)
       const formData = new FormData();
-      formData.append('proveedor', quote.proveedor.trim());
+      formData.append('proveedorId', quote.proveedorId);
       formData.append('monto', quote.monto.trim());
       if (file) {
         formData.append('file', file);
@@ -213,7 +214,7 @@ export default function ComprasDetailPage() {
       
       // Limpiar la cotización del formulario
       const newQuotes = [...quotes];
-      newQuotes[index] = { proveedor: '', monto: '', archivoUrl: '', fileName: '' };
+      newQuotes[index] = { proveedorId: '', monto: '', archivoUrl: '', fileName: '' };
       setQuotes(newQuotes);
       
       // Recargar datos completos del backend en segundo plano (sin await)
@@ -500,7 +501,7 @@ export default function ComprasDetailPage() {
 
     setEditingQuoteId(quote.id);
     setEditingQuoteData({
-      proveedor: quote.proveedor || '',
+      proveedorId: quote.proveedorId || '',
       monto: quote.monto?.toString() || ''
     });
   };
@@ -508,15 +509,15 @@ export default function ComprasDetailPage() {
   // Función para cancelar la edición
   const cancelEditingQuote = () => {
     setEditingQuoteId(null);
-    setEditingQuoteData({ proveedor: '', monto: '' });
+    setEditingQuoteData({ proveedorId: '', monto: '' });
   };
 
   // Función para guardar la cotización editada
   const saveEditedQuote = async (quoteId) => {
-    const { proveedor, monto } = editingQuoteData;
-    
-    if (!proveedor || !proveedor.trim()) {
-      toast.error('El nombre del proveedor no puede estar vacío');
+    const { proveedorId, monto } = editingQuoteData;
+
+    if (!proveedorId) {
+      toast.error('Debe seleccionar un proveedor del catálogo');
       return;
     }
     if (!monto || isNaN(parseFloat(monto)) || parseFloat(monto) <= 0) {
@@ -526,9 +527,9 @@ export default function ComprasDetailPage() {
 
     try {
       setUpdatingAmount(true);
-      
+
       await api.put(`/purchases/${requestId}/quotes/${quoteId}`, {
-        proveedor: proveedor.trim(),
+        proveedorId,
         monto: parseFloat(monto)
       });
       
@@ -1027,12 +1028,9 @@ export default function ComprasDetailPage() {
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                               Proveedor *
                             </label>
-                            <input
-                              type="text"
-                              value={quote.proveedor}
-                              onChange={(e) => handleQuoteChange(index, 'proveedor', e.target.value)}
-                              placeholder="Nombre del proveedor"
-                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                            <SupplierSelect
+                              value={quote.proveedorId}
+                              onChange={(id) => handleQuoteChange(index, 'proveedorId', id)}
                             />
                           </div>
                           
@@ -1084,7 +1082,7 @@ export default function ComprasDetailPage() {
                         <div className="mt-8 pt-6 border-t border-gray-200">
                           <button
                             onClick={() => handleUploadSingleQuote(index)}
-                            disabled={uploading || !quote.proveedor.trim() || !quote.monto.trim()}
+                            disabled={uploading || !quote.proveedorId || !quote.monto.trim()}
                             className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all duration-200 shadow-sm hover:shadow"
                           >
                             {uploading ? (
@@ -1102,8 +1100,8 @@ export default function ComprasDetailPage() {
                             )}
                           </button>
                           <p className="text-xs text-gray-500 mt-2 text-center">
-                            {!quote.proveedor.trim() || !quote.monto.trim() ? 
-                              'Completa proveedor y monto para habilitar' : 
+                            {!quote.proveedorId || !quote.monto.trim() ?
+                              'Selecciona proveedor y completa el monto para habilitar' :
                               '✓ Lista para subir'}
                           </p>
                         </div>
@@ -1164,11 +1162,9 @@ export default function ComprasDetailPage() {
                             
                             <div>
                               <label className="block text-xs font-medium text-gray-600 mb-1">Proveedor</label>
-                              <input
-                                type="text"
-                                value={editingQuoteData.proveedor}
-                                onChange={(e) => setEditingQuoteData(prev => ({ ...prev, proveedor: e.target.value }))}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                              <SupplierSelect
+                                value={editingQuoteData.proveedorId}
+                                onChange={(id) => setEditingQuoteData(prev => ({ ...prev, proveedorId: id }))}
                               />
                             </div>
                             
