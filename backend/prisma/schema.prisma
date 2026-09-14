@@ -8,24 +8,25 @@ datasource db {
 }
 
 model User {
-  id                String           @id @default(cuid())
-  email             String           @unique
-  password          String
-  name              String
-  role              String           @default("EMPLEADO_BASICO")
-  accessibleModules ModuleType[]     @default([DASHBOARD])
-  isActive          Boolean          @default(true)
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  employee          Employee?
-  sessions          Session[]
-  VacancyComment    VacancyComment[]
-  purchaseComments  PurchaseComment[]
+  id                           String                       @id @default(cuid())
+  email                        String                       @unique
+  password                     String
+  name                         String
+  role                         String                       @default("EMPLEADO_BASICO")
+  accessibleModules            ModuleType[]                 @default([DASHBOARD])
+  isActive                     Boolean                      @default(true)
+  createdAt                    DateTime                     @default(now())
+  updatedAt                    DateTime                     @updatedAt
+  employee                     Employee?
+  sessions                     Session[]
+  VacancyComment               VacancyComment[]
+  purchaseComments             PurchaseComment[]
+  stationeryComments           StationeryComment[]
   inventoryAdjustmentsApproved InventoryAdjustmentRequest[] @relation("AjusteAprobador")
-  inventoryMovements InventoryMovement[]
-  vacationsApproved VacationRequest[] @relation("VacacionesAprobador")
-  vacationsAuthorizedAsJefe VacationRequest[] @relation("VacacionesJefe")
-  incapacidadesRegistradas Incapacidad[] @relation("IncapacidadRegistrador")
+  inventoryMovements           InventoryMovement[]
+  vacationsApproved            VacationRequest[]            @relation("VacacionesAprobador")
+  vacationsAuthorizedAsJefe    VacationRequest[]            @relation("VacacionesJefe")
+  incapacidadesRegistradas     Incapacidad[]                @relation("IncapacidadRegistrador")
 
   @@map("users")
 }
@@ -55,86 +56,88 @@ model Session {
 }
 
 model Employee {
-  id                    String             @id @default(cuid())
-  userId                String?            @unique
-  salarioMensual        Float?             @map("salary")
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
-  curp                  String             @unique
-  departamento_id       String
-  estatus               EmployeeStatus     @default(Activo)
-  fechaAlta             DateTime           @map("fecha_ingreso")
-  nss                   String             @unique
-  puestoId              String?
-  rfc                   String             @unique
-  apellidoMaterno       String?
-  apellidoPaterno       String?
-  area                  String?
-  banco                 String?
-  beneficiario1         String?
-  beneficiario2         String?
-  clabe                 String?
-  clave                 String?            @unique
-  contrato              String?
-  correoElectronico     String?
-  correoEmpresa         String?
-  cpFiscal              String?
-  direccionCompleta     String?
-  estado                String?
-  estadoCivil           String?
-  fechaBaja             DateTime?
-  fechaNacBeneficiario1 DateTime?
-  fechaNacBeneficiario2 DateTime?
-  fechaNacimiento       DateTime?
-  horario               String?
-  lugarNacimiento       String?
-  motivoBaja            String?
-  nacionalidad          String?
-  nivelAcademico        String?
-  nombreConyuge         String?
-  nombres               String?
-  numeroCuenta          String?
-  porcentaje1           Float?
-  porcentaje2           Float?
-  region                String?
-  sexo                  String?
-  sucursal              String?
-  tallaCamisa           String?
-  tallaPantalon         String?
-  tallaPlayera          String?
-  tallaZapatos          String?
-  telefonoCasa          String?
-  telefonoMovil         String?
-  nombre                String?
-  jefeDirecto           String?
-  sd                    Float?
-  sdi                   Float?
-  nivelJerarquico       NivelJerarquico?   @default(OPERATIVO)
-  reportaAId            String?
-  fotoUrl               String?
-  esPadre               Boolean            @default(false)
-  numeroHijos           Int                @default(0)
-  documents             EmployeeDocument[]
-  departamento          Department         @relation(fields: [departamento_id], references: [id])
-  user                  User?              @relation(fields: [userId], references: [id])
-  reportaA              Employee?          @relation("Jerarquia", fields: [reportaAId], references: [id])
-  subordinados          Employee[]         @relation("Jerarquia")
-  autorizadoVacancies   JobVacancy[]       @relation("AutorizadoPor")
-  jobVacancies          JobVacancy[]       @relation("Solicitante")
-  voBoVacancies         JobVacancy[]       @relation("VoBoPor")
-  comprasSolicitadas    PurchaseRequest[]  @relation("ComprasSolicitante")
-  comprasAutorizadas    PurchaseRequest[]  @relation("ComprasAutorizador")
-  purchaseApprovals     PurchaseApprover[]
-  puesto                JobPosition?       @relation(fields: [puestoId], references: [id])
-  salaryHistory         SalaryHistory[]
-  notificationLogs      NotificationLog[]
-  stationeryRequests    StationeryRequest[] @relation("PapeleriaSolicitante")
-  stationeryDeliveries  StationeryRequest[] @relation("PapeleriaEntregador")
-  uniformDeliveries     UniformDelivery[]   @relation("UniformeEmpleado")
-  uniformDeliveriesMade UniformDelivery[]   @relation("UniformeEntregador")
+  id                            String                       @id @default(cuid())
+  userId                        String?                      @unique
+  salarioMensual                Float?                       @map("salary")
+  createdAt                     DateTime                     @default(now())
+  updatedAt                     DateTime                     @updatedAt
+  curp                          String                       @unique
+  departamento_id               String
+  estatus                       EmployeeStatus               @default(Activo)
+  fechaAlta                     DateTime                     @map("fecha_ingreso")
+  nss                           String                       @unique
+  puestoId                      String?
+  rfc                           String                       @unique
+  apellidoMaterno               String?
+  apellidoPaterno               String?
+  area                          String?
+  banco                         String?
+  beneficiario1                 String?
+  beneficiario2                 String?
+  clabe                         String?
+  clave                         String?                      @unique
+  contrato                      String?
+  correoElectronico             String?
+  correoEmpresa                 String?
+  cpFiscal                      String?
+  direccionCompleta             String?
+  estado                        String?
+  estadoCivil                   String?
+  fechaBaja                     DateTime?
+  fechaNacBeneficiario1         DateTime?
+  fechaNacBeneficiario2         DateTime?
+  fechaNacimiento               DateTime?
+  horario                       String?
+  lugarNacimiento               String?
+  motivoBaja                    String?
+  nacionalidad                  String?
+  nivelAcademico                String?
+  nombreConyuge                 String?
+  nombres                       String?
+  numeroCuenta                  String?
+  porcentaje1                   Float?
+  porcentaje2                   Float?
+  region                        String?
+  sexo                          String?
+  sucursal                      String?
+  tallaCamisa                   String?
+  tallaPantalon                 String?
+  tallaPlayera                  String?
+  tallaZapatos                  String?
+  telefonoCasa                  String?
+  telefonoMovil                 String?
+  nombre                        String?
+  jefeDirecto                   String?
+  sd                            Float?
+  sdi                           Float?
+  nivelJerarquico               NivelJerarquico?             @default(OPERATIVO)
+  reportaAId                    String?
+  fotoUrl                       String?
+  esPadre                       Boolean                      @default(false)
+  numeroHijos                   Int                          @default(0)
+  documents                     EmployeeDocument[]
+  departamento                  Department                   @relation(fields: [departamento_id], references: [id])
+  user                          User?                        @relation(fields: [userId], references: [id])
+  reportaA                      Employee?                    @relation("Jerarquia", fields: [reportaAId], references: [id])
+  subordinados                  Employee[]                   @relation("Jerarquia")
+  autorizadoVacancies           JobVacancy[]                 @relation("AutorizadoPor")
+  jobVacancies                  JobVacancy[]                 @relation("Solicitante")
+  voBoVacancies                 JobVacancy[]                 @relation("VoBoPor")
+  comprasSolicitadas            PurchaseRequest[]            @relation("ComprasSolicitante")
+  comprasAutorizadas            PurchaseRequest[]            @relation("ComprasAutorizador")
+  responsivasRecibidas          PurchaseResponsiva[]         @relation("ComprasResponsivaReceptor")
+  responsivasEntregadas         PurchaseResponsiva[]         @relation("ComprasResponsivaEntregador")
+  purchaseApprovals             PurchaseApprover[]
+  puesto                        JobPosition?                 @relation(fields: [puestoId], references: [id])
+  salaryHistory                 SalaryHistory[]
+  notificationLogs              NotificationLog[]
+  stationeryRequests            StationeryRequest[]          @relation("PapeleriaSolicitante")
+  stationeryDeliveries          StationeryRequest[]          @relation("PapeleriaEntregador")
+  uniformDeliveries             UniformDelivery[]            @relation("UniformeEmpleado")
+  uniformDeliveriesMade         UniformDelivery[]            @relation("UniformeEntregador")
   inventoryAdjustmentsRequested InventoryAdjustmentRequest[] @relation("AjusteSolicitante")
-  vacationRequests VacationRequest[] @relation("VacacionesSolicitante")
-  incapacidades Incapacidad[] @relation("IncapacidadEmpleado")
+  vacationRequests              VacationRequest[]            @relation("VacacionesSolicitante")
+  incapacidades                 Incapacidad[]                @relation("IncapacidadEmpleado")
 
   @@index([departamento_id, estatus])
   @@map("employees")
@@ -172,29 +175,29 @@ model JobVacancy {
   estatus                 VacancyStatus    @default(Solicitada)
   requerimientos_tecnicos Json?
   titulo                  String?
-  
+
   // Nuevos campos para digitalización del formato físico
-  personaAReemplazarNombre  String?
-  personaAReemplazarCargo   String?
-  noAceptanReingresos       Boolean        @default(false)
-  reqComputadoraEscritorio  Boolean        @default(false)
-  reqLaptop                 Boolean        @default(false)
-  reqTelefonoMovil          Boolean        @default(false)
-  reqExtensionTelefonica    Boolean        @default(false)
-  otrosRequerimientosFisicos String?       @map("otros_requerimientos_fisicos")
-  consideraPromocionInterna Boolean        @default(false)
-  candidatosInternosPropuestos Json?       @map("candidatos_internos_propuestos")
-  observacionesPromocion    String?        @map("observaciones_promocion")
-  conocimientosAdicionales  String?        @map("conocimientos_adicionales")
-  
-  candidatesRH            CandidateRH[]
-  JobActivity             JobActivity[]
-  autorizadoPor           Employee?        @relation("AutorizadoPor", fields: [autorizadoPorId], references: [id])
-  departamento            Department?      @relation(fields: [departamento_id], references: [id])
-  solicitante             Employee         @relation("Solicitante", fields: [solicitanteId], references: [id], onDelete: Cascade)
-  voBoPor                 Employee?        @relation("VoBoPor", fields: [voBoPorId], references: [id])
-  jobPosition             JobPosition?     @relation(fields: [jobPositionId], references: [id])
-  comments                VacancyComment[]
+  personaAReemplazarNombre     String?
+  personaAReemplazarCargo      String?
+  noAceptanReingresos          Boolean @default(false)
+  reqComputadoraEscritorio     Boolean @default(false)
+  reqLaptop                    Boolean @default(false)
+  reqTelefonoMovil             Boolean @default(false)
+  reqExtensionTelefonica       Boolean @default(false)
+  otrosRequerimientosFisicos   String? @map("otros_requerimientos_fisicos")
+  consideraPromocionInterna    Boolean @default(false)
+  candidatosInternosPropuestos Json?   @map("candidatos_internos_propuestos")
+  observacionesPromocion       String? @map("observaciones_promocion")
+  conocimientosAdicionales     String? @map("conocimientos_adicionales")
+
+  candidatesRH  CandidateRH[]
+  JobActivity   JobActivity[]
+  autorizadoPor Employee?        @relation("AutorizadoPor", fields: [autorizadoPorId], references: [id])
+  departamento  Department?      @relation(fields: [departamento_id], references: [id])
+  solicitante   Employee         @relation("Solicitante", fields: [solicitanteId], references: [id], onDelete: Cascade)
+  voBoPor       Employee?        @relation("VoBoPor", fields: [voBoPorId], references: [id])
+  jobPosition   JobPosition?     @relation(fields: [jobPositionId], references: [id])
+  comments      VacancyComment[]
 
   @@index([estatus, fechaSolicitud])
   @@map("job_vacancies")
@@ -217,31 +220,32 @@ model JobActivity {
 }
 
 model Department {
-  id           String       @id @default(cuid())
-  nombre       String       @unique
-  descripcion  String?
-  estado       String       @default("Activo")
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  employees    Employee[]
-  jobVacancies JobVacancy[]
-  jobPositions JobPosition[]
-  purchaseRequests PurchaseRequest[] @relation("ComprasDepartamento")
-  stationeryRequests StationeryRequest[] @relation("PapeleriaDepartamento")
+  id                  String               @id @default(cuid())
+  nombre              String               @unique
+  descripcion         String?
+  estado              String               @default("Activo")
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  employees           Employee[]
+  jobVacancies        JobVacancy[]
+  jobPositions        JobPosition[]
+  purchaseRequests    PurchaseRequest[]    @relation("ComprasDepartamento")
+  stationeryRequests  StationeryRequest[]  @relation("PapeleriaDepartamento")
+  purchaseResponsivas PurchaseResponsiva[]
 
   @@map("departments")
 }
 
 model JobPosition {
-  id              String           @id @default(cuid())
+  id              String          @id @default(cuid())
   nombre          String
   descripcion     String?
-  nivelJerarquico NivelJerarquico  @default(OPERATIVO)
-  estado          String           @default("Activo")
+  nivelJerarquico NivelJerarquico @default(OPERATIVO)
+  estado          String          @default("Activo")
   departamentoId  String
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  departamento    Department       @relation(fields: [departamentoId], references: [id])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  departamento    Department      @relation(fields: [departamentoId], references: [id])
   employees       Employee[]
   jobVacancies    JobVacancy[]
 
@@ -397,6 +401,7 @@ enum ModuleType {
 
 enum StationeryStatus {
   PENDIENTE
+  ENTREGADO_PARCIAL
   ENTREGADO
   CANCELADO
 }
@@ -412,27 +417,28 @@ enum PurchaseStatus {
 }
 
 model PurchaseRequest {
-  id              String         @id @default(cuid())
-  folio           Int            @default(autoincrement())
-  solicitanteId   String
-  departamentoId  String
-  estatus         PurchaseStatus @default(NUEVO)
-  fechaSolicitud  DateTime       @default(now())
-  justificacion   String?
-  solicitante     Employee       @relation("ComprasSolicitante", fields: [solicitanteId], references: [id])
-  departamento    Department     @relation("ComprasDepartamento", fields: [departamentoId], references: [id])
-  items           PurchaseItem[]
-  quotes          PurchaseQuote[]
-  requiereAutorizacion Boolean   @default(false)
+  id                   String               @id @default(cuid())
+  folio                Int                  @default(autoincrement())
+  solicitanteId        String
+  departamentoId       String
+  estatus              PurchaseStatus       @default(NUEVO)
+  fechaSolicitud       DateTime             @default(now())
+  justificacion        String?
+  solicitante          Employee             @relation("ComprasSolicitante", fields: [solicitanteId], references: [id])
+  departamento         Department           @relation("ComprasDepartamento", fields: [departamentoId], references: [id])
+  items                PurchaseItem[]
+  quotes               PurchaseQuote[]
+  requiereAutorizacion Boolean              @default(false)
   autorizadoPorId      String?
-  autorizadoPor        Employee? @relation("ComprasAutorizador", fields: [autorizadoPorId], references: [id])
+  autorizadoPor        Employee?            @relation("ComprasAutorizador", fields: [autorizadoPorId], references: [id])
   fechaAutorizacion    DateTime?
-  comments        PurchaseComment[]
-  approvers       PurchaseApprover[]
-  purchaseOrder   PurchaseOrder?
-  createdAt       DateTime       @default(now())
+  comments             PurchaseComment[]
+  approvers            PurchaseApprover[]
+  purchaseOrder        PurchaseOrder?
+  responsivas          PurchaseResponsiva[]
+  createdAt            DateTime             @default(now())
 
-  updatedAt       DateTime       @updatedAt
+  updatedAt DateTime @updatedAt
 
   @@index([estatus, fechaSolicitud])
   @@map("purchase_requests")
@@ -442,62 +448,83 @@ model PurchaseItem {
   id                String          @id @default(cuid())
   requestId         String
   productoServicio  String
+  tipo              String          @default("PRODUCTO") // PRODUCTO | SERVICIO — solo PRODUCTO pasa por inventario/responsiva
   cantidad          Float
+  cantidadEntregada Float           @default(0)
   descripcion       String?
   request           PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   @@map("purchase_items")
 }
 
+model PurchaseResponsiva {
+  id             String   @id @default(cuid())
+  requestId      String
+  entregadoAId   String
+  entregadoPorId String
+  departamentoId String
+  items          Json // [{producto, cantidad}] snapshot de lo entregado
+  fechaEntrega   DateTime @default(now())
+  observaciones  String?
+  createdAt      DateTime @default(now())
+
+  request      PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  entregadoA   Employee        @relation("ComprasResponsivaReceptor", fields: [entregadoAId], references: [id])
+  entregadoPor Employee        @relation("ComprasResponsivaEntregador", fields: [entregadoPorId], references: [id])
+  departamento Department      @relation(fields: [departamentoId], references: [id])
+
+  @@map("purchase_responsivas")
+}
+
 model PurchaseQuote {
-  id                String          @id @default(cuid())
-  requestId         String
-  proveedor         String
-  monto             Float
-  fechaCotizacion   DateTime        @default(now())
-  archivoUrl        String?
-  isSelected        Boolean         @default(false)
-  comentarios       String?
+  id                   String          @id @default(cuid())
+  requestId            String
+  proveedor            String
+  monto                Float
+  fechaCotizacion      DateTime        @default(now())
+  archivoUrl           String?
+  isSelected           Boolean         @default(false)
+  comentarios          String?
   fechaEstimadaEntrega DateTime?
-  request           PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  request              PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   @@map("purchase_quotes")
 }
 
 model PurchaseComment {
-  id          String         @id @default(cuid())
-  requestId   String
-  userId      String
-  mensaje     String
-  createdAt   DateTime       @default(now())
-  request     PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  user        User           @relation(fields: [userId], references: [id])
+  id        String          @id @default(cuid())
+  requestId String
+  userId    String
+  mensaje   String
+  createdAt DateTime        @default(now())
+  request   PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user      User            @relation(fields: [userId], references: [id])
 
   @@map("purchase_comments")
 }
 
 model AttendanceRecord {
-  id              String   @id @default(cuid())
-  numeroEmpleado  String   // El número del checador (ej. "592")
-  nombreEmpleado  String   // Nombre tal cual viene en el reloj
-  fechaHora       DateTime // Fecha y hora exacta de la checada
-  tipo            String   // "Entrada" o "Salida" (o estado del reloj)
-  dispositivo     String?  // Ej. "Bio Matriz"
-  
-  createdAt       DateTime @default(now())
-  
+  id             String   @id @default(cuid())
+  numeroEmpleado String // El número del checador (ej. "592")
+  nombreEmpleado String // Nombre tal cual viene en el reloj
+  fechaHora      DateTime // Fecha y hora exacta de la checada
+  tipo           String // "Entrada" o "Salida" (o estado del reloj)
+  dispositivo    String? // Ej. "Bio Matriz"
+
+  createdAt DateTime @default(now())
+
   @@index([numeroEmpleado])
   @@index([fechaHora])
   @@map("attendance_records")
 }
 
 model FactorIntegracion {
-  id              Int     @id @default(autoincrement())
-  anio            Int     @unique // Año de antigüedad (1-30)
-  diasAguinaldo   Int     // Días de aguinaldo (15 fijos)
-  diasVacaciones  Int     // Días de vacaciones según LFT
-  primaVacacional Float   // % prima vacacional (0.25 = 25%)
-  factor          Float   // Factor de integración precalculado
+  id              Int   @id @default(autoincrement())
+  anio            Int   @unique // Año de antigüedad (1-30)
+  diasAguinaldo   Int // Días de aguinaldo (15 fijos)
+  diasVacaciones  Int // Días de vacaciones según LFT
+  primaVacacional Float // % prima vacacional (0.25 = 25%)
+  factor          Float // Factor de integración precalculado
 
   @@map("factores_integracion")
 }
@@ -512,7 +539,7 @@ model SalaryHistory {
   sdiAnterior     Float?
   sdiNuevo        Float
   factorUsado     Float?
-  tipoCambio      String   // 'ALTA' | 'INCREMENTO' | 'DECREMENTO' | 'AJUSTE'
+  tipoCambio      String // 'ALTA' | 'INCREMENTO' | 'DECREMENTO' | 'AJUSTE'
   motivo          String?
   fechaCambio     DateTime @default(now())
   usuarioId       String?
@@ -525,12 +552,12 @@ model SalaryHistory {
 
 model NotificationLog {
   id           String   @id @default(cuid())
-  tipo         String   // 'CUMPLEANOS' | 'ANIVERSARIO'
+  tipo         String // 'CUMPLEANOS' | 'ANIVERSARIO'
   employeeId   String
   employeeName String
   email        String
   enviadoA     DateTime @default(now())
-  estatus      String   // 'ENVIADO' | 'FALLIDO'
+  estatus      String // 'ENVIADO' | 'FALLIDO'
   errorMsg     String?
   employee     Employee @relation(fields: [employeeId], references: [id])
 
@@ -550,9 +577,9 @@ model PurchaseOrder {
   iva               Float?
   ivaRate           Float?
   pdfUrl            String?
-  contactoKram      String?             // Contacto del área de compras de KRAM
-  lugarEntrega      String?             // Dirección o lugar de entrega
-  observaciones     String?             // Observaciones adicionales para el proveedor
+  contactoKram      String? // Contacto del área de compras de KRAM
+  lugarEntrega      String? // Dirección o lugar de entrega
+  observaciones     String? // Observaciones adicionales para el proveedor
   createdAt         DateTime            @default(now())
   request           PurchaseRequest     @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
   items             PurchaseOrderItem[]
@@ -560,45 +587,43 @@ model PurchaseOrder {
   @@map("purchase_orders")
 }
 
-
 model PurchaseOrderItem {
-  id                String         @id @default(cuid())
-  orderId           String
-  productoServicio  String
-  cantidad          Float
-  descripcion       String?
-  precioUnitario    Float?
-  importe           Float?
-  order             PurchaseOrder  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id               String        @id @default(cuid())
+  orderId          String
+  productoServicio String
+  cantidad         Float
+  descripcion      String?
+  precioUnitario   Float?
+  importe          Float?
+  order            PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("purchase_order_items")
 }
 
 model PurchaseApprover {
-
-  id              String         @id @default(cuid())
-  requestId       String
-  employeeId      String
-  estatus         String         @default("PENDIENTE") // PENDIENTE | APROBADO | RECHAZADO
-  fechaRespuesta  DateTime?
-  comentarios     String?
-  request         PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  employee        Employee       @relation(fields: [employeeId], references: [id])
+  id             String          @id @default(cuid())
+  requestId      String
+  employeeId     String
+  estatus        String          @default("PENDIENTE") // PENDIENTE | APROBADO | RECHAZADO
+  fechaRespuesta DateTime?
+  comentarios    String?
+  request        PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  employee       Employee        @relation(fields: [employeeId], references: [id])
 
   @@unique([requestId, employeeId])
   @@map("purchase_approvers")
 }
 
 model PurchaseAuditLog {
-  id              String   @id @default(cuid())
-  requestId       String
-  userId          String
-  accion          String   // CREACION | COTIZACION_SUBIDA | MONTO_EDITADO | COTIZACION_SELECCIONADA | ENVIO_AUTORIZACION | APROBACION | ENTREGA | CANCELACION
-  valorAnterior   Json?
-  valorNuevo      Json?
-  ip              String?
-  userAgent       String?
-  createdAt       DateTime @default(now())
+  id            String   @id @default(cuid())
+  requestId     String
+  userId        String
+  accion        String // CREACION | COTIZACION_SUBIDA | MONTO_EDITADO | COTIZACION_SELECCIONADA | ENVIO_AUTORIZACION | APROBACION | ENTREGA | CANCELACION
+  valorAnterior Json?
+  valorNuevo    Json?
+  ip            String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
 
   @@index([requestId])
   @@index([userId])
@@ -610,47 +635,61 @@ model PurchaseAuditLog {
 // ─── PAPELERÍA Y PERIFÉRICOS ───
 
 model StationeryRequest {
-  id              String            @id @default(cuid())
-  solicitanteId   String
-  departamentoId  String
-  estatus         StationeryStatus  @default(PENDIENTE)
-  justificacion   String?
-  fechaSolicitud  DateTime          @default(now())
-  fechaEntrega    DateTime?
-  entregadoPorId  String?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  id             String           @id @default(cuid())
+  solicitanteId  String
+  departamentoId String
+  estatus        StationeryStatus @default(PENDIENTE)
+  justificacion  String?
+  fechaSolicitud DateTime         @default(now())
+  fechaEntrega   DateTime?
+  entregadoPorId String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
-  solicitante     Employee          @relation("PapeleriaSolicitante", fields: [solicitanteId], references: [id])
-  departamento    Department        @relation("PapeleriaDepartamento", fields: [departamentoId], references: [id])
-  entregadoPor    Employee?         @relation("PapeleriaEntregador", fields: [entregadoPorId], references: [id])
-  items           StationeryItem[]
+  solicitante  Employee            @relation("PapeleriaSolicitante", fields: [solicitanteId], references: [id])
+  departamento Department          @relation("PapeleriaDepartamento", fields: [departamentoId], references: [id])
+  entregadoPor Employee?           @relation("PapeleriaEntregador", fields: [entregadoPorId], references: [id])
+  items        StationeryItem[]
+  comments     StationeryComment[]
 
   @@map("stationery_requests")
 }
 
 model StationeryItem {
-  id              String            @id @default(cuid())
-  requestId       String
-  producto        String
-  categoria       String            @default("OTRO") // PAPELERIA | PERIFERICO | OTRO
-  cantidad        Int
-  unidad          String            @default("pzas")
-  observaciones   String?
-  request         StationeryRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  id                String            @id @default(cuid())
+  requestId         String
+  producto          String
+  categoria         String            @default("OTRO") // PAPELERIA | PERIFERICO | OTRO
+  cantidad          Int
+  cantidadEntregada Int               @default(0)
+  unidad            String            @default("pzas")
+  observaciones     String?
+  request           StationeryRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   @@map("stationery_items")
 }
 
+model StationeryComment {
+  id        String            @id @default(cuid())
+  requestId String
+  userId    String
+  mensaje   String
+  createdAt DateTime          @default(now())
+  request   StationeryRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id])
+
+  @@map("stationery_comments")
+}
+
 model StationeryInventory {
-  id              String   @id @default(cuid())
-  producto        String   @unique
-  categoria       String   @default("PAPELERIA") // PAPELERIA | PERIFERICO | OTRO
-  cantidadActual  Int      @default(0)
-  cantidadMinima  Int      @default(5)
-  unidad          String   @default("pzas")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  producto       String   @unique
+  categoria      String   @default("PAPELERIA") // PAPELERIA | PERIFERICO | OTRO
+  cantidadActual Int      @default(0)
+  cantidadMinima Int      @default(5)
+  unidad         String   @default("pzas")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@map("stationery_inventory")
 }
@@ -658,30 +697,30 @@ model StationeryInventory {
 // ─── UNIFORMES ───
 
 model UniformInventory {
-  id              String   @id @default(cuid())
-  tipo            String   // CAMISA | PANTALON | PLAYERA | ZAPATOS | CHALECO | MANDIL | GORRA
-  talla           String
-  genero          String?  // HOMBRE | MUJER | UNISEX
-  cantidadActual  Int      @default(0)
-  cantidadMinima  Int      @default(2)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  tipo           String // CAMISA | PANTALON | PLAYERA | ZAPATOS | CHALECO | MANDIL | GORRA
+  talla          String
+  genero         String? // HOMBRE | MUJER | UNISEX
+  cantidadActual Int      @default(0)
+  cantidadMinima Int      @default(2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@unique([tipo, talla, genero])
   @@map("uniform_inventory")
 }
 
 model UniformDelivery {
-  id              String   @id @default(cuid())
-  empleadoId      String
-  items           Json     // [{tipo, talla, cantidad}]
-  fechaEntrega    DateTime @default(now())
-  entregadoPorId  String
-  observaciones   String?
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  empleadoId     String
+  items          Json // [{tipo, talla, cantidad}]
+  fechaEntrega   DateTime @default(now())
+  entregadoPorId String
+  observaciones  String?
+  createdAt      DateTime @default(now())
 
-  empleado        Employee @relation("UniformeEmpleado", fields: [empleadoId], references: [id])
-  entregadoPor    Employee @relation("UniformeEntregador", fields: [entregadoPorId], references: [id])
+  empleado     Employee @relation("UniformeEmpleado", fields: [empleadoId], references: [id])
+  entregadoPor Employee @relation("UniformeEntregador", fields: [entregadoPorId], references: [id])
 
   @@map("uniform_deliveries")
 }
@@ -690,11 +729,11 @@ model UniformDelivery {
 
 model InventoryAdjustmentRequest {
   id                   String    @id @default(cuid())
-  tipo                 String    // 'PAPELERIA' | 'UNIFORMES'
-  accion               String    // 'AGREGAR' | 'ACTUALIZAR' | 'ELIMINAR'
-  itemId               String?   // item existente (para ACTUALIZAR/ELIMINAR)
-  detalle              Json      // datos del ajuste (producto, talla, cantidad, etc.)
-  motivo               String    // razón del ajuste (obligatoria)
+  tipo                 String // 'PAPELERIA' | 'UNIFORMES'
+  accion               String // 'AGREGAR' | 'ACTUALIZAR' | 'ELIMINAR'
+  itemId               String? // item existente (para ACTUALIZAR/ELIMINAR)
+  detalle              Json // datos del ajuste (producto, talla, cantidad, etc.)
+  motivo               String // razón del ajuste (obligatoria)
   estatus              String    @default("PENDIENTE") // PENDIENTE | APROBADA | RECHAZADA
   solicitanteId        String
   aprobadoPorId        String?
@@ -703,8 +742,8 @@ model InventoryAdjustmentRequest {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  solicitante Employee  @relation("AjusteSolicitante", fields: [solicitanteId], references: [id])
-  aprobadoPorUser User? @relation("AjusteAprobador", fields: [aprobadoPorId], references: [id])
+  solicitante     Employee @relation("AjusteSolicitante", fields: [solicitanteId], references: [id])
+  aprobadoPorUser User?    @relation("AjusteAprobador", fields: [aprobadoPorId], references: [id])
 
   @@index([estatus, tipo])
   @@map("inventory_adjustment_requests")
@@ -714,8 +753,8 @@ model InventoryAdjustmentRequest {
 
 model InventoryMovement {
   id              String   @id @default(cuid())
-  tipo            String   // 'PAPELERIA' | 'UNIFORMES'
-  tipoMovimiento  String   // 'ENTRADA' | 'SALIDA' | 'AJUSTE'
+  tipo            String // 'PAPELERIA' | 'UNIFORMES'
+  tipoMovimiento  String // 'ENTRADA' | 'SALIDA' | 'AJUSTE'
   itemId          String?
   itemDescripcion String
   cantidad        Int
@@ -780,4 +819,16 @@ model Incapacidad {
   @@index([estatus, fechaInicio])
   @@index([employeeId])
   @@map("incapacidades")
+}
+
+// ─── CONFIGURACIÓN DEL SISTEMA (interruptores administrables) ───
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  clave     String   @unique
+  valor     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
 }
