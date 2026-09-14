@@ -50,6 +50,13 @@ function RHDashboardCompletoPage() {
     fetchDashboardData();
   };
 
+  const EMPLOYEE_DISTRIBUTION_COLORS = { 'Activos': '#10B981', 'Vacaciones': '#F59E0B', 'Incapacidades': '#EF4444' };
+  const employeeDistributionData = [
+    { name: 'Activos', value: dashboardData?.employees?.active || 0 },
+    { name: 'Vacaciones', value: dashboardData?.employees?.onVacation || 0 },
+    { name: 'Incapacidades', value: dashboardData?.employees?.onLeave || 0 }
+  ].filter(entry => entry.value > 0);
+
   // Mostrar loading mientras se verifica autenticación
   if (authLoading) {
     return (
@@ -288,11 +295,7 @@ function RHDashboardCompletoPage() {
                   <ResponsiveContainer width="100%" height={300}>
                     <PieChart>
                       <Pie
-                        data={[
-                          { name: 'Activos', value: dashboardData.employees.active || 0 },
-                          { name: 'Vacaciones', value: dashboardData.employees.onVacation || 0 },
-                          { name: 'Incapacidades', value: dashboardData.employees.onLeave || 0 }
-                        ]}
+                        data={employeeDistributionData}
                         cx="50%"
                         cy="50%"
                         labelLine={true}
@@ -301,12 +304,9 @@ function RHDashboardCompletoPage() {
                         fill="#8884d8"
                         dataKey="value"
                       >
-                        {[
-                          { name: 'Activos', value: dashboardData.employees.active || 0 }
-                        ].map((entry, index) => {
-                          const COLORS = ['#10B981', '#F59E0B', '#EF4444'];
-                          return <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />;
-                        })}
+                        {employeeDistributionData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={EMPLOYEE_DISTRIBUTION_COLORS[entry.name]} />
+                        ))}
                       </Pie>
                       <Tooltip />
                       <Legend />

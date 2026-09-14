@@ -88,7 +88,7 @@ export default function MisDocumentosPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="p-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Mis Documentos</h1>
           <p className="text-gray-600">Consulta y sube tus propios documentos (identificación, comprobante de domicilio, etc.)</p>
