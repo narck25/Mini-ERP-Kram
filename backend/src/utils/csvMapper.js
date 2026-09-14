@@ -62,25 +62,40 @@ function validateCsvHeaders(headers) {
  * @returns {Object} Objeto mapeado para Prisma
  */
 function mapEmployeeFromCsv(row, prisma) {
-  // Función auxiliar para convertir fechas
+  // Función auxiliar para convertir fechas.
+  // IMPORTANTE: new Date(year, month, day) "corrige" fechas invalidas en vez
+  // de rechazarlas (ej. 30/02/2024 se convierte en 02/03/2024 sin avisar).
+  // Se valida que los componentes de la fecha construida coincidan con los
+  // que se pidieron; si no coinciden, la fecha de origen era invalida y se
+  // regresa null (no un objeto Date "corregido" ni un Invalid Date, que son
+  // truthy y se cuelan por checks tipo `if (!fecha)`).
   const parseDate = (dateStr) => {
     if (!dateStr || dateStr?.trim() === '') return null;
     try {
+      let date;
       // Intentar formato DD/MM/YYYY primero (común en México)
       if (dateStr?.includes('/')) {
         const [day, month, year] = dateStr.split('/').map(Number);
-        return new Date(year, month - 1, day);
+        if (!day || !month || !year) return null;
+        date = new Date(year, month - 1, day);
+        if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+          return null;
+        }
       }
       // Intentar formato YYYY-MM-DD
       else if (dateStr?.includes('-')) {
         const [year, month, day] = dateStr.split('-').map(Number);
-        return new Date(year, month - 1, day);
+        if (!day || !month || !year) return null;
+        date = new Date(year, month - 1, day);
+        if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+          return null;
+        }
       }
       // Si no tiene separadores, intentar parsear como string
       else {
-        const date = new Date(dateStr);
-        return isNaN(date.getTime()) ? null : date;
+        date = new Date(dateStr);
       }
+      return isNaN(date.getTime()) ? null : date;
     } catch (error) {
       console.warn(`Error al parsear fecha: ${dateStr}`, error);
       return null;

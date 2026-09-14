@@ -87,7 +87,8 @@ exports.importEmployees = async (req, res) => {
     const seenRFCs = new Set();
     const seenCURPs = new Set();
     const seenNSSs = new Set();
-    
+    const seenClaves = new Set();
+
     for (let i = 0; i < results.length; i++) {
       const employeeData = results[i];
       const rowNumber = i + 1;
@@ -112,10 +113,15 @@ exports.importEmployees = async (req, res) => {
         errors.push(`Fila ${rowNumber}: NSS duplicado dentro del archivo: ${employeeData.nss}`);
         continue;
       }
-      
+      if (employeeData.clave && seenClaves.has(employeeData.clave)) {
+        errors.push(`Fila ${rowNumber}: CLAVE duplicada dentro del archivo: ${employeeData.clave}`);
+        continue;
+      }
+
       seenRFCs.add(employeeData.rfc);
       seenCURPs.add(employeeData.curp);
       seenNSSs.add(employeeData.nss);
+      if (employeeData.clave) seenClaves.add(employeeData.clave);
     }
 
     // Si hay errores de validación, no proceder con la importación
@@ -158,15 +164,22 @@ exports.importEmployees = async (req, res) => {
         const rowNumber = originalRowNumberByItem.get(employeeData);
 
         try {
-          // Verificar si ya existe un empleado con el mismo RFC, CURP o NSS
+          // Verificar si ya existe un empleado con el mismo RFC, CURP, NSS o
+          // CLAVE. CLAVE tambien es @unique en el schema, pero antes no se
+          // checaba aqui: si chocaba (aun con rfc/curp/nss distintos), el
+          // create() de mas abajo tronaba con un error de Prisma a media
+          // transaccion, envenenando el resto del lote en vez de reportarse
+          // como un duplicado limpio respetando el duplicateMode elegido.
+          const duplicateOr = [
+            { rfc: employeeData.rfc },
+            { curp: employeeData.curp },
+            { nss: employeeData.nss }
+          ];
+          if (employeeData.clave) {
+            duplicateOr.push({ clave: employeeData.clave });
+          }
           const existingEmployee = await tx.employee.findFirst({
-            where: {
-              OR: [
-                { rfc: employeeData.rfc },
-                { curp: employeeData.curp },
-                { nss: employeeData.nss }
-              ]
-            },
+            where: { OR: duplicateOr },
             include: {
               user: { select: { id: true, email: true } }
             }
@@ -175,7 +188,7 @@ exports.importEmployees = async (req, res) => {
           if (existingEmployee) {
             if (duplicateMode === 'error') {
               // Modo ERROR: falla toda la importación
-              batchErrors.push(`Fila ${rowNumber}: Ya existe un empleado con el mismo RFC, CURP o NSS (${existingEmployee.nombre})`);
+              batchErrors.push(`Fila ${rowNumber}: Ya existe un empleado con el mismo RFC, CURP, NSS o CLAVE (${existingEmployee.nombre})`);
               continue;
             } else if (duplicateMode === 'skip') {
               // Modo SKIP: saltar el duplicado, continuar con los demás

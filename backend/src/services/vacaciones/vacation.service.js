@@ -112,14 +112,29 @@ class VacationService {
       select: { fechaInicio: true, fechaFin: true }
     });
 
+    // Solicitudes que todavia no se aprueban pero ya comprometen dias del
+    // saldo si llegan a aprobarse (evita que se puedan mandar varias
+    // solicitudes que individualmente "caben" pero juntas rebasan el saldo).
+    const enProceso = await prisma.vacationRequest.findMany({
+      where: {
+        employeeId,
+        estatus: { in: ['PENDIENTE', 'AUTORIZADA'] },
+        fechaInicio: { gte: periodoInicio, lt: periodoFin }
+      },
+      select: { fechaInicio: true, fechaFin: true }
+    });
+
     const diasUsados = approved.reduce((acc, r) => acc + calcDias(r.fechaInicio, r.fechaFin), 0);
+    const diasComprometidos = enProceso.reduce((acc, r) => acc + calcDias(r.fechaInicio, r.fechaFin), 0);
 
     return {
       antiguedad,
       meses,
       diasCorresponden,
       diasUsados,
+      diasComprometidos,
       diasDisponibles: diasCorresponden - diasUsados,
+      diasDisponiblesReal: diasCorresponden - diasUsados - diasComprometidos,
       periodoInicio,
       periodoFin
     };
@@ -201,8 +216,24 @@ class VacationService {
     if (balance.reglaAplicada === 'MENOR_6_MESES') {
       throw new Error('No puedes solicitar vacaciones: debes tener al menos 6 meses de antigüedad en la empresa');
     }
-    if (requestedDays > balance.diasDisponibles) {
-      throw new Error(`Días insuficientes: solicitas ${requestedDays} día(s) pero solo tienes ${balance.diasDisponibles} disponible(s)`);
+    // diasDisponiblesReal ya descuenta tanto lo aprobado como lo que esta
+    // PENDIENTE/AUTORIZADA (sin esto, se podian mandar varias solicitudes
+    // que individualmente "caben" pero juntas rebasan el saldo real).
+    if (requestedDays > balance.diasDisponiblesReal) {
+      throw new Error(`Días insuficientes: solicitas ${requestedDays} día(s) pero solo tienes ${balance.diasDisponiblesReal} disponible(s) (ya considerando solicitudes pendientes de autorizar)`);
+    }
+
+    // Evitar traslape de fechas con otra solicitud propia que siga vigente.
+    const existentes = await prisma.vacationRequest.findMany({
+      where: {
+        employeeId: employee.id,
+        estatus: { in: ['PENDIENTE', 'AUTORIZADA', 'APROBADA'] }
+      },
+      select: { fechaInicio: true, fechaFin: true }
+    });
+    const traslape = existentes.some(r => inicio <= r.fechaFin && r.fechaInicio <= fin);
+    if (traslape) {
+      throw new Error('Ya tienes una solicitud de vacaciones (pendiente, autorizada o aprobada) que se traslapa con estas fechas');
     }
 
     // Resolver jefe directo: si existe (y tiene cuenta) → PENDIENTE + notifica al jefe;
