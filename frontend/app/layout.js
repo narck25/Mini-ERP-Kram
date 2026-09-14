@@ -21,6 +21,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="es" className="light">
       <head>
+        <meta name="color-scheme" content="light" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <ThemeScript />

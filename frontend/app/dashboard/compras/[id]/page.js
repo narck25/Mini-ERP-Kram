@@ -1219,7 +1219,7 @@ export default function ComprasDetailPage() {
                             
                             <div className="text-center">
                               <div className="flex items-center justify-center gap-2">
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                                <div className="text-2xl font-bold text-gray-900">
                                   {formatCurrency(quote.monto)}
                                 </div>
                               </div>
