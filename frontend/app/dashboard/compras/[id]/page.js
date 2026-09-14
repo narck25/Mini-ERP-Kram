@@ -1745,7 +1745,7 @@ export default function ComprasDetailPage() {
                         <li key={idx}>{it.producto} — {it.cantidad}</li>
                       ))}
                     </ul>
-                    {r.observaciones && <p className="mt-2 text-gray-600 italic">"{r.observaciones}"</p>}
+                    {r.observaciones && <p className="mt-2 text-gray-600 italic">&ldquo;{r.observaciones}&rdquo;</p>}
                   </div>
                 ))}
               </div>
