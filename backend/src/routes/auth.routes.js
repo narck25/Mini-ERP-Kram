@@ -39,9 +39,9 @@ router.post('/change-password',
 );
 
 // Admin only routes
-router.get('/admin/users', 
-  AuthMiddleware.verifyToken, 
-  AuthMiddleware.requireAdmin,
+router.get('/admin/users',
+  AuthMiddleware.verifyToken,
+  AuthMiddleware.requireAdmin(),
   async (req, res) => {
     // This would be implemented in a separate controller
     res.json({ message: 'Admin users endpoint - to be implemented' });
@@ -49,41 +49,41 @@ router.get('/admin/users',
 );
 
 // Test role-based access
-router.get('/test/admin', 
-  AuthMiddleware.verifyToken, 
-  AuthMiddleware.requireAdmin,
+router.get('/test/admin',
+  AuthMiddleware.verifyToken,
+  AuthMiddleware.requireAdmin(),
   (req, res) => {
     res.json({ message: 'Admin access granted', user: req.user });
   }
 );
 
-router.get('/test/rh', 
-  AuthMiddleware.verifyToken, 
-  AuthMiddleware.requireRHOrAdmin,
+router.get('/test/rh',
+  AuthMiddleware.verifyToken,
+  AuthMiddleware.requireRHOrAdmin(),
   (req, res) => {
     res.json({ message: 'RH or Admin access granted', user: req.user });
   }
 );
 
-router.get('/test/sistemas', 
-  AuthMiddleware.verifyToken, 
-  AuthMiddleware.requireSistemasOrAdmin,
+router.get('/test/sistemas',
+  AuthMiddleware.verifyToken,
+  AuthMiddleware.requireSistemasOrAdmin(),
   (req, res) => {
     res.json({ message: 'Sistemas or Admin access granted', user: req.user });
   }
 );
 
-router.get('/test/compras', 
-  AuthMiddleware.verifyToken, 
-  AuthMiddleware.requireComprasOrAdmin,
+router.get('/test/compras',
+  AuthMiddleware.verifyToken,
+  AuthMiddleware.requireComprasOrAdmin(),
   (req, res) => {
     res.json({ message: 'Compras or Admin access granted', user: req.user });
   }
 );
 
-router.get('/test/produccion', 
-  AuthMiddleware.verifyToken, 
-  AuthMiddleware.requireProduccionOrAdmin,
+router.get('/test/produccion',
+  AuthMiddleware.verifyToken,
+  AuthMiddleware.requireProduccionOrAdmin(),
   (req, res) => {
     res.json({ message: 'Produccion or Admin access granted', user: req.user });
   }

@@ -239,8 +239,12 @@ function validateEmployeeData(employeeData, rowNumber = 0) {
     errors.push(`Fila ${rowNumber}: ESTATUS debe ser "Activo" o "Inactivo" (valor recibido: "${employeeData.estatus}")`);
   }
 
-  if (employeeData.salarioMensual && isNaN(employeeData.salarioMensual)) {
-    errors.push(`Fila ${rowNumber}: SALARIO MENSUAL debe ser un número válido`);
+  if (employeeData.salarioMensual != null) {
+    if (isNaN(employeeData.salarioMensual)) {
+      errors.push(`Fila ${rowNumber}: SALARIO MENSUAL debe ser un número válido`);
+    } else if (employeeData.salarioMensual < 0) {
+      errors.push(`Fila ${rowNumber}: SALARIO MENSUAL no puede ser negativo (valor recibido: ${employeeData.salarioMensual})`);
+    }
   }
 
   if (employeeData.porcentaje1 && (employeeData.porcentaje1 < 0 || employeeData.porcentaje1 > 100)) {

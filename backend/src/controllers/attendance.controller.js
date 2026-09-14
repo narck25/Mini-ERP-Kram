@@ -33,11 +33,14 @@ class AttendanceController {
       }
 
       const records = [];
+      let totalRows = 0;
+      let invalidDateRows = 0;
+      let errorRows = 0;
 
       // Read and parse CSV file from memory buffer
       await new Promise((resolve, reject) => {
         const bufferStream = require('stream').Readable.from(req.file.buffer);
-        
+
         bufferStream
           .pipe(csv({
             separator: ',',
@@ -45,11 +48,13 @@ class AttendanceController {
             skipLines: 1 // Skip header row
           }))
           .on('data', (row) => {
+            totalRows++;
             try {
               // Parse the date using the exact function provided
               const fechaHora = parseZKTecoDate(row.tiempo);
-              
+
               if (!fechaHora) {
+                invalidDateRows++;
                 console.warn(`Fecha inválida en registro: ${JSON.stringify(row)}`);
                 return;
               }
@@ -62,6 +67,7 @@ class AttendanceController {
                 dispositivo: row.dispositivo || null
               });
             } catch (error) {
+              errorRows++;
               console.error(`Error procesando fila: ${error.message}`, row);
             }
           })
@@ -73,10 +79,12 @@ class AttendanceController {
           });
       });
 
+      const rowsDropped = invalidDateRows + errorRows;
+
       if (records.length === 0) {
         return res.status(400).json({
           success: false,
-          message: 'El archivo CSV no contiene registros válidos'
+          message: `El archivo CSV no contiene registros válidos (${totalRows} fila(s) leída(s), todas descartadas: ${invalidDateRows} con fecha inválida, ${errorRows} con error de formato).`
         });
       }
 
@@ -86,12 +94,20 @@ class AttendanceController {
         skipDuplicates: true // Skip duplicates based on unique constraint if any
       });
 
+      const message = rowsDropped > 0
+        ? `CSV procesado. ${result.count} registros guardados, ${rowsDropped} fila(s) descartada(s) de ${totalRows} leídas (${invalidDateRows} con fecha inválida, ${errorRows} con error de formato).`
+        : `CSV procesado exitosamente. ${result.count} registros guardados en la base de datos.`;
+
       return res.status(200).json({
         success: true,
-        message: `CSV procesado exitosamente. ${result.count} registros guardados en la base de datos.`,
+        message,
         data: {
+          rowsInFile: totalRows,
           recordsProcessed: records.length,
-          recordsSaved: result.count
+          recordsSaved: result.count,
+          rowsDropped,
+          invalidDateRows,
+          errorRows
         }
       });
 
