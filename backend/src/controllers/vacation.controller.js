@@ -68,11 +68,11 @@ class VacationController {
 
   static async getById(req, res) {
     try {
-      const data = await VacationService.getById(req.params.id);
+      const data = await VacationService.getById(req.params.id, req.user);
       if (!data) return res.status(404).json({ error: 'Solicitud no encontrada' });
       res.json({ data });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      res.status(error.status || 500).json({ error: error.message });
     }
   }
 

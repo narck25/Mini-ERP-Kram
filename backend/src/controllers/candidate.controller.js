@@ -364,11 +364,20 @@ exports.downloadCandidateCV = async (req, res) => {
     const { candidate_id } = req.params;
 
     const candidate = await prisma.candidateRH.findUnique({
-      where: { id: candidate_id }
+      where: { id: candidate_id },
+      include: { vacancy: { select: { solicitanteId: true } } }
     });
 
     if (!candidate) {
       return res.status(404).json({ error: 'Candidato no encontrado' });
+    }
+
+    // Verificar permisos: ADMIN y RH descargan cualquier CV; el resto solo el de su propia vacante.
+    if (req.user.role !== 'ADMIN' && req.user.role !== 'RH') {
+      const employee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
+      if (!employee || candidate.vacancy.solicitanteId !== employee.id) {
+        return res.status(403).json({ error: 'No tienes permisos para descargar este CV' });
+      }
     }
 
     if (!candidate.cv_url) {

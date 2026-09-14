@@ -269,7 +269,7 @@ class VacationService {
     });
   }
 
-  static async getById(id) {
+  static async getById(id, user) {
     const vacation = await prisma.vacationRequest.findUnique({
       where: { id },
       include: {
@@ -281,6 +281,7 @@ class VacationService {
             apellidoMaterno: true,
             clave: true,
             fechaAlta: true,
+            reportaAId: true,
             departamento: { select: { nombre: true } },
             puesto: { select: { nombre: true } },
             reportaA: { select: { nombres: true, apellidoPaterno: true } }
@@ -292,6 +293,19 @@ class VacationService {
     });
 
     if (!vacation) return null;
+
+    // Solo el propio solicitante, su jefe directo, o RH/ADMIN pueden ver el detalle.
+    const isAdminOrRH = user.role === 'ADMIN' || user.role === 'RH';
+    if (!isAdminOrRH) {
+      const employee = await this.getEmployeeByUser(user.id);
+      const isOwner = !!employee && vacation.employeeId === employee.id;
+      const isJefe = !!employee && vacation.empleado.reportaAId === employee.id;
+      if (!isOwner && !isJefe) {
+        const err = new Error('No tienes permiso para ver esta solicitud');
+        err.status = 403;
+        throw err;
+      }
+    }
 
     const balance = await this.getBalance(vacation.employeeId);
     return { ...vacation, balance };

@@ -951,6 +951,14 @@ exports.getVacancyRequestById = async (req, res) => {
       return res.status(404).json({ error: 'Solicitud de vacante no encontrada' });
     }
 
+    // Verificar permisos: ADMIN y RH ven cualquier vacante; el resto solo la suya.
+    if (req.user.role !== 'ADMIN' && req.user.role !== 'RH') {
+      const employee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
+      if (!employee || vacancy.solicitanteId !== employee.id) {
+        return res.status(403).json({ error: 'No tienes permisos para ver esta solicitud' });
+      }
+    }
+
     // Transformar las URLs de los candidatos a URLs completas
     const transformedVacancy = {
       ...vacancy,

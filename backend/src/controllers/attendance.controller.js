@@ -162,6 +162,67 @@ class AttendanceController {
     }
   }
 
+  /**
+   * Get the authenticated user's own attendance records by date range.
+   * Matches AttendanceRecord.numeroEmpleado (el número del checador) contra
+   * Employee.clave — mismo identificador que usa la importación de CSV.
+   */
+  static async getMyRecords(req, res) {
+    try {
+      const { startDate, endDate } = req.query;
+
+      if (!startDate || !endDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'Se requieren las fechas de inicio y fin (startDate, endDate)'
+        });
+      }
+
+      const employee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
+      if (!employee || !employee.clave) {
+        return res.status(404).json({
+          success: false,
+          message: 'No tienes un expediente de empleado con clave asignada, no se puede buscar tu asistencia'
+        });
+      }
+
+      const { valid, filter } = buildDateFilter(startDate, endDate);
+      if (!valid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Formato de fecha inválido. Use formato ISO (YYYY-MM-DD)'
+        });
+      }
+
+      const records = await prisma.attendanceRecord.findMany({
+        where: { ...filter, numeroEmpleado: employee.clave },
+        orderBy: { fechaHora: 'asc' },
+        select: {
+          id: true,
+          numeroEmpleado: true,
+          nombreEmpleado: true,
+          fechaHora: true,
+          tipo: true,
+          dispositivo: true,
+          createdAt: true
+        }
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: `Se encontraron ${records.length} registros`,
+        data: records
+      });
+    } catch (error) {
+      console.error('Error en getMyRecords:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error al obtener tu asistencia',
+        error: error.message
+      });
+    }
+  }
+
 }
 
 module.exports = {

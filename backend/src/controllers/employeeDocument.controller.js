@@ -26,11 +26,23 @@ if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
+// Un usuario puede ver/subir/descargar documentos de otro empleado si
+// tiene rol ADMIN/RH, o si el documento/empleado en cuestión es el suyo.
+const canAccessEmployeeDocuments = async (req, employeeId) => {
+  if (req.user.role === 'ADMIN' || req.user.role === 'RH') return true;
+  const own = await prisma.employee.findUnique({ where: { userId: req.user.id } });
+  return !!own && own.id === employeeId;
+};
+
 // Obtener documentos de un empleado
 exports.getEmployeeDocuments = async (req, res) => {
   try {
     const { employeeId } = req.params;
-    
+
+    if (!(await canAccessEmployeeDocuments(req, employeeId))) {
+      return res.status(403).json({ error: 'No tienes permisos para ver estos documentos' });
+    }
+
     const documents = await prisma.employeeDocument.findMany({
       where: { employee_id: employeeId },
       orderBy: { uploaded_at: 'desc' },
@@ -57,6 +69,10 @@ exports.uploadEmployeeDocument = async (req, res) => {
     const { employeeId } = req.params;
     const { tipo_documento } = req.body;
     const file = req.file;
+
+    if (!(await canAccessEmployeeDocuments(req, employeeId))) {
+      return res.status(403).json({ error: 'No tienes permisos para subir documentos a este empleado' });
+    }
 
     if (!file) {
       return res.status(400).json({ error: 'No se proporcionó ningún archivo' });
@@ -133,8 +149,12 @@ exports.downloadEmployeeDocument = async (req, res) => {
       return res.status(404).json({ error: 'Documento no encontrado' });
     }
 
+    if (!(await canAccessEmployeeDocuments(req, document.employee_id))) {
+      return res.status(403).json({ error: 'No tienes permisos para descargar este documento' });
+    }
+
     const filePath = path.join(__dirname, '../..', document.url_archivo);
-    
+
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'Archivo no encontrado en el servidor' });
     }

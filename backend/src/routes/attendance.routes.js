@@ -17,6 +17,17 @@ router.post(
 );
 
 /**
+ * @route   GET /my
+ * @desc    Get the authenticated user's own attendance records by date range
+ * @access  Protected (cualquier usuario autenticado, sin necesitar el módulo INCIDENCIAS)
+ */
+router.get(
+  '/my',
+  AuthMiddleware.verifyToken,
+  AttendanceController.getMyRecords
+);
+
+/**
  * @route   GET /
  * @desc    Get attendance records by date range
  * @access  Protected (Module: INCIDENCIAS or Role: RH/ADMIN)

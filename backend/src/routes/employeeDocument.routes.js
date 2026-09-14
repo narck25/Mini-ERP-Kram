@@ -7,29 +7,30 @@ const authMiddleware = require('../middlewares/auth.middleware');
 // Aplicar autenticación a todas las rutas
 router.use(authMiddleware.verifyToken);
 
-// Obtener documentos de un empleado (lectura - requiere módulo EMPLEADOS)
-router.get('/employee/:employeeId/documents', 
-  authMiddleware.requireModule('EMPLEADOS'),
+// Obtener documentos de un empleado (RH/ADMIN ven cualquiera; el propio
+// empleado ve los suyos aunque no tenga el módulo EMPLEADOS — el
+// controller valida la propiedad).
+router.get('/employee/:employeeId/documents',
   employeeDocumentController.getEmployeeDocuments
 );
 
-// Obtener tipos de documentos permitidos (lectura - requiere módulo EMPLEADOS)
-router.get('/employee-documents/allowed-types', 
-  authMiddleware.requireModule('EMPLEADOS'),
+// Obtener tipos de documentos permitidos (cualquier usuario autenticado)
+router.get('/employee-documents/allowed-types',
   employeeDocumentController.getAllowedDocumentTypes
 );
 
-// Subir documento para un empleado (escritura - requiere RH o Admin)
+// Subir documento para un empleado (RH/ADMIN suben para cualquiera; el
+// propio empleado puede subir los suyos — el controller valida la
+// propiedad).
 router.post('/employee/:employeeId/documents',
-  authMiddleware.requireRHOrAdmin(),
   ensureUploadDirs,
   upload.single('document'),
   employeeDocumentController.uploadEmployeeDocument
 );
 
-// Descargar documento (lectura - requiere módulo EMPLEADOS)
-router.get('/employee-documents/:documentId/download', 
-  authMiddleware.requireModule('EMPLEADOS'),
+// Descargar documento (RH/ADMIN descargan cualquiera; el propio empleado
+// descarga los suyos — el controller valida la propiedad).
+router.get('/employee-documents/:documentId/download',
   employeeDocumentController.downloadEmployeeDocument
 );
 
