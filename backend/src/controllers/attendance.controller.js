@@ -239,6 +239,29 @@ class AttendanceController {
     }
   }
 
+  /**
+   * Delete ALL attendance records. Solo ADMIN (ver attendance.routes.js).
+   * Pensado para limpiar registros importados con datos incorrectos antes
+   * de volver a subir el CSV, sin necesitar entrar por terminal al servidor.
+   */
+  static async clearAll(req, res) {
+    try {
+      const result = await prisma.attendanceRecord.deleteMany({});
+      return res.status(200).json({
+        success: true,
+        message: `Se eliminaron ${result.count} registro(s) de asistencia.`,
+        data: { deletedCount: result.count }
+      });
+    } catch (error) {
+      console.error('Error en clearAll:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error al limpiar los registros de asistencia',
+        error: error.message
+      });
+    }
+  }
+
 }
 
 module.exports = {

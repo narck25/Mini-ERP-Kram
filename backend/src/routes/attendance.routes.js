@@ -39,4 +39,16 @@ router.get(
   AttendanceController.getRecords
 );
 
+/**
+ * @route   DELETE /
+ * @desc    Delete ALL attendance records (para limpiar antes de re-importar un CSV)
+ * @access  Protected (Solo ADMIN)
+ */
+router.delete(
+  '/',
+  AuthMiddleware.verifyToken,
+  AuthMiddleware.requireAdmin(),
+  AttendanceController.clearAll
+);
+
 module.exports = router;

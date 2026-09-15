@@ -14,6 +14,7 @@ export default function IncidenciasPage() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [message, setMessage] = useState('');
   const fileInputRef = useRef(null);
 
@@ -248,6 +249,25 @@ export default function IncidenciasPage() {
     }
   };
 
+  const handleClearAll = async () => {
+    if (!confirm('¿Borrar TODOS los registros de asistencia? Esta acción no se puede deshacer. Úsalo antes de volver a subir un CSV para evitar mezclar datos.')) {
+      return;
+    }
+    setClearing(true);
+    setMessage('');
+    try {
+      const response = await api.delete('/incidencias');
+      const data = response.data;
+      setRecords([]);
+      setMessage(data.message || 'Registros de asistencia eliminados');
+    } catch (error) {
+      console.error('Error:', error);
+      setMessage('Error al limpiar registros: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setClearing(false);
+    }
+  };
+
   const triggerFileInput = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
@@ -360,6 +380,15 @@ export default function IncidenciasPage() {
                 >
                   {uploading ? 'Subiendo...' : 'Subir CSV ZKTeco'}
                 </button>
+                {user?.role === 'ADMIN' && (
+                  <button
+                    onClick={handleClearAll}
+                    disabled={clearing}
+                    className="ml-3 px-4 py-2 bg-red-600 text-white font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
+                  >
+                    {clearing ? 'Limpiando...' : '🗑️ Limpiar Registros'}
+                  </button>
+                )}
               </div>
               
               {message && (
