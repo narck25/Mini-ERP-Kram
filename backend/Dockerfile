@@ -40,14 +40,19 @@ COPY scripts ./scripts
 # ============================================================
 FROM node:20-slim AS runner
 
-# Instalar OpenSSL para Prisma y curl para healthcheck
+# Instalar OpenSSL para Prisma, curl para healthcheck y tzdata para la zona horaria
 RUN apt-get update -qq && \
-    apt-get install -y -qq openssl ca-certificates curl && \
+    apt-get install -y -qq openssl ca-certificates curl tzdata && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 ENV NODE_ENV=production
+# El checador (ZKTeco) y toda la operación de KRAM son hora de Ciudad de México.
+# Sin esto, el contenedor corre en UTC por defecto y cualquier fecha/hora que se
+# construya como "hora local" del proceso (ej. al importar el CSV de asistencia)
+# queda desfasada 6 horas frente a lo que en realidad marcó el checador.
+ENV TZ=America/Mexico_City
 
 # Copiar desde builder
 COPY --from=builder /app/package*.json ./

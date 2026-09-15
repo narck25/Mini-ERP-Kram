@@ -46,9 +46,14 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
+# Zona horaria de la operación (Ciudad de México) — evita que cualquier fecha/hora
+# calculada del lado del servidor (SSR) quede en UTC por defecto del contenedor.
+RUN apk add --no-cache tzdata
+
 # Variables de entorno
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV TZ=America/Mexico_City
 
 # Crear usuario no-root para seguridad
 RUN addgroup --system --gid 1001 nodejs
