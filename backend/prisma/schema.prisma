@@ -520,6 +520,7 @@ model AttendanceRecord {
 
   createdAt DateTime @default(now())
 
+  @@unique([numeroEmpleado, fechaHora, tipo])
   @@index([numeroEmpleado])
   @@index([fechaHora])
   @@map("attendance_records")
