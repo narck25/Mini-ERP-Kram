@@ -31,10 +31,12 @@ describe('🛡️ RateLimit Middleware - Pruebas Unitarias', () => {
     else process.env.RATE_LIMIT_DISABLED = OLD_DISABLED;
   });
 
-  test('exporta loginLimiter y registerLimiter como middlewares', () => {
-    const { loginLimiter, registerLimiter } = loadFreshMiddleware();
+  test('exporta loginLimiter como middleware', () => {
+    // registerLimiter se eliminó junto con POST /api/auth/register
+    // (hallazgo #2, docs/PROJECT_CONTEXT.md §13) — el registro público
+    // no se usa: las cuentas las crean RH/TI vía importación CSV.
+    const { loginLimiter } = loadFreshMiddleware();
     expect(typeof loginLimiter).toBe('function');
-    expect(typeof registerLimiter).toBe('function');
   });
 
   test('loginLimiter bloquea con 429 tras exceder el límite (10 intentos)', async () => {

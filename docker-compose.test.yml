@@ -1,0 +1,45 @@
+version: '3.8'
+
+# ─────────────────────────────────────────────────────────────
+# Entorno de PostgreSQL aislado para la suite de integración LOCAL.
+#
+# - Base de datos y puerto DISTINTOS de docker-compose.yml (desarrollo):
+#   aquí es `kram_test` en el puerto 5433 (en vez de `kram_erp` en 5432),
+#   para que nunca pueda confundirse con la base de desarrollo ni
+#   competir por el mismo puerto si ambos compose están arriba a la vez.
+# - Sin volumen persistente a propósito: los datos viven únicamente en
+#   el contenedor y se pierden al recrearlo. Este compose es de un solo
+#   uso, pensado para levantar/tirar en cada corrida de tests.
+# - Credenciales de solo-prueba (no reutilizar en ningún otro ambiente).
+#
+# Uso:
+#   docker compose -f docker-compose.test.yml up -d
+#   ... correr migraciones/seed/tests contra localhost:5433 ...
+#   docker compose -f docker-compose.test.yml down
+# ─────────────────────────────────────────────────────────────
+
+services:
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: kram-postgres-test
+    restart: "no"
+    environment:
+      POSTGRES_USER: kramtest
+      POSTGRES_PASSWORD: kramtest123
+      POSTGRES_DB: kram_test
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kramtest -d kram_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - kram-test-network
+    # NOTA: sin `volumes:` — almacenamiento efímero (capa del contenedor).
+    # No agregar un volumen nombrado aquí sin actualizar también el
+    # comentario anterior y el de docs/TESTING.md.
+
+networks:
+  kram-test-network:
+    driver: bridge

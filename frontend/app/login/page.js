@@ -149,16 +149,6 @@ export default function LoginPage() {
               </div>
             </form>
 
-            {/* Enlace a registro */}
-            <div className="mt-6 text-center">
-              <p className="text-slate-400 text-sm">
-                ¿No tienes una cuenta?{' '}
-                <Link href="/register" className="font-medium text-teal-400 hover:text-teal-300 transition-colors">
-                  Crear cuenta
-                </Link>
-              </p>
-            </div>
-
             {/* Enlace de regreso */}
             <div className="mt-8 text-center">
               <Link 

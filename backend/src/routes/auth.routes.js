@@ -2,18 +2,11 @@ const express = require('express');
 const { body } = require('express-validator');
 const AuthController = require('../controllers/auth.controller');
 const AuthMiddleware = require('../middlewares/auth.middleware');
-const { loginLimiter, registerLimiter } = require('../middlewares/rate-limit.middleware');
+const { loginLimiter } = require('../middlewares/rate-limit.middleware');
 
 const router = express.Router();
 
 // Validation rules
-const registerValidation = [
-  body('email').isEmail().normalizeEmail(),
-  body('password').isLength({ min: 6 }),
-  body('name').notEmpty().trim(),
-  body('role').optional().isIn(['ADMIN', 'RH', 'SISTEMAS', 'COMPRAS', 'PRODUCCION'])
-];
-
 const loginValidation = [
   body('email').isEmail(),
   body('password').notEmpty()
@@ -25,7 +18,10 @@ const changePasswordValidation = [
 ];
 
 // Public routes
-router.post('/register', registerLimiter, registerValidation, AuthController.register);
+// NOTA (hallazgo de seguridad #2): el registro público se eliminó — las
+// cuentas las crean RH/TI mediante la importación CSV de empleados. El
+// registro público permitía vincularse al expediente de otro empleado
+// con solo conocer su correo. Ver docs/PROJECT_CONTEXT.md §6.1 y §13.
 router.post('/login', loginLimiter, loginValidation, AuthController.login);
 
 // Protected routes (require authentication)

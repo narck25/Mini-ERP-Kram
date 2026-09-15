@@ -15,6 +15,7 @@
     "test:unit:coverage": "jest --config jest.unit.config.js --coverage",
     "test:all": "jest && jest --config jest.unit.config.js",
     "test:ci": "jest --ci --coverage && jest --config jest.unit.config.js --ci --coverage",
+    "test:integration:local": "node scripts/test-integration-local.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",

@@ -41,6 +41,67 @@ npm run test:ci      # modo CI
 - **14 suites / 99 tests**, todos pasando.
 - Los tests de integración corren contra el servidor en ejecución (requieren la BD y el backend levantados).
 
+## Entorno de integración local aislado (`test:integration:local`)
+
+Por defecto, `npm test` corre los tests de integración vía HTTP contra el
+servidor que ya esté levantado (`TEST_BASE_URL`, default
+`http://localhost:3001`), y ese servidor carga `backend/.env` al arrancar
+— es decir, **contra la base de desarrollo (`kram_erp`)**. Para no tocar
+esa base al probar, existe un entorno separado que replica los pasos de
+`.github/workflows/backend-ci.yml` pero en tu máquina, con Postgres y
+puerto propios.
+
+### 1. Levantar el Postgres de pruebas
+
+```bash
+docker compose -f docker-compose.test.yml up -d
+```
+
+Esto crea un contenedor `kram-postgres-test` con la base `kram_test` en
+el puerto **5433** (no 5432, para no chocar con el Postgres de
+desarrollo) y **sin volumen persistente** — cada `down` lo deja vacío.
+
+### 2. Configurar `backend/.env.test`
+
+```bash
+cd backend
+cp .env.test.example .env.test
+```
+
+`.env.test.example` ya apunta a `kram_test`/puerto 5433, define el
+backend de pruebas en el **puerto 3002** (distinto del 3001 de
+desarrollo, para poder tener ambos corriendo a la vez) y fija
+`RATE_LIMIT_DISABLED=true`. `.env.test` está en `backend/.gitignore`
+(no se sube al repo); `.env.test.example` sí.
+
+### 3. Correr la suite
+
+```bash
+npm run test:integration:local
+```
+
+El script `backend/scripts/test-integration-local.js`:
+
+1. Carga `backend/.env.test`.
+2. **Salvaguarda**: si `DATABASE_URL` no contiene `kram_test`, aborta sin
+   ejecutar nada (protege contra correrlo por error contra `kram_erp`).
+3. Aplica `prisma migrate deploy` sobre `kram_test`.
+4. Corre el seed (`node prisma/seed.js`) sobre `kram_test`.
+5. Arranca el backend (`node src/index.js`) en el puerto de `.env.test`
+   (3002 por defecto) y espera a que `GET /api/health` responda.
+6. Corre Jest (la suite de integración) con
+   `TEST_BASE_URL=http://localhost:3002`.
+7. Apaga el servidor al terminar, incluso si algún test falla.
+
+### 4. Tirar el entorno
+
+```bash
+docker compose -f docker-compose.test.yml down
+```
+
+> Los tests **unitarios** (`npm run test:unit`) no necesitan nada de esto:
+> mockean `@prisma/client` por completo y nunca tocan una base real.
+
 ## Cómo agregar una prueba
 
 1. Crea `tests/NN-nombre.test.js` (integración) o `tests/unit/...` (unitaria).

@@ -20,12 +20,7 @@ class AuthMiddleware {
   static async verifyToken(req, res, next) {
     try {
       const authHeader = req.headers.authorization;
-      let token = AuthUtils.extractToken(authHeader);
-      
-      // Fallback: query param para EventSource/SSE
-      if (!token && req.query && req.query.token) {
-        token = req.query.token;
-      }
+      const token = AuthUtils.extractToken(authHeader);
 
       if (!token) {
         return res.status(401).json({ error: 'No token provided' });

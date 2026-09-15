@@ -29,18 +29,4 @@ const loginLimiter = rateLimit({
   }
 });
 
-// Registro: 5 solicitudes por IP cada hora.
-const registerLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  limit: parseInt(process.env.REGISTER_RATE_LIMIT_MAX || '5', 10),
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  skip: isDisabled,
-  handler: (req, res) => {
-    res.status(429).json({
-      error: 'Demasiadas solicitudes de registro. Intenta de nuevo más tarde.'
-    });
-  }
-});
-
-module.exports = { loginLimiter, registerLimiter };
+module.exports = { loginLimiter };

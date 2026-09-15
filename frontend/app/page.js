@@ -86,19 +86,13 @@ export default async function HomePage() {
                 </p>
               </div>
 
-              {/* Botones de acceso */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
-                <Link 
-                  href="/login" 
+              {/* Botón de acceso */}
+              <div className="flex justify-center mt-8">
+                <Link
+                  href="/login"
                   className="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-[0_0_20px_rgba(45,212,191,0.4)] text-center"
                 >
                   Iniciar Sesión
-                </Link>
-                <Link 
-                  href="/register" 
-                  className="bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-8 rounded-xl border border-white/20 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.1)] text-center"
-                >
-                  Registrarse
                 </Link>
               </div>
             </div>

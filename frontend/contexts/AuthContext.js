@@ -76,28 +76,6 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  const register = async (userData) => {
-    try {
-      setLoading(true)
-      const response = await authApi.register(userData)
-      
-      const { user, token } = response.data
-      localStorage.setItem('token', token)
-      setUser(user)
-      
-      toast.success('¡Registro exitoso!')
-      router.push('/dashboard/mi-espacio')
-      
-      return { success: true }
-    } catch (error) {
-      const message = error.response?.data?.error || 'Error al registrarse'
-      toast.error(message)
-      return { success: false, error: message }
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const logout = async () => {
     try {
       await authApi.logout()
@@ -153,7 +131,6 @@ export const AuthProvider = ({ children }) => {
     loading,
     authChecked,
     login,
-    register,
     logout,
     updateProfile,
     changePassword,

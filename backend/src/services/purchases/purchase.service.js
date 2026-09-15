@@ -34,6 +34,28 @@ const getEmployeeByUserId = async (userId) => {
 };
 
 // ─────────────────────────────────────────────────────────────
+// Función auxiliar: verificar que el usuario sea uno de los aprobadores
+// asignados a la solicitud (PurchaseApprover), o ADMIN. Lanza 403 si no.
+// Usada tanto por getPublicRequestDetails (lectura) como por
+// authorizeRequest (escritura) — hallazgo de seguridad #6: el GET público
+// no validaba pertenencia, permitiendo leer cualquier solicitud con solo
+// conocer el id.
+// ─────────────────────────────────────────────────────────────
+const getApproverOrThrow = async (userId, userRole, requestId) => {
+  const isAdmin = userRole === 'ADMIN';
+  const employee = await getEmployeeByUserId(userId);
+  const approverRecord = employee
+    ? await prisma.purchaseApprover.findFirst({ where: { requestId, employeeId: employee.id } })
+    : null;
+
+  if (!isAdmin && !approverRecord) {
+    throw { status: 403, error: 'Acceso denegado', message: 'No fuiste seleccionado como aprobador de esta solicitud' };
+  }
+
+  return { employee, approverRecord };
+};
+
+// ─────────────────────────────────────────────────────────────
 // Función auxiliar: resolver un proveedor del catálogo por id.
 // Devuelve su nombre para guardarlo como snapshot en el campo
 // `proveedor` (texto), además de conservar `proveedorId`.
@@ -610,11 +632,14 @@ exports.updateQuoteAmount = exports.updateQuote;
 
 // ─────────────────────────────────────────────────────────────
 // 10. Obtener detalles de solicitud (público, sin validación de módulo)
-//     → Solo verifica que la solicitud existe
-//     → NO valida permisos de módulo (para página pública de autorización)
+//     → NO valida el módulo COMPRAS (para página pública de autorización)
+//     → SÍ valida que quien pide sea el aprobador asignado o ADMIN
+//       (getApproverOrThrow) — hallazgo de seguridad #6
 // ─────────────────────────────────────────────────────────────
 exports.getPublicRequestDetails = async (req) => {
   const { id } = req.params;
+  const userId = req.user.id;
+  const userRole = req.user.role;
 
   const request = await prisma.purchaseRequest.findUnique({
     where: { id },
@@ -624,6 +649,10 @@ exports.getPublicRequestDetails = async (req) => {
   if (!request) {
     throw { status: 404, error: 'Solicitud no encontrada', message: 'La solicitud de compra no existe' };
   }
+
+  // Solo puede ver el detalle quien esté asignado como aprobador de esta
+  // solicitud (PurchaseApprover), o ADMIN — misma regla que authorizeRequest.
+  await getApproverOrThrow(userId, userRole, id);
 
   return {
     ...request,
@@ -638,8 +667,6 @@ exports.getPublicRequestDetails = async (req) => {
 // ─────────────────────────────────────────────────────────────
 exports.authorizeRequest = async (userId, userRole, requestId) => {
 
-  const employee = await getEmployeeByUserId(userId);
-
   const request = await prisma.purchaseRequest.findUnique({ where: { id: requestId } });
   if (!request) {
     throw { status: 404, error: 'Solicitud no encontrada', message: 'La solicitud de compra no existe' };
@@ -651,14 +678,7 @@ exports.authorizeRequest = async (userId, userRole, requestId) => {
 
   // ── Verificar que quien autoriza sea uno de los aprobadores asignados, o ADMIN ──
   // (ADMIN siempre puede autorizar aunque no tenga empleado asociado o no esté en la lista)
-  const isAdmin = userRole === 'ADMIN';
-  const approverRecord = employee
-    ? await prisma.purchaseApprover.findFirst({ where: { requestId, employeeId: employee.id } })
-    : null;
-
-  if (!isAdmin && !approverRecord) {
-    throw { status: 403, error: 'Acceso denegado', message: 'No fuiste seleccionado como aprobador de esta solicitud' };
-  }
+  const { employee, approverRecord } = await getApproverOrThrow(userId, userRole, requestId);
 
   // ── Actualizar estado del aprobador (PurchaseApprover) ──
   if (approverRecord) {
