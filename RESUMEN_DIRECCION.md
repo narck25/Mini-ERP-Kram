@@ -70,13 +70,12 @@ Todos los módulos siguientes están **funcionando en producción**, no son un p
 
 **Madurez: alta.** No es un piloto — es el sistema operativo diario de RH y Compras.
 
-- Todos los módulos listados en la sección 3 están completos en backend y frontend.
-- Hay pruebas automatizadas (más de 20 archivos de prueba) que validan que el sistema funciona antes de publicar cambios, y un flujo de revisión automática en cada actualización de código.
+- Todos los módulos listados en la sección 3 están completos en backend y frontend, y **todos** tienen al menos una prueba automatizada dedicada — no queda ningún módulo de negocio sin cobertura.
+- Hay pruebas automatizadas (más de 30 archivos de prueba) que validan que el sistema funciona antes de publicar cambios, y un flujo de revisión automática en cada actualización de código.
 - El sistema corre en un servidor propio (VPS), con respaldo de base de datos y despliegue automatizado.
 
 **Pendiente / en evolución** (trabajo normal de mantenimiento, no bloqueante):
 
-- El módulo de Incapacidades aún no tiene pruebas automatizadas dedicadas, aunque sí está en uso (Disciplina, Auditoría de RH y Proveedores ya las tienen).
 - Documentación interna antigua (manuales) desactualizada en algunos puntos frente al sistema real — se está corrigiendo.
 - Homogeneizar el estilo de los formularios internos (no afecta el funcionamiento, es limpieza de código).
 
@@ -93,7 +92,7 @@ En las últimas semanas se hizo una **revisión de seguridad completa** del sist
 - Se **corrigió que cerrar sesión o cambiar la contraseña no cortaba el acceso de inmediato** — un acceso robado seguía funcionando hasta 7 días aunque la persona ya hubiera cerrado sesión o cambiado su contraseña. Ahora ambas acciones cortan el acceso al instante.
 - Se **agregó verificación del contenido real de los archivos subidos** (CVs, documentos, cotizaciones, actas): antes solo se revisaba la extensión declarada (ej. ".pdf"), ahora se confirma que el contenido corresponda a ese tipo de archivo antes de aceptarlo.
 - Se **agregó límite de intentos** al reseteo de base de datos y al restablecimiento de contraseñas por un administrador — antes solo el inicio de sesión tenía ese control.
-- Se **agregaron pruebas automatizadas** a Disciplina, Auditoría de RH y Proveedores, los tres módulos nuevos que todavía no las tenían.
+- Se **agregaron pruebas automatizadas a todos los módulos que no las tenían**: Disciplina, Auditoría de RH, Proveedores, Incapacidades, Ajustes de inventario, Configuración del sistema, Reportes e importación/exportación de empleados por CSV. Ya no queda ningún módulo de negocio sin al menos una prueba automatizada.
 - Se **bloqueó la autoaprobación de compras** — se decidió que quien solicita una compra nunca puede ser asignado como su propio aprobador, sin excepción; ya no aparece siquiera como opción al elegir aprobadores.
 - Se documentaron formalmente los puntos que aún requieren atención, priorizados por severidad, para atenderlos en próximas iteraciones.
 
@@ -103,8 +102,9 @@ En resumen: el sistema recibe mantenimiento de seguridad activo, no solo manteni
 
 ## 7. Próximos pasos sugeridos
 
-1. Agregar pruebas automatizadas al módulo de Incapacidades, el único de los nuevos que aún no las tiene.
-2. Actualizar la documentación interna para que refleje el estado real del sistema.
+Con las pruebas automatizadas ya completas y la autoaprobación resuelta, queda un solo pendiente técnico de fondo:
+
+1. Cambiar cómo se guarda la sesión en el navegador (mover el token de acceso a una cookie protegida en vez de `localStorage`) — reduce el riesgo si un equipo se ve comprometido o hay un ataque de tipo XSS. Es un cambio de arquitectura de autenticación, no un ajuste puntual, por lo que amerita planearse aparte.
 
 ---
 

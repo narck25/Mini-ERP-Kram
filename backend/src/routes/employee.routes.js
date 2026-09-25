@@ -27,7 +27,8 @@ router.post('/employees/import',
       }
       next();
     });
-  }, 
+  },
+  validateFileContent,
   employeeCsvController.importEmployees
 );
 router.get('/employees/export', AuthMiddleware.requireRHOrAdmin(), employeeCsvController.exportEmployees);

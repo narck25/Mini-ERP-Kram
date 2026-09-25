@@ -56,4 +56,32 @@ async function getToken(email = 'admin@kram.com', password = 'password123') {
   return null;
 }
 
-module.exports = { request, getToken, BASE_URL };
+/**
+ * Sube un archivo (multipart/form-data) usando fetch/FormData nativos de
+ * Node (18+) — `request()` de arriba solo envía JSON, no sirve para
+ * endpoints que exigen un archivo (ej. importación de CSV).
+ *
+ * @param {string} path - Ruta del endpoint
+ * @param {string|null} token - Token JWT
+ * @param {object} fields - Campos de texto adicionales del form
+ * @param {string} fileField - Nombre del campo del archivo (ej. 'file')
+ * @param {Buffer} buffer - Contenido del archivo
+ * @param {string} filename - Nombre de archivo a declarar
+ * @returns {Promise<{status: number, body: object}>}
+ */
+async function uploadFile(path, token, fields, fileField, buffer, filename) {
+  const form = new FormData();
+  Object.entries(fields || {}).forEach(([key, value]) => form.append(key, value));
+  form.append(fileField, new Blob([buffer]), filename);
+
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(new URL(path, BASE_URL), { method: 'POST', headers, body: form });
+  let body;
+  try { body = await res.json(); }
+  catch { body = await res.text(); }
+  return { status: res.status, body };
+}
+
+module.exports = { request, getToken, uploadFile, BASE_URL };
