@@ -3,6 +3,7 @@ const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const authMiddleware = require('../middlewares/auth.middleware');
+const { seedResetLimiter } = require('../middlewares/rate-limit.middleware');
 const bcrypt = require('bcryptjs');
 
 /**
@@ -17,6 +18,7 @@ const bcrypt = require('bcryptjs');
  *   -d '{"confirm": true}'
  */
 router.post('/seed/reset',
+  seedResetLimiter,
   authMiddleware.verifyToken,
   authMiddleware.requireRole(['ADMIN']),
   async (req, res) => {

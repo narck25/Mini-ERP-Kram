@@ -2,10 +2,12 @@ const express = require('express');
 const router = express.Router();
 const UserController = require('../controllers/user.controller');
 const AuthMiddleware = require('../middlewares/auth.middleware');
+const { resetPasswordLimiter } = require('../middlewares/rate-limit.middleware');
 
 // Rutas públicas (solo verifyToken)
 // Restablecer contraseña - accesible para ADMIN y RH
 router.post('/:id/reset-password',
+  resetPasswordLimiter,
   AuthMiddleware.verifyToken,
   AuthMiddleware.requireRole(['ADMIN', 'RH']),
   UserController.resetPassword
