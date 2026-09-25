@@ -7,7 +7,7 @@ const employeeCsvController = require('../controllers/employee-csv.controller');
 const employeeOrgController = require('../controllers/employee-org.controller');
 const employeePhotoController = require('../controllers/employee-photo.controller');
 const AuthMiddleware = require('../middlewares/auth.middleware');
-const { upload, uploadPhoto, handleMulterError } = require('../middlewares/upload.middleware');
+const { upload, uploadPhoto, handleMulterError, validateFileContent } = require('../middlewares/upload.middleware');
 
 // Todas las rutas requieren autenticación
 router.use(AuthMiddleware.verifyToken);
@@ -83,6 +83,7 @@ router.post('/employees/:id/photo',
       next();
     });
   },
+  validateFileContent,
   employeePhotoController.uploadProfilePhoto
 );
 

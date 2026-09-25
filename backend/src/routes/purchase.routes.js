@@ -126,6 +126,7 @@ router.post('/purchases/:id/cancel',
 router.post('/purchases/:id/quotes/:quoteId/upload',
   AuthMiddleware.requireModule('COMPRAS'),
   UploadMiddleware.uploadPurchaseQuotes.single('file'),
+  UploadMiddleware.validateFileContent,
   PurchaseController.uploadQuoteFile
 );
 
@@ -133,6 +134,7 @@ router.post('/purchases/:id/quotes/:quoteId/upload',
 router.post('/purchases/:id/quotes/upload-with-file',
   AuthMiddleware.requireModule('COMPRAS'),
   UploadMiddleware.uploadPurchaseQuotes.single('file'),
+  UploadMiddleware.validateFileContent,
   PurchaseController.uploadQuoteWithFile
 );
 
@@ -140,6 +142,7 @@ router.post('/purchases/:id/quotes/upload-with-file',
 router.post('/purchases/:id/upload-quote-file',
   AuthMiddleware.requireModule('COMPRAS'),
   UploadMiddleware.uploadPurchaseQuotes.single('file'),
+  UploadMiddleware.validateFileContent,
   PurchaseController.uploadQuoteFileForNewQuote
 );
 

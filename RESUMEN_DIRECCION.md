@@ -90,6 +90,7 @@ En las últimas semanas se hizo una **revisión de seguridad completa** del sist
 - Se **corrigió un caso donde un empleado podía consultar el detalle de una solicitud de compra ajena** sin haber sido invitado a autorizarla.
 - Se **reforzó el control de acceso a los archivos adjuntos** (CVs, expedientes, cotizaciones, órdenes de compra): antes se podían abrir con solo conocer la dirección del archivo; ahora exigen sesión iniciada y el mismo permiso que ya aplicaba el resto del sistema.
 - Se **corrigió que cerrar sesión o cambiar la contraseña no cortaba el acceso de inmediato** — un acceso robado seguía funcionando hasta 7 días aunque la persona ya hubiera cerrado sesión o cambiado su contraseña. Ahora ambas acciones cortan el acceso al instante.
+- Se **agregó verificación del contenido real de los archivos subidos** (CVs, documentos, cotizaciones, actas): antes solo se revisaba la extensión declarada (ej. ".pdf"), ahora se confirma que el contenido corresponda a ese tipo de archivo antes de aceptarlo.
 - Se documentaron formalmente los puntos que aún requieren atención, priorizados por severidad, para atenderlos en próximas iteraciones.
 
 En resumen: el sistema recibe mantenimiento de seguridad activo, no solo mantenimiento de funcionalidad — es una práctica que vale la pena mantener con revisiones periódicas.
@@ -98,9 +99,9 @@ En resumen: el sistema recibe mantenimiento de seguridad activo, no solo manteni
 
 ## 7. Próximos pasos sugeridos
 
-1. Agregar pruebas automatizadas a los módulos más nuevos que aún no las tienen (Disciplina, Auditoría, Proveedores).
-2. Decidir la política de negocio sobre si una persona puede autoaprobar su propia solicitud de compra (hoy técnicamente es posible; es una decisión de control interno, no un tema técnico).
-3. Verificar que los archivos que se suban al sistema sean realmente del tipo que dicen ser (hoy solo se revisa la extensión, ej. ".pdf", no el contenido real).
+1. Agregar límite de intentos a un par de operaciones sensibles que hoy no lo tienen (reseteo de base de datos, restablecimiento de contraseña por un administrador) — el login ya lo tiene.
+2. Agregar pruebas automatizadas a los módulos más nuevos que aún no las tienen (Disciplina, Auditoría, Proveedores).
+3. Decidir la política de negocio sobre si una persona puede autoaprobar su propia solicitud de compra (hoy técnicamente es posible; es una decisión de control interno, no un tema técnico).
 4. Actualizar la documentación interna para que refleje el estado real del sistema.
 
 ---

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const employeeDocumentController = require('../controllers/employeeDocument.controller');
-const { upload, ensureUploadDirs } = require('../middlewares/upload.middleware');
+const { upload, ensureUploadDirs, validateFileContent } = require('../middlewares/upload.middleware');
 const authMiddleware = require('../middlewares/auth.middleware');
 
 // Aplicar autenticación a todas las rutas
@@ -25,6 +25,7 @@ router.get('/employee-documents/allowed-types',
 router.post('/employee/:employeeId/documents',
   ensureUploadDirs,
   upload.single('document'),
+  validateFileContent,
   employeeDocumentController.uploadEmployeeDocument
 );
 

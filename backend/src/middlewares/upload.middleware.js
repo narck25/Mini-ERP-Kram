@@ -161,6 +161,100 @@ const ensureUploadDirs = (req, res, next) => {
 };
 
 // ============================================================
+// Validación de contenido real (magic bytes)
+// ============================================================
+// El fileFilter de multer solo mira la extensión que el cliente declara
+// (`file.originalname`), que es trivial de falsificar (ej. subir un .exe
+// renombrado a "curriculum.pdf"). Esta capa adicional revisa los primeros
+// bytes del archivo YA subido contra la firma real de su tipo declarado.
+// No reemplaza al fileFilter (que sigue filtrando por extensión primero);
+// lo complementa verificando que el contenido no mienta sobre sí mismo.
+const MAGIC_BYTES = {
+  '.pdf': [[0x25, 0x50, 0x44, 0x46]], // %PDF
+  '.png': [[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]],
+  '.jpg': [[0xff, 0xd8, 0xff]],
+  '.jpeg': [[0xff, 0xd8, 0xff]],
+  // .doc/.xls legado (OLE2 Compound File) comparten la misma firma —
+  // basta con confirmar que es un contenedor Office real, no distinguir
+  // el subtipo exacto a partir de los primeros bytes.
+  '.doc': [[0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]],
+  '.xls': [[0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]],
+  // .docx/.xlsx (Office Open XML) son contenedores ZIP.
+  '.docx': [[0x50, 0x4b, 0x03, 0x04], [0x50, 0x4b, 0x05, 0x06], [0x50, 0x4b, 0x07, 0x08]],
+  '.xlsx': [[0x50, 0x4b, 0x03, 0x04], [0x50, 0x4b, 0x05, 0x06], [0x50, 0x4b, 0x07, 0x08]],
+  // .csv es texto plano, sin firma binaria propia — se valida por
+  // descarte más abajo (que no coincida con ninguna firma de esta lista).
+};
+
+const readHeaderBytes = (file, length = 12) => {
+  if (file.buffer && file.buffer.length > 0) {
+    return file.buffer.subarray(0, length);
+  }
+  if (file.path && fs.existsSync(file.path)) {
+    const fd = fs.openSync(file.path, 'r');
+    try {
+      const buf = Buffer.alloc(length);
+      const bytesRead = fs.readSync(fd, buf, 0, length, 0);
+      return buf.subarray(0, bytesRead);
+    } finally {
+      fs.closeSync(fd);
+    }
+  }
+  return Buffer.alloc(0);
+};
+
+const matchesAnySignature = (header, signatures) =>
+  signatures.some((sig) => sig.every((byte, i) => header[i] === byte));
+
+const isFileContentValid = (file) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const header = readHeaderBytes(file);
+
+  if (ext === '.csv') {
+    const allBinarySignatures = Object.values(MAGIC_BYTES).flat();
+    return !matchesAnySignature(header, allBinarySignatures);
+  }
+
+  const signatures = MAGIC_BYTES[ext];
+  if (!signatures) return true; // sin firma definida para esta extensión; no bloquear aquí
+  return matchesAnySignature(header, signatures);
+};
+
+const collectUploadedFiles = (req) => {
+  if (req.file) return [req.file];
+  if (req.files) {
+    return Array.isArray(req.files) ? req.files : Object.values(req.files).flat();
+  }
+  return [];
+};
+
+const cleanupDiskFile = (file) => {
+  if (file.path && fs.existsSync(file.path)) {
+    try { fs.unlinkSync(file.path); } catch { /* best-effort */ }
+  }
+};
+
+/**
+ * Middleware a colocar DESPUÉS de cualquier multer.single()/.fields() de
+ * este archivo. Rechaza (400) si el contenido real de algún archivo no
+ * coincide con la firma esperada de su extensión declarada, y limpia del
+ * disco los archivos ya escritos por multer antes de responder.
+ */
+const validateFileContent = (req, res, next) => {
+  const files = collectUploadedFiles(req);
+  const invalid = files.find((file) => !isFileContentValid(file));
+
+  if (invalid) {
+    files.forEach(cleanupDiskFile);
+    return res.status(400).json({
+      error: `El archivo "${invalid.originalname}" no coincide con su extensión (contenido inválido o corrupto).`
+    });
+  }
+
+  next();
+};
+
+// ============================================================
 // Middleware para manejar errores de multer
 // ============================================================
 const handleMulterError = (err, req, res, next) => {
@@ -193,5 +287,6 @@ module.exports = {
   uploadPhoto,
   uploadDisciplinaryIncident,
   ensureUploadDirs,
-  handleMulterError
+  handleMulterError,
+  validateFileContent
 };

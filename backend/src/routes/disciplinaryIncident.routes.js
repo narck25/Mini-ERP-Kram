@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const router = Router();
 const AuthMiddleware = require('../middlewares/auth.middleware');
-const { uploadDisciplinaryIncident, handleMulterError } = require('../middlewares/upload.middleware');
+const { uploadDisciplinaryIncident, handleMulterError, validateFileContent } = require('../middlewares/upload.middleware');
 const DisciplinaryIncidentController = require('../controllers/disciplinaryIncident.controller');
 
 // requireModule('DISCIPLINA') es la puerta de entrada de nivel A; el control fino
@@ -13,6 +13,7 @@ router.post(
   ...auth,
   uploadDisciplinaryIncident.single('archivo'),
   handleMulterError,
+  validateFileContent,
   DisciplinaryIncidentController.create
 );
 router.put('/disciplinary-incidents/:id', ...auth, DisciplinaryIncidentController.update);

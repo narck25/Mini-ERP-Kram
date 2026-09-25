@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const recruitmentController = require('../controllers/recruitment.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
-const { upload, uploadCV, uploadPsychTest, uploadCandidate, ensureUploadDirs, handleMulterError } = require('../middlewares/upload.middleware');
+const { upload, uploadCV, uploadPsychTest, uploadCandidate, ensureUploadDirs, handleMulterError, validateFileContent } = require('../middlewares/upload.middleware');
 
 // Aplicar autenticación a todas las rutas
 router.use(authMiddleware.verifyToken);
@@ -102,6 +102,7 @@ router.post('/recruitment/vacancies/:vacancy_id/candidates',
     { name: 'cv', maxCount: 1 },
     { name: 'psychTest', maxCount: 1 }
   ]),
+  validateFileContent,
   (req, res, next) => {
     // Mover psychTest a la carpeta psych-tests si existe
     if (req.files?.psychTest?.[0]) {
@@ -137,6 +138,7 @@ router.put('/recruitment/candidates/:candidate_id/documents',
     { name: 'cv', maxCount: 1 },
     { name: 'psychTest', maxCount: 1 }
   ]),
+  validateFileContent,
   (req, res, next) => {
     // Mover psychTest a la carpeta psych-tests si existe
     if (req.files?.psychTest?.[0]) {
