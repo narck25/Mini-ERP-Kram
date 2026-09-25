@@ -9,6 +9,7 @@ import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { probationApi } from '@/lib/api/probation';
+import { operationalEvaluationApi } from '@/lib/api/operationalEvaluation';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
 const fmt = (iso) => (iso ? new Date(iso).toISOString().substring(0, 10).split('-').reverse().join('/') : '—');
@@ -23,6 +24,11 @@ function MiEspacioPage() {
   // Evaluaciones de periodo de prueba pendientes de mis subordinados (independiente de
   // accessibleModules — cualquier jefe con gente a cargo debe poder verlas).
   const [pendingEvaluations, setPendingEvaluations] = useState([]);
+
+  // Evaluaciones operativas trimestrales pendientes de mis subordinados (6
+  // puestos operativos: Ayudante General, Chofer, Almacenista, Preventista,
+  // Promotor, Degustador). Sin autoevaluación previa — solo el jefe evalúa.
+  const [pendingOperationalEvaluations, setPendingOperationalEvaluations] = useState([]);
 
   // Mis propias autoevaluaciones pendientes (paso 1 del formato 30/60/90 — las
   // llena el colaborador antes de que RH/jefe complete el resto).
@@ -43,6 +49,7 @@ function MiEspacioPage() {
     if (user?.id) {
       fetchPendingEvaluations();
       fetchMyPendingSelfEvals();
+      fetchPendingOperationalEvaluations();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
@@ -53,6 +60,15 @@ function MiEspacioPage() {
       setPendingEvaluations(res.data?.data || []);
     } catch (error) {
       console.error('Error fetching pending probation evaluations:', error);
+    }
+  };
+
+  const fetchPendingOperationalEvaluations = async () => {
+    try {
+      const res = await operationalEvaluationApi.getPendingForJefe();
+      setPendingOperationalEvaluations(res.data?.data || []);
+    } catch (error) {
+      console.error('Error fetching pending operational evaluations:', error);
     }
   };
 
@@ -464,6 +480,33 @@ function MiEspacioPage() {
                       <button
                         onClick={() => router.push(`/rh/periodo-prueba/${ev.id}`)}
                         className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-md text-sm font-medium"
+                      >
+                        Capturar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Evaluaciones operativas trimestrales pendientes (visible solo si tengo subordinados con evaluaciones pendientes) */}
+            {pendingOperationalEvaluations.length > 0 && (
+              <div className="bg-white rounded-xl shadow-md p-6 mb-8 border-l-4 border-teal-500">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <span className="text-teal-600">📈</span> Evaluaciones Operativas Pendientes
+                  </h2>
+                </div>
+                <div className="space-y-3">
+                  {pendingOperationalEvaluations.map((ev) => (
+                    <div key={ev.id} className="flex items-center justify-between p-3 bg-teal-50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-gray-900">{nombreEmpleadoEvaluacion(ev.empleado)}</p>
+                        <p className="text-sm text-gray-600">{ev.puesto} — Trimestre #{ev.periodo}</p>
+                      </div>
+                      <button
+                        onClick={() => router.push(`/rh/evaluacion-operativa/${ev.id}`)}
+                        className="px-3 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-md text-sm font-medium"
                       >
                         Capturar
                       </button>

@@ -276,6 +276,7 @@ erDiagram
 | `VacationRequest` | `vacation_requests` | `estatus: VacationStatus` (`PENDIENTE→AUTORIZADA→APROBADA/RECHAZADA/CANCELADA`) (`schema.prisma:884-907`) |
 | `Incapacidad` | `incapacidades` | `estatus: IncapacidadStatus` (`ACTIVA/REINCORPORADO`) (`schema.prisma:911-929`) |
 | `ProbationEvaluation` | `probation_evaluations` | Único `[empleadoId, tipo]`; `tipo: DIA_30/60/90`, `resultado: PENDIENTE/APROBADO/NO_APROBADO/EXTENDIDO` (dictamen: Aprobado Satisfactoriamente/No Satisfactorio/Aprobado Condicionado-PIP). Extendido de forma aditiva con el formato oficial de RH: `autoevaluacion`/`autoevaluacionCompletadaAt` (paso 1, colaborador) y `objetivos`/`competencias`/`habitos`/`fortalezas`/`areasMejora`/`planAccion`/`minutaRetroalimentacion` (paso 2, evaluador), todos `Json?` nullable (`schema.prisma`, migración `20260925165359_add_probation_evaluation_detail`) |
+| `OperationalEvaluation` | `operational_evaluations` | Único `[empleadoId, periodo]` — `periodo` es un contador secuencial de trimestres desde la contratación (no calendario Q1-Q4). `puesto` es un snapshot en texto (no FK) de uno de los 6 puestos operativos elegibles. `criterios` (`Json?`) guarda las calificaciones 1-5 capturadas; `subtotalRH`/`subtotalActitud`/`subtotalDesempeno`/`calificacionFinal` se calculan en el servidor; `resultado: PENDIENTE/APROBADO_DISTINCION/EN_DESARROLLO/NO_APROBADO` se deriva automáticamente del % logrado, no lo elige el evaluador (`schema.prisma`, migración `20260925221301_add_operational_evaluation`) |
 | `DisciplinaryIncident` | `disciplinary_incidents` | `tipo: RETARDO_FALTA_INJUSTIFICADA/ACTA_ADMINISTRATIVA`, `archivoUrl` opcional (`schema.prisma:724-740`) |
 | `HrAuditLog` | `hr_audit_logs` | **Append-only**: auditoría genérica sobre Employee/Vacation/Incapacidad/DisciplinaryIncident/ProbationEvaluation (`schema.prisma:663-680`) |
 
@@ -387,6 +388,7 @@ Definidos como `enum RoleType` en el schema, pero `User.role` es un `String` lib
 | Incapacidades | `requireRole(['ADMIN','RH'])` — sin módulo, Nivel C puro (`backend/src/routes/incapacidad.routes.js:9-13`) |
 | Disciplina (incidencias disciplinarias) | `requireModule('DISCIPLINA')`, con control fino adicional en el service (ADMIN/RH o jefe directo) (`backend/src/routes/disciplinaryIncident.routes.js:9-19`) |
 | Periodo de prueba | Mixto: `requireRHOrAdmin()` para listar todas, `verifyToken` + lógica interna para "pendientes de mi equipo" y captura (`backend/src/routes/probationEvaluation.routes.js:7-13`) |
+| Evaluación Operativa Trimestral | Mismo patrón: `requireRHOrAdmin()` para listar todas, `verifyToken` + lógica interna para "pendientes de mi equipo" y captura (`backend/src/routes/operationalEvaluation.routes.js`) |
 | Auditoría de RH | Solo `verifyToken`; el filtrado ADMIN/RH/jefe directo ocurre dentro del controller (`backend/src/controllers/hrAudit.controller.js:7-12`) |
 | Compras/Papelería/Uniformes/Inventario | `requireModule('COMPRAS')`; aprobaciones de ajuste de inventario → `RH/ADMIN` |
 | Proveedores | `requireModule('COMPRAS')` (`backend/src/routes/supplier.routes.js:8-10`) |
@@ -474,14 +476,25 @@ Para el detalle endpoint-por-endpoint ya existente y verificado en gran parte co
 - **Pruebas**: `backend/tests/13-probation.test.js` (9 pruebas de integración: permisos por rol, orden del flujo, doble envío, captura y lectura del detalle completo).
 - **Estado**: completo, no reflejado en `docs/ESTADO_DEL_PROYECTO.md`.
 
-### 7.9 Auditoría de RH
+### 7.9 Evaluación Operativa Trimestral (6 puestos operativos)
 
-- **Propósito**: log consolidado de cambios sobre Employee/Vacation/Incapacidad/DisciplinaryIncident/ProbationEvaluation.
+- **Propósito**: formato oficial de RH ("Evaluación de Desempeño Operativo KRAM.pdf") para 6 puestos operativos (Ayudante General, Chofer, Almacenista, Preventista, Promotor, Degustador), cada uno con sus propios criterios y pesos fijos en 3 secciones ponderadas (RH 30%, Actitud 20%, Desempeño 50%). A diferencia del 30/60/90, **no hay autoevaluación del colaborador** — el formato solo contempla al jefe directo como evaluador, y es continua (no tiene fecha de corte): se repite cada 90 días desde la contratación mientras el empleado siga activo en uno de esos 6 puestos.
+- **Endpoints**: `GET /api/operational-evaluations` (RH/ADMIN), `GET /api/operational-evaluations/pending-for-jefe`, `GET /api/operational-evaluations/criteria-templates` (las 6 plantillas fijas, para que el frontend no las duplique a mano), `POST /api/operational-evaluations/:id/capture` (403 si no es RH/ADMIN/jefe directo, 400 si falta calificar algún criterio o el puesto no tiene plantilla definida), `GET /api/operational-evaluations/:id` (`backend/src/routes/operationalEvaluation.routes.js`).
+- **Job automático**: `backend/src/services/operationalEvaluationPeriod.service.js` corre a diario (cron 8:00 AM, `backend/src/index.js`) — para cada empleado activo cuyo puesto sea uno de los 6 elegibles, calcula días exactos desde `fechaAlta`; si son múltiplo de 90, crea (idempotente, único por `[empleadoId, periodo]`) el registro `OperationalEvaluation` pendiente y notifica a RH + jefe directo.
+- **Criterios fijos** (no editables desde UI, mismo patrón que `probationCriteria.config.js`): las 6 plantillas completas (criterio, descripción, peso) en `backend/src/config/operationalEvaluationCriteria.config.js`. La calificación final (0-100) y el dictamen (`APROBADO_DISTINCION` ≥90% / `EN_DESARROLLO` 75-89% / `NO_APROBADO` <75%) se **calculan automáticamente** en el servidor a partir de las calificaciones 1-5 capturadas — a diferencia del 30/60/90, el evaluador no elige el resultado, es una regla numérica de la tabla del PDF.
+- **Frontend**: `frontend/app/rh/evaluacion-operativa/[id]/page.js` (formulario dinámico por puesto, de solo lectura una vez capturada), `frontend/app/rh/evaluacion-operativa/page.js` (lista con pestañas Pendientes/Historial). Tarjeta de pendientes para el jefe directo en "Mi Espacio", igual que Periodo de Prueba.
+- **Dependencia pendiente**: los 6 puestos ("Ayudante General", "Chofer", etc.) todavía no existen en el catálogo real de `JobPosition` — se construyó el módulo completo primero, a propósito, y los puestos se dan de alta después desde la UI normal de RH; hasta entonces el cron simplemente no encuentra a nadie que evaluar.
+- **Pruebas**: `backend/tests/14-operational-evaluation.test.js` (12 pruebas: permisos por rol, validación de criterios incompletos, puesto sin plantilla, cálculo correcto de subtotales/calificación final/dictamen, listas pendiente/historial).
+- **Estado**: completo, no reflejado en `docs/ESTADO_DEL_PROYECTO.md`.
+
+### 7.10 Auditoría de RH
+
+- **Propósito**: log consolidado de cambios sobre Employee/Vacation/Incapacidad/DisciplinaryIncident/ProbationEvaluation/OperationalEvaluation.
 - **Endpoints**: `GET /api/hr-audit/employee/:id` (`verifyToken`; el control de "quién puede ver" —ADMIN/RH o el jefe directo del empleado, explícitamente **no** el propio empleado— vive en el controller) (`backend/src/controllers/hrAudit.controller.js:7-12`).
 - **Frontend**: embebido en el expediente del empleado, sin pantalla propia.
 - **Estado**: completo, no documentado en los manuales previos.
 
-### 7.10 Reportes
+### 7.11 Reportes
 
 - **Propósito**: 5 reportes con exportación a Excel (xlsx).
 - **Reportes**: Empleados, Compras, Inventario (papelería+uniformes), Asistencia, Vacaciones — columnas detalladas en §9.4.
@@ -489,7 +502,7 @@ Para el detalle endpoint-por-endpoint ya existente y verificado en gran parte co
 - **Frontend**: `frontend/app/dashboard/reportes`.
 - **Estado**: completo — también contradice a `README.md:16` ("❌ Sin implementar").
 
-### 7.11 Configuración (usuarios, roles, permisos, sistema)
+### 7.12 Configuración (usuarios, roles, permisos, sistema)
 
 - **Propósito**: gestión de usuarios, roles personalizados, permisos por módulo, y ajustes globales del sistema.
 - **Endpoints**: `docs/API.md §2,7,13` + `system-setting.routes.js` (modo estricto de inventario).
@@ -497,7 +510,7 @@ Para el detalle endpoint-por-endpoint ya existente y verificado en gran parte co
 - **Reglas de negocio**: solo ADMIN cambia roles, elimina usuarios y gestiona roles personalizados; guard anti-auto-bloqueo (un usuario no puede quitarse a sí mismo el acceso que lo deja fuera) (`docs/DEUDA_TECNICA.md:35`).
 - **Estado**: completo.
 
-### 7.12 Dashboard
+### 7.13 Dashboard
 
 - Siempre activo (módulo implícito). "Mi Espacio" con scoping por jerarquía; `GET /stats/my-dashboard` verifica módulos internamente para decidir qué widgets mostrar (`docs/API.md §6`).
 - **Estado**: completo.
@@ -704,7 +717,7 @@ Listado completo (`find backend/tests -name "*.test.js"`):
 
 Esto ya es más de lo que reporta `docs/TESTING.md` ("14 suites/99 tests" — ese documento no menciona `12-vacaciones.test.js` ni 5 de los 10 archivos unitarios), consistente con el commit `16407b0 test: cobertura unitaria para purchase/stationery/uniform.service.js`.
 
-**Módulos sin ningún archivo de test** (ni integración ni unitario — búsqueda por palabra clave en `backend/tests`, sin ejecutar nada): **Incapacidades**, **Disciplina/incidencias disciplinarias**, **Auditoría de RH** (`hrAudit`), **Proveedores** (`supplier`), **Ajustes de inventario** (`inventory-adjustment`), **Configuración del sistema / modo estricto de inventario** (`system-setting`), **Reportes** (`/api/reports/*`) e **importación/exportación CSV de empleados** (`employee-csv`, rutas `/import`/`/export`/`/template`). Es decir: de los 3 módulos identificados en §7.7-7.9 como "no documentados en `docs/`" (Disciplina, Periodo de prueba, Auditoría de RH), Disciplina y Auditoría de RH siguen sin pruebas automatizadas — **Periodo de prueba ya tiene cobertura** (`backend/tests/13-probation.test.js`, agregado junto con el flujo de autoevaluación de dos pasos, ver §7.8) — el resto es funcional según la revisión manual de rutas/servicios, pero no está verificado por la suite de tests.
+**Módulos sin ningún archivo de test** (ni integración ni unitario — búsqueda por palabra clave en `backend/tests`, sin ejecutar nada): **Incapacidades**, **Disciplina/incidencias disciplinarias**, **Auditoría de RH** (`hrAudit`), **Proveedores** (`supplier`), **Ajustes de inventario** (`inventory-adjustment`), **Configuración del sistema / modo estricto de inventario** (`system-setting`), **Reportes** (`/api/reports/*`) e **importación/exportación CSV de empleados** (`employee-csv`, rutas `/import`/`/export`/`/template`). Es decir: de los módulos identificados en §7.7/§7.10 como "no documentados en `docs/`" (Disciplina, Auditoría de RH), ambos siguen sin pruebas automatizadas — **Periodo de prueba** (`backend/tests/13-probation.test.js`, ver §7.8) y **Evaluación Operativa Trimestral** (`backend/tests/14-operational-evaluation.test.js`, ver §7.9) ya tienen cobertura — el resto es funcional según la revisión manual de rutas/servicios, pero no está verificado por la suite de tests.
 
 > Nota de método: por instrucción explícita de la tarea, no se ejecutó `npm test` ni ningún otro comando que alterara el proyecto; el conteo y la cobertura anterior se obtuvieron listando archivos y leyendo su contenido, no corriendo la suite.
 
@@ -724,6 +737,7 @@ Esto ya es más de lo que reporta `docs/TESTING.md` ("14 suites/99 tests" — es
 | Configuración/Usuarios/Roles | ✅ | ✅ | ✅ |
 | **Disciplina** | ✅ | ⚠️ (embebido, sin página propia) | ❌ no documentado como módulo |
 | **Periodo de prueba** | ✅ | ✅ | ❌ no documentado |
+| **Evaluación Operativa Trimestral** | ✅ | ✅ | ✅ (esta sección) |
 | **Auditoría de RH** | ✅ | ⚠️ (embebido) | ❌ no documentado |
 
 ---

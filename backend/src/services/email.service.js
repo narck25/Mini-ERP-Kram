@@ -531,6 +531,24 @@ exports.sendProbationSelfEvalCompleted = async (email, destinatarioNombre, emplo
 };
 
 /**
+ * Aviso de que la evaluación operativa trimestral de un empleado (6 puestos
+ * operativos: Ayudante General, Chofer, Almacenista, Preventista, Promotor,
+ * Degustador) ya está lista para capturarse. Sin autoevaluación previa —
+ * el formato de RH solo contempla al jefe directo como evaluador.
+ */
+exports.sendOperationalEvaluationDue = async (email, destinatarioNombre, employeeName, puesto, periodo) => {
+  const title = '📊 Evaluación operativa trimestral lista para capturar';
+  const content = `
+    <p>Hola <strong>${destinatarioNombre}</strong>,</p>
+    <p><strong>${employeeName}</strong> (${puesto}) llegó a su evaluación trimestral número <strong>${periodo}</strong>. Ya puedes capturarla en el sistema.</p>
+    <center>
+      <a href="${FRONTEND_URL}/dashboard/mi-espacio" class="button">Capturar evaluación</a>
+    </center>
+  `;
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
+/**
  * Enviar resumen diario a RH con cumpleaños y aniversarios del día
  */
 exports.sendDailySummaryToRH = async (email, rhName, birthdayList, anniversaryList) => {

@@ -28,6 +28,7 @@ export const adminNavigation = [
   { name: 'Incidencias', href: '/rh/incidencias', icon: '⏰', module: 'INCIDENCIAS', roles: ['ADMIN', 'RH'] },
   { name: 'Incapacidades', href: '/rh/incapacidades', icon: '🏥', module: 'EMPLEADOS', roles: ['ADMIN', 'RH'] },
   { name: 'Periodo de Prueba', href: '/rh/periodo-prueba', icon: '📋', module: 'EMPLEADOS', roles: ['ADMIN', 'RH'] },
+  { name: 'Evaluación Operativa', href: '/rh/evaluacion-operativa', icon: '📈', module: 'EMPLEADOS', roles: ['ADMIN', 'RH'] },
   { name: 'Vacaciones', href: '/rh/vacaciones', icon: '🏖️', module: 'VACACIONES', roles: ['ADMIN', 'RH'] },
   { name: 'Reportes', href: '/dashboard/reportes', icon: '📊', module: 'REPORTES', roles: ['ADMIN', 'RH'] },
   { name: 'Gestión de Compras', href: '/dashboard/compras', icon: '🛒', module: 'COMPRAS', roles: ['ADMIN', 'COMPRAS'] },

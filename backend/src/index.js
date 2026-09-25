@@ -74,6 +74,7 @@ const reportRoutes = loadRoute('report', './routes/report.routes');
 const incapacidadRoutes = loadRoute('incapacidad', './routes/incapacidad.routes');
 const hrAuditRoutes = loadRoute('hr-audit', './routes/hrAudit.routes');
 const probationEvaluationRoutes = loadRoute('probation-evaluation', './routes/probationEvaluation.routes');
+const operationalEvaluationRoutes = loadRoute('operational-evaluation', './routes/operationalEvaluation.routes');
 const disciplinaryIncidentRoutes = loadRoute('disciplinary-incident', './routes/disciplinaryIncident.routes');
 
 const app = express();
@@ -188,6 +189,7 @@ app.use('/api', reportRoutes);
 app.use('/api', incapacidadRoutes);
 app.use('/api', hrAuditRoutes);
 app.use('/api', probationEvaluationRoutes);
+app.use('/api', operationalEvaluationRoutes);
 app.use('/api', disciplinaryIncidentRoutes);
 app.use('/api', rolesRoutes);
 app.use('/api', notificationsRoutes);
@@ -287,6 +289,22 @@ cron.schedule('0 8 * * *', async () => {
 });
 
 console.log('⏰ Scheduler de periodo de prueba configurado (8:00 AM)');
+
+// ============================================================
+// Scheduler diario para evaluación operativa trimestral (6 puestos)
+// ============================================================
+const { checkAndNotify: checkOperationalAndNotify } = require('./services/operationalEvaluationPeriod.service');
+
+cron.schedule('0 8 * * *', async () => {
+  console.log('⏰ Ejecutando verificación diaria de evaluaciones operativas trimestrales...');
+  try {
+    await checkOperationalAndNotify();
+  } catch (err) {
+    console.error('❌ Error en scheduler de evaluación operativa:', err.message);
+  }
+});
+
+console.log('⏰ Scheduler de evaluación operativa configurado (8:00 AM)');
 
 // ============================================================
 // Inicio del servidor

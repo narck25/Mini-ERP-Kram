@@ -33,7 +33,8 @@ const ENTIDADES = {
   VACATION: 'VACATION',
   INCAPACIDAD: 'INCAPACIDAD',
   DISCIPLINARY_INCIDENT: 'DISCIPLINARY_INCIDENT',
-  PROBATION_EVALUATION: 'PROBATION_EVALUATION'
+  PROBATION_EVALUATION: 'PROBATION_EVALUATION',
+  OPERATIONAL_EVALUATION: 'OPERATIONAL_EVALUATION'
 };
 
 const extractRequestMeta = (req) => {
@@ -97,11 +98,12 @@ const getHistory = async (entidadTipo, entidadId) => {
 // con VACATION/INCAPACIDAD/DISCIPLINARY_INCIDENT/PROBATION_EVALUATION (entidadId = id del
 // registro correspondiente, resueltos primero ya que no son el id del empleado).
 const getHistoryByEmployee = async (employeeId) => {
-  const [vacations, incapacidades, incidents, evaluations] = await Promise.all([
+  const [vacations, incapacidades, incidents, evaluations, operationalEvaluations] = await Promise.all([
     prisma.vacationRequest.findMany({ where: { employeeId }, select: { id: true } }),
     prisma.incapacidad.findMany({ where: { employeeId }, select: { id: true } }),
     prisma.disciplinaryIncident.findMany({ where: { empleadoId: employeeId }, select: { id: true } }),
-    prisma.probationEvaluation.findMany({ where: { empleadoId: employeeId }, select: { id: true } })
+    prisma.probationEvaluation.findMany({ where: { empleadoId: employeeId }, select: { id: true } }),
+    prisma.operationalEvaluation.findMany({ where: { empleadoId: employeeId }, select: { id: true } })
   ]);
 
   const where = {
@@ -110,7 +112,8 @@ const getHistoryByEmployee = async (employeeId) => {
       { entidadTipo: ENTIDADES.VACATION, entidadId: { in: vacations.map(v => v.id) } },
       { entidadTipo: ENTIDADES.INCAPACIDAD, entidadId: { in: incapacidades.map(i => i.id) } },
       { entidadTipo: ENTIDADES.DISCIPLINARY_INCIDENT, entidadId: { in: incidents.map(i => i.id) } },
-      { entidadTipo: ENTIDADES.PROBATION_EVALUATION, entidadId: { in: evaluations.map(e => e.id) } }
+      { entidadTipo: ENTIDADES.PROBATION_EVALUATION, entidadId: { in: evaluations.map(e => e.id) } },
+      { entidadTipo: ENTIDADES.OPERATIONAL_EVALUATION, entidadId: { in: operationalEvaluations.map(e => e.id) } }
     ]
   };
 

@@ -48,6 +48,7 @@ Todos los módulos siguientes están **funcionando en producción**, no son un p
 - **Incapacidades** — registro y seguimiento de incapacidades médicas.
 - **Disciplina** — registro de faltas, retardos y actas administrativas por empleado.
 - **Periodo de prueba** — recordatorios automáticos y evaluación a los 30/60/90 días.
+- **Evaluación operativa trimestral** — para 6 puestos operativos (Ayudante General, Chofer, Almacenista, Preventista, Promotor, Degustador), con criterios y pesos propios por puesto; la calificación y el resultado se calculan automáticamente.
 - **Auditoría de RH** — bitácora de cambios sobre expedientes, para trazabilidad.
 - **Reportes** — 5 reportes exportables a Excel (empleados, compras, inventario, asistencia, vacaciones).
 - **Configuración y usuarios** — administración de cuentas, roles y permisos por módulo.

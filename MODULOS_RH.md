@@ -13,10 +13,11 @@
 5. [Incapacidades](#5-incapacidades)
 6. [Disciplina](#6-disciplina-incidencias-disciplinarias)
 7. [Periodo de prueba](#7-periodo-de-prueba-evaluaciones-306090-días)
-8. [Auditoría de RH](#8-auditoría-de-rh)
-9. [Reportes de RH](#9-reportes-de-rh)
-10. [Quién puede ver y hacer qué](#10-quién-puede-ver-y-hacer-qué)
-11. [Estado y pendientes del área](#11-estado-y-pendientes-del-área)
+8. [Evaluación Operativa Trimestral](#8-evaluación-operativa-trimestral)
+9. [Auditoría de RH](#9-auditoría-de-rh)
+10. [Reportes de RH](#10-reportes-de-rh)
+11. [Quién puede ver y hacer qué](#11-quién-puede-ver-y-hacer-qué)
+12. [Estado y pendientes del área](#12-estado-y-pendientes-del-área)
 
 ---
 
@@ -205,7 +206,30 @@ Los criterios de evaluación (las 6 competencias y los 3 hábitos) son fijos, de
 
 ---
 
-## 8. Auditoría de RH
+## 8. Evaluación Operativa Trimestral
+
+**Qué es:** el segundo formato de evaluación que RH proporcionó, para el personal de 6 puestos operativos: Ayudante General, Chofer, Almacenista, Preventista, Promotor y Degustador. A diferencia del Periodo de Prueba, **no tiene fecha de corte** — se repite cada 3 meses de forma indefinida mientras la persona siga activa en uno de esos puestos, y **no hay autoevaluación del colaborador**: solo el jefe directo evalúa.
+
+**Cómo funciona:**
+- Todos los días a las 8:00 a.m., el sistema revisa la antigüedad de cada empleado activo en uno de los 6 puestos elegibles.
+- Cada 90 días exactos desde su fecha de contratación, se crea automáticamente la evaluación pendiente y se avisa a RH y al jefe directo.
+
+**Qué evalúa el jefe directo** (cada puesto tiene sus propios criterios y pesos, definidos por RH):
+- **Recursos Humanos (30%):** asistencia, puntualidad, disciplina, presentación.
+- **Mentalidad y Actitud (20%):** actitud de servicio, trabajo en equipo, proactividad, comunicación.
+- **Desempeño y Productividad (50%):** los indicadores específicos del puesto — por ejemplo, para un Chofer son entregas completas, firmas de recibido y cumplimiento de ruta; para un Preventista, cobertura de ruta y pedidos capturados sin error.
+
+**Resultado:** el sistema **calcula automáticamente** la calificación final (0-100%) y el dictamen a partir de las calificaciones que captura el jefe — no es una decisión manual, es la misma tabla numérica del formato de RH: 90% o más es Aprobado (mínimo para ser elegible a un eventual incremento salarial, que de cualquier forma no es automático), 75-89% es "En Desarrollo" con plan de mejora, y menos de 75% es "No Aprobado".
+
+**Vista dedicada:** misma lógica que Periodo de Prueba — pantalla propia con pendientes e historial para RH, y una tarjeta de pendientes en "Mi Espacio" para cada jefe de área.
+
+**Pendiente antes de que empiece a generar evaluaciones reales:** los 6 puestos operativos todavía no existen en el catálogo de puestos de la empresa — se construyó el módulo completo primero, listo para usarse en cuanto RH dé de alta esos puestos desde la pantalla normal de Empleados.
+
+**Estado:** completo y con pruebas automatizadas propias, en espera de que se den de alta los puestos operativos reales.
+
+---
+
+## 9. Auditoría de RH
 
 **Qué es:** una bitácora central que registra los cambios importantes hechos sobre expedientes, vacaciones, incapacidades, disciplina y evaluaciones de periodo de prueba — responde a la pregunta "¿quién cambió esto y cuándo?".
 
@@ -217,7 +241,7 @@ Los criterios de evaluación (las 6 competencias y los 3 hábitos) son fijos, de
 
 ---
 
-## 9. Reportes de RH
+## 10. Reportes de RH
 
 Desde la sección de Reportes se pueden exportar a Excel:
 
@@ -231,7 +255,7 @@ Desde la sección de Reportes se pueden exportar a Excel:
 
 ---
 
-## 10. Quién puede ver y hacer qué
+## 11. Quién puede ver y hacer qué
 
 El sistema controla el acceso en tres niveles:
 
@@ -250,10 +274,10 @@ El sistema controla el acceso en tres niveles:
 
 ---
 
-## 11. Estado y pendientes del área
+## 12. Estado y pendientes del área
 
 **Lo que ya está sólido:** Empleados, Reclutamiento y Vacaciones tienen la mayor cantidad de uso, pruebas automatizadas y tiempo en producción.
 
 **Lo que es más nuevo y funciona, pero con menos "blindaje" de pruebas automatizadas todavía:** Incapacidades, Disciplina y Auditoría de RH — están operando correctamente según la revisión del código, pero no cuentan aún con pruebas automatizadas dedicadas (sí las tienen los módulos más antiguos, y ya también Periodo de Prueba). Esto no significa que fallen; significa que, si se modifican en el futuro, conviene probarlos manualmente con más cuidado hasta que se les agregue esa cobertura.
 
-**Documentación interna:** los manuales de usuario más antiguos de RH no mencionan todavía Disciplina, Periodo de Prueba ni Auditoría de RH como módulos — es trabajo de documentación pendiente, no un problema del sistema en sí.
+**Documentación interna:** los manuales de usuario más antiguos de RH no mencionan todavía Disciplina, Periodo de Prueba, Evaluación Operativa Trimestral ni Auditoría de RH como módulos — es trabajo de documentación pendiente, no un problema del sistema en sí.
