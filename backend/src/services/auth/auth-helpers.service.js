@@ -30,28 +30,45 @@ const sanitizeUserData = (user) => ({
 });
 
 /**
- * Crea una sesión en base de datos con token y fecha de expiración.
+ * Registra en base de datos el JWT recién emitido para un login, para que
+ * verifyToken pueda revocarlo (logout / cambio de contraseña) sin esperar
+ * a que expire por sí solo. La fecha de expiración de la sesión se deriva
+ * del propio JWT (claim `exp`), para no desincronizarse de JWT_EXPIRES_IN.
+ *
+ * De paso, limpia las sesiones ya vencidas de ese usuario para que la
+ * tabla no crezca sin límite (no hay otro mecanismo de limpieza).
  *
  * @param {string} userId - ID del usuario
- * @returns {Promise<string>} sessionToken generado
+ * @param {string} token - JWT ya firmado (el mismo que se devuelve al cliente)
  */
-const createSession = async (userId) => {
-  const sessionToken = AuthUtils.generateSessionToken();
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7); // 7 días
+const createSession = async (userId, token) => {
+  const { exp } = require('jsonwebtoken').decode(token);
+  const expiresAt = new Date(exp * 1000);
 
-  await prisma.session.create({
-    data: {
-      userId,
-      token: sessionToken,
-      expiresAt,
-    },
+  await prisma.session.deleteMany({
+    where: { userId, expiresAt: { lt: new Date() } },
   });
 
-  return sessionToken;
+  await prisma.session.create({
+    data: { userId, token, expiresAt },
+  });
+};
+
+/**
+ * Verifica que el JWT presentado corresponda a una sesión activa (no
+ * cerrada por logout ni invalidada por un cambio de contraseña) y que no
+ * haya expirado. Usado por verifyToken y verifyTokenFromQuery.
+ *
+ * @param {string} token - JWT a validar
+ * @returns {Promise<boolean>}
+ */
+const isSessionActive = async (token) => {
+  const session = await prisma.session.findUnique({ where: { token } });
+  return !!session && session.expiresAt > new Date();
 };
 
 module.exports = {
   sanitizeUserData,
   createSession,
+  isSessionActive,
 };

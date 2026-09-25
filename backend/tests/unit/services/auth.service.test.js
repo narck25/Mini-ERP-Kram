@@ -120,21 +120,4 @@ describe('🔐 AuthUtils - Pruebas Unitarias', () => {
       expect(AuthUtils.hasRole('ADMIN', ['admin'])).toBe(true);
     });
   });
-
-  // ========== GENERATE SESSION TOKEN ==========
-  describe('generateSessionToken', () => {
-    test('debe generar un token de sesión hexadecimal', () => {
-      const token = AuthUtils.generateSessionToken();
-      expect(token).toBeDefined();
-      expect(typeof token).toBe('string');
-      // 32 bytes = 64 caracteres hex
-      expect(token).toMatch(/^[0-9a-f]{64}$/);
-    });
-
-    test('debe generar tokens únicos', () => {
-      const token1 = AuthUtils.generateSessionToken();
-      const token2 = AuthUtils.generateSessionToken();
-      expect(token1).not.toBe(token2);
-    });
-  });
 });

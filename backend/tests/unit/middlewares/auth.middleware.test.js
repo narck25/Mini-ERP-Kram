@@ -13,6 +13,14 @@ jest.mock('../../../src/utils/auth.utils', () => ({
 
 const AuthUtils = require('../../../src/utils/auth.utils');
 
+// Mock de auth-helpers.service (verifica que la sesión no haya sido
+// revocada — ver Hallazgo #3 en PROJECT_CONTEXT.md §13)
+jest.mock('../../../src/services/auth/auth-helpers.service', () => ({
+  isSessionActive: jest.fn()
+}));
+
+const { isSessionActive } = require('../../../src/services/auth/auth-helpers.service');
+
 // Mock de Prisma
 const { PrismaClient } = require('@prisma/client');
 jest.mock('@prisma/client', () => {
@@ -42,6 +50,7 @@ describe('🔒 AuthMiddleware - Pruebas Unitarias', () => {
     };
     next = jest.fn();
     jest.clearAllMocks();
+    isSessionActive.mockResolvedValue(true);
   });
 
   // ========== VERIFY TOKEN ==========
@@ -82,6 +91,20 @@ describe('🔒 AuthMiddleware - Pruebas Unitarias', () => {
 
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({ error: 'Token expired' });
+    });
+
+    test('debe retornar 401 si la sesión fue revocada (logout / cambio de contraseña)', async () => {
+      AuthUtils.extractToken.mockReturnValue('valid-token');
+      AuthUtils.verifyToken.mockReturnValue({ userId: 1 });
+      isSessionActive.mockResolvedValue(false);
+
+      await AuthMiddleware.verifyToken(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ error: 'Session expired' })
+      );
+      expect(next).not.toHaveBeenCalled();
     });
 
     test('debe retornar 401 si el usuario no existe', async () => {

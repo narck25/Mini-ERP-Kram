@@ -3,6 +3,7 @@
  */
 const { PrismaClient } = require('@prisma/client');
 const { request, getToken } = require('./helpers/setup');
+const AuthUtils = require('../src/utils/auth.utils');
 
 const prisma = new PrismaClient();
 
@@ -309,6 +310,86 @@ describe('🔒 Seguridad - Modelo de 3 Niveles', () => {
       const res = await request('GET', documentPath, null, adminToken);
       expect(res.status).not.toBe(401);
       expect(res.status).not.toBe(403);
+    });
+  });
+
+  // Hallazgo #3 (docs/PROJECT_CONTEXT.md §13): logout y cambio de contraseña
+  // no invalidaban el JWT — la tabla `sessions` existía pero createSession
+  // guardaba un token aleatorio sin relación con el JWT real, y verifyToken
+  // nunca la consultaba. Ahora Session.token es el JWT emitido en el login,
+  // y verifyToken/verifyTokenFromQuery exigen que exista una sesión activa.
+  describe('Hallazgo #3 - logout y cambio de contraseña ahora invalidan el JWT', () => {
+    let throwawayUserId = null;
+    const email = 'test-hallazgo3@kram.mx';
+    const originalPassword = 'ClaveOriginal123!';
+    const newPassword = 'ClaveNueva456!';
+
+    beforeAll(async () => {
+      const hashed = await AuthUtils.hashPassword(originalPassword);
+      const user = await prisma.user.create({
+        data: { email, password: hashed, name: '[TEST-AUTO] Hallazgo 3', role: 'EMPLEADO_BASICO' }
+      });
+      throwawayUserId = user.id;
+    });
+
+    afterAll(async () => {
+      // onDelete: Cascade en Session limpia las sesiones asociadas.
+      if (throwawayUserId) await prisma.user.delete({ where: { id: throwawayUserId } }).catch(() => {});
+      await prisma.$disconnect();
+    });
+
+    test('El token sigue siendo válido mientras la sesión no se cierre', async () => {
+      const login = await request('POST', '/api/auth/login', { email, password: originalPassword });
+      expect(login.status).toBe(200);
+      const res = await request('GET', '/api/auth/profile', null, login.body.token);
+      expect(res.status).toBe(200);
+    });
+
+    test('Logout invalida ese token específico (401 al reusarlo)', async () => {
+      const login = await request('POST', '/api/auth/login', { email, password: originalPassword });
+      const token = login.body.token;
+
+      const logout = await request('POST', '/api/auth/logout', null, token);
+      expect(logout.status).toBe(200);
+
+      const res = await request('GET', '/api/auth/profile', null, token);
+      expect(res.status).toBe(401);
+    });
+
+    test('Logout de un dispositivo NO afecta la sesión activa de otro', async () => {
+      const loginA = await request('POST', '/api/auth/login', { email, password: originalPassword });
+      const loginB = await request('POST', '/api/auth/login', { email, password: originalPassword });
+
+      await request('POST', '/api/auth/logout', null, loginA.body.token);
+
+      const resA = await request('GET', '/api/auth/profile', null, loginA.body.token);
+      const resB = await request('GET', '/api/auth/profile', null, loginB.body.token);
+      expect(resA.status).toBe(401);
+      expect(resB.status).toBe(200);
+    });
+
+    test('Cambiar la contraseña invalida TODAS las sesiones abiertas, no solo la usada para cambiarla', async () => {
+      const loginA = await request('POST', '/api/auth/login', { email, password: originalPassword });
+      const loginB = await request('POST', '/api/auth/login', { email, password: originalPassword });
+
+      const change = await request('POST', '/api/auth/change-password', {
+        currentPassword: originalPassword,
+        newPassword
+      }, loginA.body.token);
+      expect(change.status).toBe(200);
+
+      const resA = await request('GET', '/api/auth/profile', null, loginA.body.token);
+      const resB = await request('GET', '/api/auth/profile', null, loginB.body.token);
+      expect(resA.status).toBe(401);
+      expect(resB.status).toBe(401);
+
+      // Restaurar para no afectar el orden de otros tests de este bloque.
+      await request('POST', '/api/auth/login', { email, password: newPassword }).then(async (login) => {
+        await request('POST', '/api/auth/change-password', {
+          currentPassword: newPassword,
+          newPassword: originalPassword
+        }, login.body.token);
+      });
     });
   });
 });

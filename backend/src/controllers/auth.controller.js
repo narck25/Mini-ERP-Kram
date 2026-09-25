@@ -52,13 +52,12 @@ class AuthController {
         accessibleModules: user.accessibleModules || ['DASHBOARD']
       });
 
-      const sessionToken = await createSession(user.id);
+      await createSession(user.id, token);
 
       res.json({
         message: 'Login successful',
         user: sanitizeUserData(user),
-        token,
-        sessionToken
+        token
       });
     } catch (error) {
       console.error('Login error:', error);

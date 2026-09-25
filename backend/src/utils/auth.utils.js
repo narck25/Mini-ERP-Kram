@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 class AuthUtils {
   /**
@@ -29,7 +30,10 @@ class AuthUtils {
    * @returns {string} JWT token
    */
   static generateToken(payload, expiresIn = process.env.JWT_EXPIRES_IN || '7d') {
-    return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
+    // `jwtid` garantiza que el token firmado sea único incluso si el mismo
+    // usuario inicia sesión dos veces con el mismo payload dentro del mismo
+    // segundo (iat idéntico) — necesario porque Session.token es @unique.
+    return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn, jwtid: crypto.randomUUID() });
   }
 
   /**
@@ -51,14 +55,6 @@ class AuthUtils {
       return null;
     }
     return authHeader.split(' ')[1];
-  }
-
-  /**
-   * Generate random session token
-   * @returns {string} Random token
-   */
-  static generateSessionToken() {
-    return require('crypto').randomBytes(32).toString('hex');
   }
 
   /**

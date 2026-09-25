@@ -2,6 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const AuthUtils = require('../utils/auth.utils');
 const PermissionMiddleware = require('./permission.middleware');
 const SSEMiddleware = require('./sse.middleware');
+const { isSessionActive } = require('../services/auth/auth-helpers.service');
 
 const prisma = new PrismaClient();
 
@@ -27,6 +28,10 @@ class AuthMiddleware {
       }
 
       const decoded = AuthUtils.verifyToken(token);
+
+      if (!(await isSessionActive(token))) {
+        return res.status(401).json({ error: 'Session expired', message: 'Tu sesión ya no es válida. Inicia sesión de nuevo.' });
+      }
 
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },
