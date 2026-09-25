@@ -94,6 +94,7 @@ En las últimas semanas se hizo una **revisión de seguridad completa** del sist
 - Se **agregó verificación del contenido real de los archivos subidos** (CVs, documentos, cotizaciones, actas): antes solo se revisaba la extensión declarada (ej. ".pdf"), ahora se confirma que el contenido corresponda a ese tipo de archivo antes de aceptarlo.
 - Se **agregó límite de intentos** al reseteo de base de datos y al restablecimiento de contraseñas por un administrador — antes solo el inicio de sesión tenía ese control.
 - Se **agregaron pruebas automatizadas** a Disciplina, Auditoría de RH y Proveedores, los tres módulos nuevos que todavía no las tenían.
+- Se **bloqueó la autoaprobación de compras** — se decidió que quien solicita una compra nunca puede ser asignado como su propio aprobador, sin excepción; ya no aparece siquiera como opción al elegir aprobadores.
 - Se documentaron formalmente los puntos que aún requieren atención, priorizados por severidad, para atenderlos en próximas iteraciones.
 
 En resumen: el sistema recibe mantenimiento de seguridad activo, no solo mantenimiento de funcionalidad — es una práctica que vale la pena mantener con revisiones periódicas.
@@ -102,9 +103,8 @@ En resumen: el sistema recibe mantenimiento de seguridad activo, no solo manteni
 
 ## 7. Próximos pasos sugeridos
 
-1. Decidir la política de negocio sobre si una persona puede autoaprobar su propia solicitud de compra (hoy técnicamente es posible; es una decisión de control interno, no un tema técnico).
-2. Agregar pruebas automatizadas al módulo de Incapacidades, el único de los nuevos que aún no las tiene.
-3. Actualizar la documentación interna para que refleje el estado real del sistema.
+1. Agregar pruebas automatizadas al módulo de Incapacidades, el único de los nuevos que aún no las tiene.
+2. Actualizar la documentación interna para que refleje el estado real del sistema.
 
 ---
 

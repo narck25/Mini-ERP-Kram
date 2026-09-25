@@ -18,7 +18,7 @@ const prisma = new PrismaClient();
 exports.getPotentialApprovers = async (requestId) => {
   const request = await prisma.purchaseRequest.findUnique({
     where: { id: requestId },
-    select: { departamentoId: true }
+    select: { departamentoId: true, solicitanteId: true }
   });
 
   if (!request) {
@@ -102,6 +102,11 @@ exports.getPotentialApprovers = async (requestId) => {
     }
   });
 
+  // Separación de funciones: quien solicita la compra nunca puede aparecer
+  // como su propio aprobador potencial, sin excepción (política de negocio
+  // confirmada — ver PROJECT_CONTEXT.md §13 hallazgo #11).
+  gerentesMap.delete(request.solicitanteId);
+
   return Array.from(gerentesMap.values()).map(e => ({
     id: e.id,
     nombre: e.nombre || `${e.nombres || ''} ${e.apellidoPaterno || ''} ${e.apellidoMaterno || ''}`.trim(),
@@ -122,11 +127,19 @@ exports.assignApprovers = async (requestId, approverIds) => {
 
   const request = await prisma.purchaseRequest.findUnique({
     where: { id: requestId },
-    select: { id: true, estatus: true }
+    select: { id: true, estatus: true, solicitanteId: true }
   });
 
   if (!request) {
     throw { status: 404, error: 'Solicitud no encontrada' };
+  }
+
+  // Separación de funciones: el solicitante nunca puede ser su propio
+  // aprobador, sin excepción. Se valida aquí también (no solo al filtrar
+  // getPotentialApprovers) porque este es el punto real de escritura —
+  // ninguna otra capa debe poder colar el id del solicitante en la lista.
+  if (approverIds.includes(request.solicitanteId)) {
+    throw { status: 400, error: 'Aprobador inválido', message: 'El solicitante no puede ser asignado como su propio aprobador' };
   }
 
   // Eliminar aprobadores anteriores y crear los nuevos

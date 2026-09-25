@@ -392,4 +392,67 @@ describe('🔒 Seguridad - Modelo de 3 Niveles', () => {
       });
     });
   });
+
+  // Hallazgo #11 (docs/PROJECT_CONTEXT.md §13): nada impedía que quien
+  // solicita una compra fuera también asignado como su propio aprobador.
+  // Decisión de negocio confirmada: bloquear siempre, sin excepción — ver
+  // approval.service.js (getPotentialApprovers filtra al solicitante,
+  // assignApprovers lo rechaza explícitamente aunque alguien lo intente
+  // vía API directa, sin depender de que el frontend lo filtre bien).
+  describe('Hallazgo #11 - autoaprobación de compras bloqueada', () => {
+    let adminEmployeeId = null;
+    let requestId = null;
+
+    beforeAll(async () => {
+      const meRes = await request('GET', '/api/employees/me', null, adminToken);
+      adminEmployeeId = meRes.body?.employee?.id;
+      if (!adminEmployeeId) {
+        throw new Error('admin@kram.com no tiene un Employee asociado (fixture de prueba incompleta).');
+      }
+
+      // ADMIN es a la vez solicitante y, normalmente, aprobador potencial
+      // elegible (approval.service.js incluye a cualquier usuario ADMIN) —
+      // es el escenario exacto que el hallazgo #11 describe.
+      const created = await request('POST', '/api/purchases', {
+        justificacion: '[TEST-AUTO] Autoaprobación (hallazgo #11)',
+        items: [{ productoServicio: 'Producto de prueba', cantidad: 1 }]
+      }, adminToken);
+      requestId = created.body.data.request.id;
+    });
+
+    afterAll(async () => {
+      if (requestId) await request('DELETE', `/api/purchases/${requestId}`, null, adminToken);
+    });
+
+    test('El solicitante no aparece en su propia lista de aprobadores potenciales', async () => {
+      const res = await request('GET', `/api/purchases/${requestId}/potential-approvers`, null, adminToken);
+      expect(res.status).toBe(200);
+      expect(res.body.data.some((a) => a.id === adminEmployeeId)).toBe(false);
+    });
+
+    test('Asignarse a sí mismo como aprobador se rechaza (400), aunque se intente vía API directa', async () => {
+      const res = await request('POST', `/api/purchases/${requestId}/assign-approvers`, {
+        approverIds: [adminEmployeeId]
+      }, adminToken);
+      expect(res.status).toBe(400);
+    });
+
+    test('Mezclar al solicitante con un aprobador válido también se rechaza completo (400)', async () => {
+      const rhToken = await getToken('rh@kram.com', 'password123');
+      const meRes = await request('GET', '/api/employees/me', null, rhToken);
+      const res = await request('POST', `/api/purchases/${requestId}/assign-approvers`, {
+        approverIds: [adminEmployeeId, meRes.body.employee.id]
+      }, adminToken);
+      expect(res.status).toBe(400);
+    });
+
+    test('Asignar a un aprobador distinto del solicitante sigue funcionando (regresión)', async () => {
+      const rhToken = await getToken('rh@kram.com', 'password123');
+      const meRes = await request('GET', '/api/employees/me', null, rhToken);
+      const res = await request('POST', `/api/purchases/${requestId}/assign-approvers`, {
+        approverIds: [meRes.body.employee.id]
+      }, adminToken);
+      expect(res.status).toBe(200);
+    });
+  });
 });
