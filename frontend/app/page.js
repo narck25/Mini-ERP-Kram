@@ -59,6 +59,24 @@ export default async function HomePage() {
                 <p className="text-slate-300 text-sm">Administra todas las solicitudes y cotizaciones del sistema</p>
               </div>
             </div>
+
+            {/* Tarjeta 5: Papelería, Uniformes e Inventario */}
+            <div
+              className="block bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 transition-all duration-300 hover:bg-white/10 hover:border-teal-400/50 hover:scale-105 hover:shadow-[0_0_30px_rgba(45,212,191,0.2)] group"
+            >
+              <div className="flex items-start space-x-4">
+                <div className="text-3xl text-teal-400 group-hover:scale-110 transition-transform duration-300">
+                  🧺
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-white mb-1">Papelería y Uniformes</h3>
+                  <p className="text-slate-400 text-sm">Entregas e inventario</p>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <p className="text-slate-300 text-sm">Control de existencias, entregas y kardex de movimientos</p>
+              </div>
+            </div>
           </div>
 
           {/* Columna Central - Logo KRAM */}
@@ -133,6 +151,24 @@ export default async function HomePage() {
               </div>
               <div className="mt-4 pt-4 border-t border-white/10">
                 <p className="text-slate-300 text-sm">Gestiona el proceso de reclutamiento y selección</p>
+              </div>
+            </div>
+
+            {/* Tarjeta 6: Vacaciones */}
+            <div
+              className="block bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 transition-all duration-300 hover:bg-white/10 hover:border-teal-400/50 hover:scale-105 hover:shadow-[0_0_30px_rgba(45,212,191,0.2)] group"
+            >
+              <div className="flex items-start space-x-4">
+                <div className="text-3xl text-teal-400 group-hover:scale-110 transition-transform duration-300">
+                  🌴
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-white mb-1">Vacaciones</h3>
+                  <p className="text-slate-400 text-sm">Autoservicio de empleados</p>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <p className="text-slate-300 text-sm">Solicita, aprueba y consulta saldos según la LFT</p>
               </div>
             </div>
           </div>
