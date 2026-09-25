@@ -186,19 +186,22 @@
 
 ## 7. Periodo de prueba (evaluaciones 30/60/90 días)
 
-**Qué es:** seguimiento automático del periodo de prueba legal de un nuevo empleado, con recordatorios para que nadie se olvide de evaluar a tiempo.
+**Qué es:** seguimiento automático del periodo de prueba legal de un nuevo empleado, usando el formato oficial de evaluación que RH proporcionó ("Evaluación Desempeño 30/60/90 Kram"), con recordatorios para que nadie se olvide de evaluar a tiempo.
 
 **Cómo funciona (100% automatizado, sin que nadie tenga que llevar el calendario a mano):**
 - Todos los días a las 8:00 a.m., el sistema revisa automáticamente a los empleados en periodo de prueba.
 - A los **20, 50 y 80 días** de antigüedad, envía un **recordatorio por correo a RH y al jefe directo** avisando que se acerca la evaluación.
-- A los **30, 60 y 90 días**, crea automáticamente el registro de evaluación pendiente de capturar.
-- El sistema evita crear el mismo recordatorio dos veces aunque el proceso se ejecute más de una vez.
+- A los **30, 60 y 90 días**, crea automáticamente el registro de evaluación pendiente y **avisa por correo directamente al colaborador** para que envíe su autoevaluación.
 
-**Captura del resultado:** RH, Admin o el jefe directo capturan el resultado de la evaluación: **aprobado**, **no aprobado** o **extendido** (si se necesita más tiempo de evaluación).
+**Evaluación en dos pasos (igual que en el formato en papel):**
+1. **Autoevaluación del colaborador** — el propio empleado entra a su "Mi Espacio", ve una tarjeta de "Autoevaluación pendiente" y responde: sus logros, retos y el apoyo que necesita, más tres escalas (integración al equipo, claridad de funciones, clima laboral). No puede avanzar la evaluación sin este paso.
+2. **Captura del evaluador** — una vez enviada la autoevaluación, RH, Admin o el jefe directo completan la evaluación completa: objetivos y su cumplimiento, 6 competencias evaluadas, 3 hábitos de trabajo, fortalezas y áreas de mejora, un plan de acción y una minuta de retroalimentación. Al final, capturan el **dictamen**: Aprobado Satisfactoriamente, Aprobado Condicionado (con plan de mejora a 30 días) o No Satisfactorio.
 
-**Vista dedicada:** pantalla propia donde RH ve todas las evaluaciones pendientes y su estado; los jefes de área ven las pendientes de su propio equipo.
+Los criterios de evaluación (las 6 competencias y los 3 hábitos) son fijos, definidos junto con RH, y no se pueden editar desde la pantalla — se mantienen iguales para todos los colaboradores.
 
-**Estado:** completo y en uso, funcionando de forma desatendida (no requiere que nadie lo dispare manualmente). Es otra funcionalidad nueva que aún no está reflejada en los manuales antiguos.
+**Vista dedicada:** pantalla propia donde RH ve todas las evaluaciones — pendientes (con su estado: esperando autoevaluación o lista para evaluar) e historial de las ya capturadas, con acceso al detalle completo de cada una; los jefes de área ven las pendientes de su propio equipo.
+
+**Estado:** completo y en uso, funcionando de forma desatendida (no requiere que nadie lo dispare manualmente), ya con pruebas automatizadas propias. Es otra funcionalidad nueva que aún no está reflejada en los manuales antiguos.
 
 ---
 
@@ -251,6 +254,6 @@ El sistema controla el acceso en tres niveles:
 
 **Lo que ya está sólido:** Empleados, Reclutamiento y Vacaciones tienen la mayor cantidad de uso, pruebas automatizadas y tiempo en producción.
 
-**Lo que es más nuevo y funciona, pero con menos "blindaje" de pruebas automatizadas todavía:** Incapacidades, Disciplina, Periodo de Prueba y Auditoría de RH — están operando correctamente según la revisión del código, pero no cuentan aún con pruebas automatizadas dedicadas (sí las tienen los módulos más antiguos). Esto no significa que fallen; significa que, si se modifican en el futuro, conviene probarlos manualmente con más cuidado hasta que se les agregue esa cobertura.
+**Lo que es más nuevo y funciona, pero con menos "blindaje" de pruebas automatizadas todavía:** Incapacidades, Disciplina y Auditoría de RH — están operando correctamente según la revisión del código, pero no cuentan aún con pruebas automatizadas dedicadas (sí las tienen los módulos más antiguos, y ya también Periodo de Prueba). Esto no significa que fallen; significa que, si se modifican en el futuro, conviene probarlos manualmente con más cuidado hasta que se les agregue esa cobertura.
 
 **Documentación interna:** los manuales de usuario más antiguos de RH no mencionan todavía Disciplina, Periodo de Prueba ni Auditoría de RH como módulos — es trabajo de documentación pendiente, no un problema del sistema en sí.
