@@ -6,7 +6,7 @@
 
 - **JWT** (`jsonwebtoken`) firmado con `JWT_SECRET`. Incluye `role` y `accessibleModules` en el payload.
 - Expiración configurable (`JWT_EXPIRES_IN`, default `7d`).
-- Sesiones persistidas en tabla `sessions`; el logout y el cambio de contraseña invalidan tokens.
+- Existe una tabla `sessions`, pero el código no la consulta al verificar un token: **el logout y el cambio de contraseña no invalidan un JWT ya emitido** (sigue siendo válido hasta que expira, hasta `JWT_EXPIRES_IN`). Confirmado en la revisión de seguridad de `PROJECT_CONTEXT.md` §13 (hallazgo #3). Pendiente de remediar.
 
 ## 2. Contraseñas
 

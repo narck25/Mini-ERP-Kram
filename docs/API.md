@@ -18,7 +18,6 @@
 | Método | Ruta | Permiso | Descripción |
 |---|---|---|---|
 | GET | `/health` | público | Estado del servidor |
-| POST | `/auth/register` | público | Registrar usuario |
 | POST | `/auth/login` | público | Login → JWT |
 | GET | `/auth/profile` | verifyToken | Perfil del usuario actual |
 | PUT | `/auth/profile` | verifyToken | Actualizar perfil |

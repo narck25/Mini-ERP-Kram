@@ -47,7 +47,6 @@ frontend/
 ├── app/                    # App Router de Next.js
 │   ├── dashboard/         # Páginas del dashboard
 │   ├── login/            # Página de login
-│   ├── register/         # Página de registro
 │   ├── globals.css       # Estilos globales
 │   ├── layout.js         # Layout principal
 │   └── page.js           # Página de inicio
@@ -122,7 +121,6 @@ Cliente HTTP con:
 
 - `/` - Página de inicio (redirige al dashboard si está autenticado)
 - `/login` - Página de inicio de sesión
-- `/register` - Página de registro
 - `/dashboard` - Dashboard principal (requiere autenticación)
 
 ## 🛡️ Protección de rutas

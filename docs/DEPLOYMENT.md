@@ -13,7 +13,7 @@ flowchart LR
 ```
 
 - **Frontend**: sirve la UI y hace proxy (rewrites) de `/api` al backend.
-- **Backend**: API + archivos estáticos (`/uploads`) + scheduler.
+- **Backend**: API + archivos protegidos (`/uploads`, requiere autenticación y autorización por carpeta) + scheduler.
 - **PostgreSQL**: volumen persistente `postgres_data`.
 
 ## 2. Requisitos

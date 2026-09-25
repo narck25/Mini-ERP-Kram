@@ -75,7 +75,7 @@ Todos los módulos siguientes están **funcionando en producción**, no son un p
 
 **Pendiente / en evolución** (trabajo normal de mantenimiento, no bloqueante):
 
-- Algunos módulos nuevos (Disciplina, Periodo de Prueba, Auditoría de RH, Proveedores) aún no tienen pruebas automatizadas dedicadas, aunque sí están en uso.
+- Algunos módulos nuevos (Disciplina, Auditoría de RH, Proveedores) aún no tienen pruebas automatizadas dedicadas, aunque sí están en uso (Periodo de Prueba ya las tiene).
 - Documentación interna antigua (manuales) desactualizada en algunos puntos frente al sistema real — se está corrigiendo.
 - Homogeneizar el estilo de los formularios internos (no afecta el funcionamiento, es limpieza de código).
 
@@ -88,7 +88,8 @@ En las últimas semanas se hizo una **revisión de seguridad completa** del sist
 - Se **eliminó el registro público de cuentas** — ahora solo RH/TI pueden crear un acceso, vinculado siempre a un expediente real de empleado. Antes, cualquiera podía crear una cuenta usando el correo de otra persona sin verificarlo.
 - Se **cerró una vía alterna de acceso** que permitía usar un token de sesión de forma menos segura (por URL en vez del método estándar).
 - Se **corrigió un caso donde un empleado podía consultar el detalle de una solicitud de compra ajena** sin haber sido invitado a autorizarla.
-- Se documentaron formalmente los puntos que aún requieren atención (por ejemplo, reforzar el control de acceso a archivos adjuntos y mejorar cómo se guarda la sesión en el navegador), priorizados por severidad, para atenderlos en próximas iteraciones.
+- Se **reforzó el control de acceso a los archivos adjuntos** (CVs, expedientes, cotizaciones, órdenes de compra): antes se podían abrir con solo conocer la dirección del archivo; ahora exigen sesión iniciada y el mismo permiso que ya aplicaba el resto del sistema.
+- Se documentaron formalmente los puntos que aún requieren atención (por ejemplo, mejorar cómo se guarda la sesión en el navegador), priorizados por severidad, para atenderlos en próximas iteraciones.
 
 En resumen: el sistema recibe mantenimiento de seguridad activo, no solo mantenimiento de funcionalidad — es una práctica que vale la pena mantener con revisiones periódicas.
 
@@ -96,11 +97,10 @@ En resumen: el sistema recibe mantenimiento de seguridad activo, no solo manteni
 
 ## 7. Próximos pasos sugeridos
 
-1. Reforzar el control de acceso a documentos adjuntos (CVs, expedientes, cotizaciones) para que no puedan abrirse solo con conocer la dirección del archivo.
-2. Mejorar cómo se guarda la sesión del usuario en el navegador (reduce el riesgo si un equipo se ve comprometido).
-3. Agregar pruebas automatizadas a los módulos más nuevos (Disciplina, Periodo de Prueba, Auditoría, Proveedores).
-4. Decidir la política de negocio sobre si una persona puede autoaprobar su propia solicitud de compra (hoy técnicamente es posible; es una decisión de control interno, no un tema técnico).
-5. Actualizar la documentación interna para que refleje el estado real del sistema.
+1. Mejorar cómo se guarda la sesión del usuario en el navegador (reduce el riesgo si un equipo se ve comprometido).
+2. Agregar pruebas automatizadas a los módulos más nuevos que aún no las tienen (Disciplina, Auditoría, Proveedores).
+3. Decidir la política de negocio sobre si una persona puede autoaprobar su propia solicitud de compra (hoy técnicamente es posible; es una decisión de control interno, no un tema técnico).
+4. Actualizar la documentación interna para que refleje el estado real del sistema.
 
 ---
 

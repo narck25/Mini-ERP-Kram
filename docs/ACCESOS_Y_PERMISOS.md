@@ -94,7 +94,6 @@ Leyenda de acceso:
 ### 6.1 Autenticación (`/api/auth`)
 | Endpoint | Método | Acceso |
 |---|---|---|
-| `/auth/register` | POST | 🔓 Público (con rate-limit) |
 | `/auth/login` | POST | 🔓 Público (con rate-limit) |
 | `/auth/profile` | GET/PUT | 🔐 Autenticado |
 | `/auth/logout` | POST | 🔐 Autenticado |

@@ -110,7 +110,6 @@ npm start
 ## 📚 API Endpoints
 
 ### Autenticación
-- `POST /api/auth/register` - Registrar nuevo usuario
 - `POST /api/auth/login` - Iniciar sesión
 - `GET /api/auth/profile` - Obtener perfil (requiere autenticación)
 - `POST /api/auth/logout` - Cerrar sesión
