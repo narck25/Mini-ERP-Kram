@@ -11,6 +11,7 @@ import QuoteSelectionModal from '@/components/QuoteSelectionModal';
 import PurchaseOrderModal from '@/components/PurchaseOrderModal';
 import PurchaseComments from '@/components/PurchaseComments';
 import SupplierSelect from '@/components/SupplierSelect';
+import { useProtectedFileUrl } from '@/hooks/useProtectedFileUrl';
 
 export default function ComprasDetailPage() {
   const { user } = useAuth();
@@ -32,6 +33,10 @@ export default function ComprasDetailPage() {
   // Estado para el modal de PDF
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [pdfUrl, setPdfUrl] = useState('');
+  // /uploads ahora exige autenticación (hallazgo #1) — el iframe ya no
+  // puede apuntar directo a la ruta protegida. Se usa para cotizaciones y
+  // para el PDF de la orden de compra (mismo estado, mismo modal).
+  const { blobUrl: pdfBlobUrl, loading: pdfLoading } = useProtectedFileUrl(showPdfModal ? pdfUrl : null);
   const [pdfTitle, setPdfTitle] = useState('');
   
   // Estado para edición de cotizaciones (proveedor + monto)
@@ -596,10 +601,10 @@ export default function ComprasDetailPage() {
       return;
     }
     
-    // Construir la URL completa del archivo
-    // Nota: Las cotizaciones de compras ya tienen URLs completas desde el backend
-    const encodedUrl = encodeURI(quote.archivoUrl);
-    setPdfUrl(encodedUrl);
+    // Nota: las cotizaciones de compras ya vienen con URL completa desde el
+    // backend; /uploads exige autenticación (hallazgo #1), así que ya no se
+    // usa directo como src/href — se pide vía useProtectedFileUrl.
+    setPdfUrl(quote.archivoUrl);
     setPdfTitle(`Cotización - ${quote.proveedor} - ${formatCurrency(quote.monto)}`);
     setShowPdfModal(true);
   };
@@ -1835,14 +1840,20 @@ export default function ComprasDetailPage() {
               
               {/* Contenido del PDF */}
               <div className="flex-1 overflow-hidden">
-                <iframe
-                  src={pdfUrl}
-                  title={pdfTitle}
-                  className="w-full h-full border-0"
-                  style={{ minHeight: '500px' }}
-                />
+                {pdfBlobUrl ? (
+                  <iframe
+                    src={pdfBlobUrl}
+                    title={pdfTitle}
+                    className="w-full h-full border-0"
+                    style={{ minHeight: '500px' }}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                    {pdfLoading ? 'Cargando documento...' : 'No se pudo cargar el documento'}
+                  </div>
+                )}
               </div>
-              
+
               {/* Pie del modal */}
               <div className="flex justify-between items-center p-4 border-t">
                 <div className="text-sm text-gray-600">
@@ -1850,7 +1861,7 @@ export default function ComprasDetailPage() {
                 </div>
                 <div className="flex gap-2">
                   <a
-                    href={pdfUrl}
+                    href={pdfBlobUrl || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm"

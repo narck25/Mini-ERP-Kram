@@ -7,9 +7,10 @@ import api from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
-import Image from 'next/image';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { exportEmployeeToPDF } from '@/lib/employeePdfExport';
+import { downloadProtectedFile, openProtectedFile } from '@/lib/files';
+import { useProtectedFileUrl } from '@/hooks/useProtectedFileUrl';
 
 // ============================================================
 // MODAL REUTILIZABLE PARA EDITAR SECCIONES
@@ -129,6 +130,9 @@ function EmployeeProfilePage() {
   // Foto de perfil
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef(null);
+  // /uploads ahora exige autenticación (hallazgo #1) — la foto ya no se
+  // puede mostrar con un <Image src="/uploads/..."> directo.
+  const { blobUrl: photoBlobUrl } = useProtectedFileUrl(employee?.fotoUrl);
 
   // Historial de sueldos
   const [salaryHistory, setSalaryHistory] = useState([]);
@@ -508,12 +512,7 @@ function EmployeeProfilePage() {
 
   const handleDownloadPhoto = () => {
     if (!employee.fotoUrl) return;
-    const link = document.createElement('a');
-    link.href = employee.fotoUrl;
-    link.setAttribute('download', `foto_${employee.clave || employee.id}.jpg`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    downloadProtectedFile(employee.fotoUrl, `foto_${employee.clave || employee.id}.jpg`);
   };
 
   // ============================================================
@@ -682,9 +681,10 @@ function EmployeeProfilePage() {
           <div className="flex items-center gap-8">
             {/* Foto del empleado (HERO) */}
             <div className="flex-shrink-0 flex flex-col items-center gap-2">
-              {employee.fotoUrl ? (
-                <Image
-                  src={employee.fotoUrl}
+              {employee.fotoUrl && photoBlobUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- blob: URL, next/image no la optimiza
+                <img
+                  src={photoBlobUrl}
                   alt={`Foto de ${employee.nombres || employee.nombre || ''}`}
                   width={128}
                   height={128}
@@ -1154,9 +1154,13 @@ function EmployeeProfilePage() {
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{incident.registradoPor?.name || '—'}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm">
                             {incident.archivoUrl ? (
-                              <a href={incident.archivoUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-900">
+                              <button
+                                type="button"
+                                onClick={() => openProtectedFile(incident.archivoUrl)}
+                                className="text-blue-600 hover:text-blue-900 underline"
+                              >
                                 Ver archivo
-                              </a>
+                              </button>
                             ) : '—'}
                           </td>
                         </tr>

@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { useProtectedFileUrl } from '@/hooks/useProtectedFileUrl';
 
 // Columnas del Kanban
 const COLUMNS = [
@@ -27,6 +28,9 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
   // Estado para el modal de PDF
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [pdfUrl, setPdfUrl] = useState('');
+  // /uploads ahora exige autenticación (hallazgo #1) — el iframe ya no
+  // puede apuntar directo a la ruta protegida.
+  const { blobUrl: pdfBlobUrl, loading: pdfLoading } = useProtectedFileUrl(showPdfModal ? pdfUrl : null);
   const [pdfTitle, setPdfTitle] = useState('');
 
   // Estado para editar documentos del candidato
@@ -190,8 +194,7 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
       return;
     }
     
-    const encodedUrl = encodeURI(candidate.cv_url);
-    setPdfUrl(encodedUrl);
+    setPdfUrl(candidate.cv_url);
     setPdfTitle(`CV - ${candidate.nombre}`);
     setShowPdfModal(true);
   };
@@ -251,8 +254,7 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
       return;
     }
     
-    const encodedUrl = encodeURI(candidate.psych_test_url);
-    setPdfUrl(encodedUrl);
+    setPdfUrl(candidate.psych_test_url);
     setPdfTitle(`Pruebas Psicométricas - ${candidate.nombre}`);
     setShowPdfModal(true);
   };
@@ -797,14 +799,20 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
             
             {/* Contenido del PDF */}
             <div className="flex-1 overflow-hidden">
-              <iframe
-                src={pdfUrl}
-                title={pdfTitle}
-                className="w-full h-full border-0"
-                style={{ minHeight: '500px' }}
-              />
+              {pdfBlobUrl ? (
+                <iframe
+                  src={pdfBlobUrl}
+                  title={pdfTitle}
+                  className="w-full h-full border-0"
+                  style={{ minHeight: '500px' }}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                  {pdfLoading ? 'Cargando documento...' : 'No se pudo cargar el documento'}
+                </div>
+              )}
             </div>
-            
+
             {/* Pie del modal */}
             <div className="flex justify-between items-center p-4 border-t">
               <div className="text-sm text-gray-600">
@@ -812,7 +820,7 @@ export default function CandidatesTab({ vacancy, user, onRefresh }) {
               </div>
               <div className="flex gap-2">
                 <a
-                  href={pdfUrl}
+                  href={pdfBlobUrl || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm"

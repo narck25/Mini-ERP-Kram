@@ -56,6 +56,40 @@ const getApproverOrThrow = async (userId, userRole, requestId) => {
 };
 
 // ─────────────────────────────────────────────────────────────
+// Función auxiliar: ¿puede este usuario ver el detalle (y adjuntos) de
+// esta solicitud? Unión de dos poblaciones que ya podían ver estos datos
+// por caminos distintos: (a) la misma regla de getRequestDetails —
+// ADMIN/RH siempre, o el solicitante, o rol COMPRAS; (b) la de
+// getApproverOrThrow/getPublicRequestDetails — un aprobador asignado
+// (PurchaseApprover), típicamente un Director/Gerente/Presidente sin
+// ninguno de esos roles, que ve la solicitud (y sus cotizaciones) desde
+// /autorizar-compra sin tener el módulo COMPRAS. Reutilizada por
+// uploadsAccess.service.js (hallazgo #1) para autorizar
+// GET /uploads/purchase-quotes/... y /uploads/purchase-orders/...
+// ─────────────────────────────────────────────────────────────
+const canViewPurchaseRequest = async (userId, userRole, requestId) => {
+  if (['ADMIN', 'RH'].includes(userRole)) return true;
+
+  const employee = await getEmployeeByUserId(userId);
+  if (!employee) return false;
+
+  const request = await prisma.purchaseRequest.findUnique({
+    where: { id: requestId },
+    select: { solicitanteId: true }
+  });
+  if (!request) return false;
+
+  const isSolicitante = request.solicitanteId === employee.id;
+  const isComprasRole = userRole === 'COMPRAS';
+  if (isSolicitante || isComprasRole) return true;
+
+  const approverRecord = await prisma.purchaseApprover.findFirst({
+    where: { requestId, employeeId: employee.id }
+  });
+  return !!approverRecord;
+};
+
+// ─────────────────────────────────────────────────────────────
 // Función auxiliar: resolver un proveedor del catálogo por id.
 // Devuelve su nombre para guardarlo como snapshot en el campo
 // `proveedor` (texto), además de conservar `proveedorId`.
@@ -807,5 +841,6 @@ exports._helpers = {
   getEmployeeByUserId,
   resolveSupplier,
   transformQuoteUrls,
+  canViewPurchaseRequest,
   REQUEST_INCLUDE
 };

@@ -4,6 +4,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
 const fs = require('fs');
+const AuthMiddleware = require('./middlewares/auth.middleware');
+const { serveProtectedUpload } = require('./middlewares/uploadsAccess.middleware');
 
 // ============================================================
 // Inicialización de directorios de uploads
@@ -140,7 +142,12 @@ app.use(express.json({ limit: '10mb' }));
 // ============================================================
 // Archivos estáticos
 // ============================================================
-app.use('/uploads', express.static(UPLOAD_DIR));
+// Hallazgo #1 (docs/PROJECT_CONTEXT.md §13): antes se servía con
+// express.static, sin autenticación ni control de propiedad — cualquiera
+// con la URL exacta descargaba cualquier archivo. verifyToken exige
+// sesión; serveProtectedUpload aplica además la regla de autorización
+// específica de cada carpeta (ver uploadsAccess.service.js).
+app.use('/uploads', AuthMiddleware.verifyToken, serveProtectedUpload);
 
 // ============================================================
 // Health check

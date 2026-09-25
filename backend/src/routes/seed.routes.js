@@ -44,24 +44,67 @@ router.post('/seed/reset',
       console.log(`⚠️  Solicitado por: ${req.user.email} (${req.user.role})`);
       console.log('⚠️  ═══════════════════════════════════════════');
 
-      // Eliminar en orden inverso de dependencias
+      // Eliminar en orden inverso de dependencias (hijos antes que padres).
+      // Lista completa contra el schema actual (38 modelos) — antes solo
+      // cubría 12 y dejaba huérfanas/sin tocar las tablas agregadas después
+      // (vacaciones, incapacidades, disciplina, periodo de prueba, auditoría,
+      // proveedores, órdenes de compra, papelería/uniformes e inventario),
+      // lo que podía violar llaves foráneas o dejar datos "fantasma" tras el
+      // reset. Deliberadamente NO se borra `FactorIntegracion`: es tabla de
+      // referencia legal (factores LFT), la siembra un script aparte
+      // (prisma/seed-factores.js), no este endpoint.
+
+      // Wave 1 — hojas: no las referencia ninguna otra tabla que sigamos
+      // conservando después de esta ola.
       await prisma.notificationLog.deleteMany();
+      await prisma.salaryHistory.deleteMany();
+      await prisma.employeeDocument.deleteMany();
       await prisma.vacancyComment.deleteMany();
       await prisma.jobActivity.deleteMany();
       await prisma.candidateRH.deleteMany();
-      await prisma.jobVacancy.deleteMany();
-      await prisma.purchaseQuote.deleteMany();
       await prisma.purchaseItem.deleteMany();
-      await prisma.purchaseRequest.deleteMany();
+      await prisma.purchaseResponsiva.deleteMany();
+      await prisma.purchaseQuote.deleteMany();
+      await prisma.purchaseComment.deleteMany();
+      await prisma.purchaseOrderItem.deleteMany();
+      await prisma.purchaseApprover.deleteMany();
+      await prisma.stationeryItem.deleteMany();
+      await prisma.stationeryComment.deleteMany();
+      await prisma.uniformDelivery.deleteMany();
+      await prisma.inventoryAdjustmentRequest.deleteMany();
+      await prisma.inventoryMovement.deleteMany();
+      await prisma.vacationRequest.deleteMany();
+      await prisma.incapacidad.deleteMany();
+      await prisma.probationEvaluation.deleteMany();
+      await prisma.disciplinaryIncident.deleteMany();
+      await prisma.purchaseAuditLog.deleteMany(); // sin FK real, pero queda huérfano si no se limpia
+      await prisma.hrAuditLog.deleteMany();       // ídem
       await prisma.attendanceRecord.deleteMany();
-      await prisma.salaryHistory.deleteMany();
-      await prisma.employeeDocument.deleteMany();
-      await prisma.employee.deleteMany();
-      await prisma.jobPosition.deleteMany();
-      await prisma.department.deleteMany();
       await prisma.session.deleteMany();
+
+      // Wave 2 — ya sin hijos pendientes (justo lo que Wave 1 acaba de vaciar).
+      await prisma.purchaseOrder.deleteMany();
+      await prisma.supplier.deleteMany();
+      await prisma.jobVacancy.deleteMany();
+      await prisma.stationeryRequest.deleteMany();
+      await prisma.purchaseRequest.deleteMany();
+
+      // Wave 3 — Employee, ahora que nada que sigue vivo lo referencia.
+      await prisma.employee.deleteMany();
+
+      // Wave 4 — dependen de Employee/JobVacancy (ya vacíos) o de User.
+      await prisma.jobPosition.deleteMany();
       await prisma.user.deleteMany();
+
+      // Wave 5 — Department, el padre más alto de la cadena de RH/Compras.
+      await prisma.department.deleteMany();
+
+      // Wave 6 — catálogos y configuración independientes (se recrean o
+      // quedan vacíos a propósito hasta el próximo seed).
       await prisma.role.deleteMany();
+      await prisma.stationeryInventory.deleteMany();
+      await prisma.uniformInventory.deleteMany();
+      await prisma.systemSetting.deleteMany();
 
       console.log('✅ Base de datos limpiada');
 

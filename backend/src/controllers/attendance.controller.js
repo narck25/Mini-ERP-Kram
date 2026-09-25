@@ -5,6 +5,16 @@ const { parseZKTecoDate, buildDateFilter } = require('../utils/attendance.utils'
 
 const prisma = new PrismaClient();
 
+/**
+ * Resuelve la clave de checador (Employee.clave) del usuario autenticado,
+ * o null si no tiene expediente/clave asignada. Compartido por getRecords
+ * (hallazgo #7 — scoping para roles no privilegiados) y getMyRecords.
+ */
+async function resolveOwnClave(userId) {
+  const employee = await prisma.employee.findUnique({ where: { userId } });
+  return employee?.clave || null;
+}
+
 // Configure multer for memory storage (as requested)
 const storage = multer.memoryStorage();
 
@@ -123,12 +133,19 @@ class AttendanceController {
   }
 
   /**
-   * Get attendance records by date range
+   * Get attendance records by date range.
+   *
+   * Hallazgo #7 (docs/PROJECT_CONTEXT.md §13): este endpoint solo exige el
+   * módulo INCIDENCIAS (Nivel A), no rol. Sin este scoping, cualquier usuario
+   * al que se le otorgue ese módulo vería la asistencia de TODA la empresa.
+   * ADMIN/RH conservan la vista completa (igual que el resto del sistema);
+   * cualquier otro rol queda acotado a su propia clave de checador, igual
+   * que /attendance/my.
    */
   static async getRecords(req, res) {
     try {
       const { startDate, endDate } = req.query;
-      
+
       if (!startDate || !endDate) {
         return res.status(400).json({
           success: false,
@@ -146,8 +163,23 @@ class AttendanceController {
         });
       }
 
+      const isPrivileged = req.user.role === 'ADMIN' || req.user.role === 'RH';
+      let scopedFilter = filter;
+
+      if (!isPrivileged) {
+        const clave = await resolveOwnClave(req.user.id);
+        if (!clave) {
+          return res.status(200).json({
+            success: true,
+            message: 'Se encontraron 0 registros',
+            data: []
+          });
+        }
+        scopedFilter = { ...filter, numeroEmpleado: clave };
+      }
+
       const records = await prisma.attendanceRecord.findMany({
-        where: filter,
+        where: scopedFilter,
         orderBy: {
           fechaHora: 'asc'
         },
@@ -194,8 +226,8 @@ class AttendanceController {
         });
       }
 
-      const employee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
-      if (!employee || !employee.clave) {
+      const clave = await resolveOwnClave(req.user.id);
+      if (!clave) {
         return res.status(404).json({
           success: false,
           message: 'No tienes un expediente de empleado con clave asignada, no se puede buscar tu asistencia'
@@ -211,7 +243,7 @@ class AttendanceController {
       }
 
       const records = await prisma.attendanceRecord.findMany({
-        where: { ...filter, numeroEmpleado: employee.clave },
+        where: { ...filter, numeroEmpleado: clave },
         orderBy: { fechaHora: 'asc' },
         select: {
           id: true,

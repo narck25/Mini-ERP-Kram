@@ -4,7 +4,27 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
-import Image from 'next/image';
+import { useProtectedFileUrl } from '@/hooks/useProtectedFileUrl';
+
+// Avatar de comentario — componente aparte porque necesita su propio hook
+// (useProtectedFileUrl) por cada elemento de la lista, y los hooks no se
+// pueden llamar dentro de un .map() directamente.
+function CommentAvatar({ fotoUrl, userName, initials, isOwnMessage }) {
+  const { blobUrl } = useProtectedFileUrl(fotoUrl);
+  if (fotoUrl && blobUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- blob: URL, next/image no la optimiza
+      <img src={blobUrl} alt={userName} width={40} height={40} className="w-10 h-10 rounded-full object-cover" />
+    );
+  }
+  return (
+    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white ${
+      isOwnMessage ? 'bg-blue-600' : 'bg-gray-500'
+    }`}>
+      {initials}
+    </div>
+  );
+}
 
 export default function PurchaseComments({ requestId }) {
   const { user } = useAuth();
@@ -388,21 +408,12 @@ export default function PurchaseComments({ requestId }) {
                 <div className={`flex gap-3 max-w-[80%] ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
                   {/* Avatar */}
                   <div className="flex-shrink-0">
-                    {comment.user?.employee?.fotoUrl ? (
-                      <Image
-                        src={comment.user.employee.fotoUrl}
-                        alt={userName}
-                        width={40}
-                        height={40}
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white ${
-                        isOwnMessage ? 'bg-blue-600' : 'bg-gray-500'
-                      }`}>
-                        {getInitials(userName)}
-                      </div>
-                    )}
+                    <CommentAvatar
+                      fotoUrl={comment.user?.employee?.fotoUrl}
+                      userName={userName}
+                      initials={getInitials(userName)}
+                      isOwnMessage={isOwnMessage}
+                    />
                   </div>
 
                   {/* Burbuja de mensaje */}

@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency, formatDate } from '@/utils/purchaseHelpers';
+import { useProtectedFileUrl } from '@/hooks/useProtectedFileUrl';
 
 export default function QuoteSelectionModal({ request, onClose, onSuccess }) {
   const { user } = useAuth();
@@ -18,6 +19,9 @@ export default function QuoteSelectionModal({ request, onClose, onSuccess }) {
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [pdfUrl, setPdfUrl] = useState('');
   const [pdfTitle, setPdfTitle] = useState('');
+  // /uploads ahora exige autenticación (hallazgo #1) — el iframe ya no
+  // puede apuntar directo a la ruta protegida.
+  const { blobUrl: pdfBlobUrl, loading: pdfLoading } = useProtectedFileUrl(showPdfModal ? pdfUrl : null);
   
   // Estado para selección de aprobadores (solicitudes > $50k)
   const [showApproverModal, setShowApproverModal] = useState(false);
@@ -32,7 +36,7 @@ export default function QuoteSelectionModal({ request, onClose, onSuccess }) {
       toast.error('Archivo de cotización no disponible');
       return;
     }
-    setPdfUrl(encodeURI(quote.archivoUrl));
+    setPdfUrl(quote.archivoUrl);
     setPdfTitle(`Cotización - ${quote.proveedor} - ${formatCurrency(quote.monto)}`);
     setShowPdfModal(true);
   };
@@ -499,14 +503,20 @@ export default function QuoteSelectionModal({ request, onClose, onSuccess }) {
           
           {/* Contenido del PDF */}
           <div className="flex-1 overflow-hidden">
-            <iframe
-              src={pdfUrl}
-              title={pdfTitle}
-              className="w-full h-full border-0"
-              style={{ minHeight: '500px' }}
-            />
+            {pdfBlobUrl ? (
+              <iframe
+                src={pdfBlobUrl}
+                title={pdfTitle}
+                className="w-full h-full border-0"
+                style={{ minHeight: '500px' }}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                {pdfLoading ? 'Cargando documento...' : 'No se pudo cargar el documento'}
+              </div>
+            )}
           </div>
-          
+
           {/* Pie del modal */}
           <div className="flex justify-between items-center p-4 border-t">
             <div className="text-sm text-gray-600">
@@ -514,7 +524,7 @@ export default function QuoteSelectionModal({ request, onClose, onSuccess }) {
             </div>
             <div className="flex gap-2">
               <a
-                href={pdfUrl}
+                href={pdfBlobUrl || '#'}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm"

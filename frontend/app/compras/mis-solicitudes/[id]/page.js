@@ -8,6 +8,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import PurchaseComments from '@/components/PurchaseComments';
+import { useProtectedFileUrl } from '@/hooks/useProtectedFileUrl';
 
 export default function MisSolicitudesDetallePage() {
   const { user } = useAuth();
@@ -27,6 +28,9 @@ export default function MisSolicitudesDetallePage() {
   // Estado para el modal de PDF
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [pdfUrl, setPdfUrl] = useState('');
+  // /uploads ahora exige autenticación (hallazgo #1) — el iframe ya no
+  // puede apuntar directo a la ruta protegida.
+  const { blobUrl: pdfBlobUrl, loading: pdfLoading } = useProtectedFileUrl(showPdfModal ? pdfUrl : null);
   const [pdfTitle, setPdfTitle] = useState('');
   
   // Estado para la selección de cotizaciones
@@ -138,10 +142,10 @@ export default function MisSolicitudesDetallePage() {
     setShowQuotesModal(false);
     
     // La ruta del archivo ya viene relativa (ej. /uploads/purchase-quotes/x.pdf) y
-    // next.config.js reescribe /uploads/:path* hacia el backend, así que no hace
-    // falta anteponer ningún dominio — hacerlo rompía en producción.
-    const encodedUrl = encodeURI(quote.archivoUrl);
-    setPdfUrl(encodedUrl);
+    // next.config.js reescribe /uploads/:path* hacia el backend. Ya no se usa
+    // directo como src/href (requiere autenticación — hallazgo #1): se pide
+    // vía useProtectedFileUrl más abajo.
+    setPdfUrl(quote.archivoUrl);
     setPdfTitle(`Cotización - ${quote.proveedor} - ${formatCurrency(quote.monto)}`);
     
     // Usar setTimeout para asegurar que el modal de selección se cierre antes de abrir el PDF
@@ -676,14 +680,20 @@ export default function MisSolicitudesDetallePage() {
               
               {/* Contenido del PDF */}
               <div className="flex-1 overflow-hidden">
-                <iframe
-                  src={pdfUrl}
-                  title={pdfTitle}
-                  className="w-full h-full border-0"
-                  style={{ minHeight: '500px' }}
-                />
+                {pdfBlobUrl ? (
+                  <iframe
+                    src={pdfBlobUrl}
+                    title={pdfTitle}
+                    className="w-full h-full border-0"
+                    style={{ minHeight: '500px' }}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                    {pdfLoading ? 'Cargando documento...' : 'No se pudo cargar el documento'}
+                  </div>
+                )}
               </div>
-              
+
               {/* Pie del modal */}
               <div className="flex justify-between items-center p-4 border-t">
                 <div className="text-sm text-gray-600">
@@ -691,7 +701,7 @@ export default function MisSolicitudesDetallePage() {
                 </div>
                 <div className="flex gap-2">
                   <a
-                    href={pdfUrl}
+                    href={pdfBlobUrl || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm"

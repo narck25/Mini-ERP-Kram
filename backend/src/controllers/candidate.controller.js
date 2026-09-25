@@ -358,6 +358,17 @@ exports.selectCandidate = async (req, res) => {
   }
 };
 
+// Verificar permisos sobre un archivo de candidato (CV / prueba psicométrica):
+// ADMIN y RH acceden a cualquiera; el resto solo si es el solicitante de esa
+// vacante. Reutilizada por uploadsAccess.service.js (hallazgo #1) para
+// autorizar GET /uploads/cvs/... y /uploads/psych-tests/...
+const canAccessCandidateFile = async (req, solicitanteId) => {
+  if (req.user.role === 'ADMIN' || req.user.role === 'RH') return true;
+  const employee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
+  return !!employee && employee.id === solicitanteId;
+};
+exports.canAccessCandidateFile = canAccessCandidateFile;
+
 // Descargar CV de candidato
 exports.downloadCandidateCV = async (req, res) => {
   try {
@@ -372,12 +383,8 @@ exports.downloadCandidateCV = async (req, res) => {
       return res.status(404).json({ error: 'Candidato no encontrado' });
     }
 
-    // Verificar permisos: ADMIN y RH descargan cualquier CV; el resto solo el de su propia vacante.
-    if (req.user.role !== 'ADMIN' && req.user.role !== 'RH') {
-      const employee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
-      if (!employee || candidate.vacancy.solicitanteId !== employee.id) {
-        return res.status(403).json({ error: 'No tienes permisos para descargar este CV' });
-      }
+    if (!(await canAccessCandidateFile(req, candidate.vacancy.solicitanteId))) {
+      return res.status(403).json({ error: 'No tienes permisos para descargar este CV' });
     }
 
     if (!candidate.cv_url) {

@@ -33,6 +33,10 @@ const canAccessEmployeeDocuments = async (req, employeeId) => {
   const own = await prisma.employee.findUnique({ where: { userId: req.user.id } });
   return !!own && own.id === employeeId;
 };
+// Reutilizada por uploadsAccess.service.js (hallazgo #1) para autorizar
+// GET /uploads/employee-documents/... con la misma regla que ya usa
+// downloadEmployeeDocument.
+exports.canAccessEmployeeDocuments = canAccessEmployeeDocuments;
 
 // Obtener documentos de un empleado
 exports.getEmployeeDocuments = async (req, res) => {

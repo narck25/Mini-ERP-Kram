@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { openProtectedFile } from '@/lib/files';
 
 function ProfilePageContent() {
   const { user, changePassword } = useAuth();
@@ -315,14 +316,13 @@ function ProfilePageContent() {
                               {(() => { const d = doc.createdAt.split('T')[0].split('-'); return `${d[2]}/${d[1]}/${d[0]}`; })()}
                             </p>
                           </div>
-                          <a
-                            href={doc.url_archivo}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            type="button"
+                            onClick={() => openProtectedFile(doc.url_archivo)}
                             className="text-blue-600 hover:text-blue-800 text-sm"
                           >
                             Ver
-                          </a>
+                          </button>
                         </div>
                       ))}
                       {employee.documents.length > 5 && (
