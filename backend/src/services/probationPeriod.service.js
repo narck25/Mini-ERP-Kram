@@ -128,6 +128,17 @@ async function crearEvaluacionPendiente(emp, evalCfg, resultado) {
   for (const dest of destinatarios) {
     await emailService.sendProbationEvaluationDue(dest.email, dest.name, nombreEmpleado, TIPO_LABEL[evalCfg.tipo]);
   }
+
+  // Paso 1 del formato de RH: el propio colaborador debe llenar su
+  // autoevaluación antes de que RH/jefe capturen el resto.
+  const emailColaborador = emp.correoEmpresa || emp.correoElectronico;
+  if (emailColaborador) {
+    try {
+      await emailService.sendProbationSelfEvalRequest(emailColaborador, nombreEmpleado, TIPO_LABEL[evalCfg.tipo]);
+    } catch (err) {
+      console.error('Error enviando solicitud de autoevaluación al colaborador:', err.message);
+    }
+  }
 }
 
 async function checkAndNotify() {

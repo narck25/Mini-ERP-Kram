@@ -705,6 +705,24 @@ model ProbationEvaluation {
   comentarios     String?
   createdAt       DateTime                  @default(now())
   updatedAt       DateTime                  @updatedAt
+
+  // Paso 1 — autoevaluación del colaborador (formato RH "Evaluación Desempeño
+  // 30/60/90"): logros, retos, apoyo requerido, y 3 escalas de satisfacción 1-5.
+  autoevaluacion             Json?
+  autoevaluacionCompletadaAt DateTime?
+
+  // Paso 2 — captura del evaluador, mismo formato. `resultado` (arriba) hace
+  // las veces del "Dictamen Institucional" del PDF: APROBADO = Aprobado
+  // Satisfactoriamente, EXTENDIDO = Aprobado Condicionado (PIP 30 días),
+  // NO_APROBADO = No Satisfactorio.
+  objetivos               Json?
+  competencias             Json?
+  habitos                  Json?
+  fortalezas               Json?
+  areasMejora              Json?
+  planAccion               Json?
+  minutaRetroalimentacion  String?
+
   empleado        Employee                  @relation("ProbationEmpleado", fields: [empleadoId], references: [id], onDelete: Cascade)
   evaluador       User?                     @relation("ProbationEvaluador", fields: [evaluadorId], references: [id])
 

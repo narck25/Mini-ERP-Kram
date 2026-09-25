@@ -1,14 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import DashboardLayout from '@/components/DashboardLayout';
 import { probationApi } from '@/lib/api/probation';
 import { toast } from 'react-hot-toast';
-import ProbationCaptureModal from '@/components/ProbationCaptureModal';
 
 const TIPO_LABELS = { DIA_30: '30 días', DIA_60: '60 días', DIA_90: '90 días' };
 
+// Dictamen institucional (PDF "Evaluación Desempeño 30/60/90"): resultado
+// reutiliza el enum ya existente, ver probationCriteria.config.js.
 const RESULTADO_BADGES = {
   PENDIENTE: 'bg-yellow-100 text-yellow-800',
   APROBADO: 'bg-green-100 text-green-800',
@@ -18,10 +20,19 @@ const RESULTADO_BADGES = {
 
 const RESULTADO_TEXT = {
   PENDIENTE: 'Pendiente',
-  APROBADO: 'Aprobado',
-  NO_APROBADO: 'No aprobado',
-  EXTENDIDO: 'Extendido',
+  APROBADO: 'Aprobado Satisfactoriamente',
+  NO_APROBADO: 'No Satisfactorio',
+  EXTENDIDO: 'Aprobado Condicionado (PIP)',
 };
+
+// Estado del flujo de dos pasos para una fila PENDIENTE, calculado en el
+// frontend a partir de autoevaluacionCompletadaAt (sin campo nuevo en BD).
+function estadoFlujo(e) {
+  if (e.resultado !== 'PENDIENTE') return null;
+  return e.autoevaluacionCompletadaAt
+    ? { text: 'Lista para evaluar', cls: 'bg-blue-100 text-blue-800' }
+    : { text: 'Esperando autoevaluación', cls: 'bg-gray-100 text-gray-700' };
+}
 
 function formatDate(iso) {
   if (!iso) return '—';
@@ -34,10 +45,10 @@ function nombreEmpleado(emp) {
 }
 
 export default function PeriodoPruebaPage() {
+  const router = useRouter();
   const [evaluations, setEvaluations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('pendientes');
-  const [captureModal, setCaptureModal] = useState(null);
 
   const fetchEvaluations = async () => {
     try {
@@ -59,17 +70,6 @@ export default function PeriodoPruebaPage() {
   const pendientes = evaluations.filter(e => e.resultado === 'PENDIENTE');
   const historial = evaluations.filter(e => e.resultado !== 'PENDIENTE');
   const visibles = tab === 'pendientes' ? pendientes : historial;
-
-  const handleCapture = async (id, data) => {
-    try {
-      await probationApi.capture(id, data);
-      toast.success('Evaluación capturada');
-      await fetchEvaluations();
-    } catch (error) {
-      toast.error(error.response?.data?.error || 'Error al capturar la evaluación');
-      throw error;
-    }
-  };
 
   return (
     <ProtectedRoute allowedRoles={['ADMIN', 'RH']} redirectTo="/dashboard/mi-espacio">
@@ -119,9 +119,7 @@ export default function PeriodoPruebaPage() {
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Comentarios</th>
                         </>
                       )}
-                      {tab === 'pendientes' && (
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                      )}
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -131,9 +129,15 @@ export default function PeriodoPruebaPage() {
                         <td className="px-6 py-4 text-sm text-gray-900">{TIPO_LABELS[e.tipo] || e.tipo}</td>
                         <td className="px-6 py-4 text-sm text-gray-900">{formatDate(e.fechaProgramada)}</td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${RESULTADO_BADGES[e.resultado] || 'bg-gray-100 text-gray-800'}`}>
-                            {RESULTADO_TEXT[e.resultado] || e.resultado}
-                          </span>
+                          {tab === 'pendientes' ? (
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${estadoFlujo(e).cls}`}>
+                              {estadoFlujo(e).text}
+                            </span>
+                          ) : (
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${RESULTADO_BADGES[e.resultado] || 'bg-gray-100 text-gray-800'}`}>
+                              {RESULTADO_TEXT[e.resultado] || e.resultado}
+                            </span>
+                          )}
                         </td>
                         {tab === 'historial' && (
                           <>
@@ -141,16 +145,23 @@ export default function PeriodoPruebaPage() {
                             <td className="px-6 py-4 text-sm text-gray-500 max-w-[250px] truncate" title={e.comentarios || ''}>{e.comentarios || '—'}</td>
                           </>
                         )}
-                        {tab === 'pendientes' && (
-                          <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4 text-right">
+                          {tab === 'pendientes' ? (
                             <button
-                              onClick={() => setCaptureModal(e)}
+                              onClick={() => router.push(`/rh/periodo-prueba/${e.id}`)}
                               className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium"
                             >
-                              Capturar
+                              {e.autoevaluacionCompletadaAt ? 'Capturar' : 'Ver'}
                             </button>
-                          </td>
-                        )}
+                          ) : (
+                            <button
+                              onClick={() => router.push(`/rh/periodo-prueba/${e.id}`)}
+                              className="px-3 py-1 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md text-sm font-medium"
+                            >
+                              Ver detalle
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -159,12 +170,6 @@ export default function PeriodoPruebaPage() {
             )}
           </div>
         </div>
-
-        <ProbationCaptureModal
-          evaluation={captureModal}
-          onClose={() => setCaptureModal(null)}
-          onSubmit={handleCapture}
-        />
       </DashboardLayout>
     </ProtectedRoute>
   );

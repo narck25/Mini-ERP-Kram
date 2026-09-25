@@ -499,6 +499,38 @@ exports.sendProbationEvaluationDue = async (email, destinatarioNombre, employeeN
 };
 
 /**
+ * Pide al propio colaborador llenar su autoevaluación (paso 1 del formato
+ * 30/60/90 de RH) antes de la reunión de retroalimentación con su líder.
+ */
+exports.sendProbationSelfEvalRequest = async (email, employeeName, tipoEvaluacion) => {
+  const title = '📝 Llena tu autoevaluación de periodo de prueba';
+  const content = `
+    <p>Hola <strong>${employeeName}</strong>,</p>
+    <p>Llegaste a tu evaluación de <strong>${tipoEvaluacion}</strong>. Antes de tu reunión de retroalimentación, necesitamos que completes tu autoevaluación en el sistema.</p>
+    <center>
+      <a href="${FRONTEND_URL}/dashboard/mi-espacio" class="button">Llenar autoevaluación</a>
+    </center>
+  `;
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
+/**
+ * Avisa a RH y al jefe directo que el colaborador ya envió su autoevaluación
+ * (paso 1) y que ya pueden completar la captura (paso 2).
+ */
+exports.sendProbationSelfEvalCompleted = async (email, destinatarioNombre, employeeName, tipoEvaluacion) => {
+  const title = '✅ Autoevaluación recibida — lista para tu captura';
+  const content = `
+    <p>Hola <strong>${destinatarioNombre}</strong>,</p>
+    <p><strong>${employeeName}</strong> ya envió su autoevaluación de <strong>${tipoEvaluacion}</strong>. Ya puedes completar la evaluación en el sistema.</p>
+    <center>
+      <a href="${FRONTEND_URL}/dashboard/mi-espacio" class="button">Completar evaluación</a>
+    </center>
+  `;
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
+/**
  * Enviar resumen diario a RH con cumpleaños y aniversarios del día
  */
 exports.sendDailySummaryToRH = async (email, rhName, birthdayList, anniversaryList) => {

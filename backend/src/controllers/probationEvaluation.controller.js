@@ -27,6 +27,33 @@ class ProbationEvaluationController {
       res.status(error.status || 500).json({ error: error.message });
     }
   }
+
+  static async getById(req, res) {
+    try {
+      const data = await ProbationEvaluationService.getById(req.params.id, req.user);
+      res.json({ data });
+    } catch (error) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  }
+
+  static async getMyPending(req, res) {
+    try {
+      const data = await ProbationEvaluationService.getPendingForColaborador(req.user);
+      res.json({ data });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async submitSelfEvaluation(req, res) {
+    try {
+      const data = await ProbationEvaluationService.submitAutoevaluacion(req.params.id, req.body, req.user, req);
+      res.json({ data, message: 'Autoevaluación enviada' });
+    } catch (error) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  }
 }
 
 module.exports = ProbationEvaluationController;

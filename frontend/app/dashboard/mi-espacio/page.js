@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import ProbationCaptureModal from '@/components/ProbationCaptureModal';
 import { probationApi } from '@/lib/api/probation';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -15,6 +15,7 @@ const fmt = (iso) => (iso ? new Date(iso).toISOString().substring(0, 10).split('
 
 function MiEspacioPage() {
   const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -22,7 +23,10 @@ function MiEspacioPage() {
   // Evaluaciones de periodo de prueba pendientes de mis subordinados (independiente de
   // accessibleModules — cualquier jefe con gente a cargo debe poder verlas).
   const [pendingEvaluations, setPendingEvaluations] = useState([]);
-  const [captureModal, setCaptureModal] = useState(null);
+
+  // Mis propias autoevaluaciones pendientes (paso 1 del formato 30/60/90 — las
+  // llena el colaborador antes de que RH/jefe complete el resto).
+  const [myPendingSelfEvals, setMyPendingSelfEvals] = useState([]);
 
   const hasAccess = user?.accessibleModules?.some(m => ['EMPLEADOS', 'RECLUTAMIENTO', 'COMPRAS', 'VACACIONES', 'INCIDENCIAS', 'DASHBOARD'].includes(m))
 
@@ -36,7 +40,10 @@ function MiEspacioPage() {
   }, [user?.id, user?.accessibleModules, dashboardData]);
 
   useEffect(() => {
-    if (user?.id) fetchPendingEvaluations();
+    if (user?.id) {
+      fetchPendingEvaluations();
+      fetchMyPendingSelfEvals();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
@@ -49,14 +56,12 @@ function MiEspacioPage() {
     }
   };
 
-  const handleCaptureEvaluation = async (id, data) => {
+  const fetchMyPendingSelfEvals = async () => {
     try {
-      await probationApi.capture(id, data);
-      toast.success('Evaluación capturada');
-      await fetchPendingEvaluations();
+      const res = await probationApi.getMyPending();
+      setMyPendingSelfEvals(res.data?.data || []);
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Error al capturar la evaluación');
-      throw error;
+      console.error('Error fetching my pending self-evaluations:', error);
     }
   };
 
@@ -414,6 +419,33 @@ function MiEspacioPage() {
             </div>
             )}
 
+            {/* Mi propia autoevaluación pendiente (paso 1 del formato 30/60/90) */}
+            {myPendingSelfEvals.length > 0 && (
+              <div className="bg-white rounded-xl shadow-md p-6 mb-8 border-l-4 border-purple-500">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <span className="text-purple-600">📝</span> Autoevaluación Pendiente
+                  </h2>
+                </div>
+                <div className="space-y-3">
+                  {myPendingSelfEvals.map((ev) => (
+                    <div key={ev.id} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-gray-900">Evaluación de {TIPO_EVALUACION_LABELS[ev.tipo] || ev.tipo}</p>
+                        <p className="text-sm text-gray-600">Llénala antes de tu reunión de retroalimentación</p>
+                      </div>
+                      <button
+                        onClick={() => router.push(`/dashboard/mi-autoevaluacion/${ev.id}`)}
+                        className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-sm font-medium"
+                      >
+                        Llenar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Evaluaciones de periodo de prueba pendientes (visible solo si tengo subordinados con evaluaciones pendientes) */}
             {pendingEvaluations.length > 0 && (
               <div className="bg-white rounded-xl shadow-md p-6 mb-8 border-l-4 border-orange-500">
@@ -430,7 +462,7 @@ function MiEspacioPage() {
                         <p className="text-sm text-gray-600">Evaluación de {TIPO_EVALUACION_LABELS[ev.tipo] || ev.tipo}</p>
                       </div>
                       <button
-                        onClick={() => setCaptureModal(ev)}
+                        onClick={() => router.push(`/rh/periodo-prueba/${ev.id}`)}
                         className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-md text-sm font-medium"
                       >
                         Capturar
@@ -507,12 +539,6 @@ function MiEspacioPage() {
           </>
         )}
       </div>
-
-      <ProbationCaptureModal
-        evaluation={captureModal}
-        onClose={() => setCaptureModal(null)}
-        onSubmit={handleCaptureEvaluation}
-      />
     </DashboardLayout>
   );
 }
