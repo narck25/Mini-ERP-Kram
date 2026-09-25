@@ -278,6 +278,6 @@ El sistema controla el acceso en tres niveles:
 
 **Lo que ya está sólido:** Empleados, Reclutamiento y Vacaciones tienen la mayor cantidad de uso, pruebas automatizadas y tiempo en producción.
 
-**Lo que es más nuevo y funciona, pero con menos "blindaje" de pruebas automatizadas todavía:** Incapacidades, Disciplina y Auditoría de RH — están operando correctamente según la revisión del código, pero no cuentan aún con pruebas automatizadas dedicadas (sí las tienen los módulos más antiguos, y ya también Periodo de Prueba). Esto no significa que fallen; significa que, si se modifican en el futuro, conviene probarlos manualmente con más cuidado hasta que se les agregue esa cobertura.
+**Lo que es más nuevo y funciona, pero con menos "blindaje" de pruebas automatizadas todavía:** Incapacidades — está operando correctamente según la revisión del código, pero no cuenta aún con pruebas automatizadas dedicadas. Esto no significa que falle; significa que, si se modifica en el futuro, conviene probarla manualmente con más cuidado hasta que se le agregue esa cobertura. Disciplina, Auditoría de RH, Periodo de Prueba y Evaluación Operativa Trimestral ya cuentan con sus propias pruebas.
 
 **Documentación interna:** los manuales de usuario más antiguos de RH no mencionan todavía Disciplina, Periodo de Prueba, Evaluación Operativa Trimestral ni Auditoría de RH como módulos — es trabajo de documentación pendiente, no un problema del sistema en sí.

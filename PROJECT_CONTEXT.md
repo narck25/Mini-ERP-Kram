@@ -463,6 +463,7 @@ Para el detalle endpoint-por-endpoint ya existente y verificado en gran parte co
 - **Endpoints**: `POST/PUT /api/disciplinary-incidents`, `GET /api/disciplinary-incidents/employee/:employeeId`, protegidos con `requireModule('DISCIPLINA')` + control fino en el service (solo ADMIN/RH o el jefe directo del empleado pueden gestionar) (`backend/src/services/disciplinaryIncident.service.js:7-12`).
 - **Frontend**: sin página propia; se usa embebido en `frontend/app/rh/empleados/[id]/page.js`.
 - **Reglas de negocio**: calcula un resumen de incidencias en los últimos 6 meses por empleado; genera auditoría en `HrAuditLog`; soporta adjuntar un archivo (acta) vía `uploadDisciplinaryIncident`.
+- **Pruebas**: `backend/tests/15-disciplinary-incident.test.js` (permisos Nivel A/fino, campos requeridos, listado con resumen).
 - **Estado**: completo pero **no documentado** en `docs/ESTADO_DEL_PROYECTO.md` ni en `docs/ACCESOS_Y_PERMISOS.md` (módulo `DISCIPLINA` ausente de ambos) — inconsistencia de documentación, ver §12.
 
 ### 7.8 Periodo de prueba (evaluaciones 30/60/90 días)
@@ -492,6 +493,7 @@ Para el detalle endpoint-por-endpoint ya existente y verificado en gran parte co
 - **Propósito**: log consolidado de cambios sobre Employee/Vacation/Incapacidad/DisciplinaryIncident/ProbationEvaluation/OperationalEvaluation.
 - **Endpoints**: `GET /api/hr-audit/employee/:id` (`verifyToken`; el control de "quién puede ver" —ADMIN/RH o el jefe directo del empleado, explícitamente **no** el propio empleado— vive en el controller) (`backend/src/controllers/hrAudit.controller.js:7-12`).
 - **Frontend**: embebido en el expediente del empleado, sin pantalla propia.
+- **Pruebas**: `backend/tests/16-hr-audit.test.js` (403 para el propio empleado y para terceros, 200 con el historial correcto para RH/ADMIN/jefe directo).
 - **Estado**: completo, no documentado en los manuales previos.
 
 ### 7.11 Reportes
@@ -717,7 +719,7 @@ Listado completo (`find backend/tests -name "*.test.js"`):
 
 Esto ya es más de lo que reporta `docs/TESTING.md` ("14 suites/99 tests" — ese documento no menciona `12-vacaciones.test.js` ni 5 de los 10 archivos unitarios), consistente con el commit `16407b0 test: cobertura unitaria para purchase/stationery/uniform.service.js`.
 
-**Módulos sin ningún archivo de test** (ni integración ni unitario — búsqueda por palabra clave en `backend/tests`, sin ejecutar nada): **Incapacidades**, **Disciplina/incidencias disciplinarias**, **Auditoría de RH** (`hrAudit`), **Proveedores** (`supplier`), **Ajustes de inventario** (`inventory-adjustment`), **Configuración del sistema / modo estricto de inventario** (`system-setting`), **Reportes** (`/api/reports/*`) e **importación/exportación CSV de empleados** (`employee-csv`, rutas `/import`/`/export`/`/template`). Es decir: de los módulos identificados en §7.7/§7.10 como "no documentados en `docs/`" (Disciplina, Auditoría de RH), ambos siguen sin pruebas automatizadas — **Periodo de prueba** (`backend/tests/13-probation.test.js`, ver §7.8) y **Evaluación Operativa Trimestral** (`backend/tests/14-operational-evaluation.test.js`, ver §7.9) ya tienen cobertura — el resto es funcional según la revisión manual de rutas/servicios, pero no está verificado por la suite de tests.
+**[ACTUALIZADO] Módulos sin ningún archivo de test**: de la lista original (Incapacidades, Disciplina, Auditoría de RH, Proveedores, Ajustes de inventario, Configuración del sistema, Reportes, importación/exportación CSV de empleados), se agregó cobertura a **Disciplina** (`backend/tests/15-disciplinary-incident.test.js`), **Auditoría de RH** (`backend/tests/16-hr-audit.test.js`) y **Proveedores** (`backend/tests/17-supplier.test.js`). Siguen sin pruebas automatizadas: **Incapacidades**, **Ajustes de inventario** (`inventory-adjustment`), **Configuración del sistema / modo estricto de inventario** (`system-setting`), **Reportes** (`/api/reports/*`) e **importación/exportación CSV de empleados** (`employee-csv`). De los módulos identificados en §7.7/§7.10 como "no documentados en `docs/`" (Disciplina, Auditoría de RH), ambos siguen sin documentación de usuario pero ya tienen pruebas — **Periodo de prueba** (`backend/tests/13-probation.test.js`, ver §7.8) y **Evaluación Operativa Trimestral** (`backend/tests/14-operational-evaluation.test.js`, ver §7.9) también tienen cobertura — el resto es funcional según la revisión manual de rutas/servicios, pero no está verificado por la suite de tests.
 
 > Nota de método: por instrucción explícita de la tarea, no se ejecutó `npm test` ni ningún otro comando que alterara el proyecto; el conteo y la cobertura anterior se obtuvieron listando archivos y leyendo su contenido, no corriendo la suite.
 

@@ -184,6 +184,6 @@ Desde la sección de Reportes se pueden exportar a Excel:
 
 **Lo que ya está sólido:** el flujo completo de Solicitud → Cotización → Autorización → Orden de Compra → Entrega, y el inventario con su kardex, llevan más tiempo en producción y tienen buena cobertura de pruebas automatizadas.
 
-**Lo que es más nuevo:** el catálogo de Proveedores y las Aprobaciones de ajuste de inventario funcionan correctamente según la revisión del código, pero todavía no tienen pruebas automatizadas dedicadas — no es un defecto, es simplemente trabajo de calidad pendiente de agregar.
+**Lo que es más nuevo:** las Aprobaciones de ajuste de inventario funcionan correctamente según la revisión del código, pero todavía no tienen pruebas automatizadas dedicadas — no es un defecto, es simplemente trabajo de calidad pendiente de agregar. El catálogo de Proveedores ya cuenta con las suyas.
 
 **Pendiente de decisión de negocio (no técnico):** definir si debe existir separación obligatoria entre quien solicita una compra y quien la autoriza (ver nota de la sección 9).
