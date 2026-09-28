@@ -92,8 +92,14 @@ function mapEmployeeFromCsv(row, prisma) {
       if (dateStr?.includes('/')) {
         const [day, month, year] = dateStr.split('/').map(Number);
         if (!day || !month || !year) return null;
-        date = new Date(year, month - 1, day);
-        if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+        // Date.UTC (no new Date(year, month, day)): ese constructor usa la
+        // zona horaria LOCAL del proceso que corre el import. En el
+        // contenedor de produccion, con una zona horaria adelantada a UTC,
+        // la medianoche local cae en el dia UTC anterior -- las fechas se
+        // guardaban un dia antes de lo que decia el CSV (ver caso real:
+        // "01/11/1993" en el CSV quedo guardado como 1993-10-31 en BD).
+        date = new Date(Date.UTC(year, month - 1, day));
+        if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
           return null;
         }
       }
@@ -101,8 +107,8 @@ function mapEmployeeFromCsv(row, prisma) {
       else if (dateStr?.includes('-')) {
         const [year, month, day] = dateStr.split('-').map(Number);
         if (!day || !month || !year) return null;
-        date = new Date(year, month - 1, day);
-        if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+        date = new Date(Date.UTC(year, month - 1, day));
+        if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
           return null;
         }
       }

@@ -38,7 +38,9 @@ function estadoFlujo(e) {
 
 function formatDate(iso) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('es-MX');
+  // timeZone: 'UTC' evita el bug del día anterior (fecha guardada como
+  // medianoche UTC, leída en la zona horaria local del navegador).
+  return new Date(iso).toLocaleDateString('es-MX', { timeZone: 'UTC' });
 }
 
 function nombreEmpleado(emp) {

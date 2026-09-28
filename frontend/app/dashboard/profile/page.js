@@ -84,13 +84,17 @@ function ProfilePageContent() {
     }
   };
 
+  // timeZone: 'UTC' evita el bug del día anterior: la fecha se guarda como
+  // medianoche UTC, y sin esto toLocaleDateString la lee en la zona horaria
+  // local del navegador (México, detrás de UTC) — un día antes del real.
   const formatDate = (dateString) => {
     if (!dateString) return 'No especificada';
     const date = new Date(dateString);
     return date.toLocaleDateString('es-MX', {
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
+      timeZone: 'UTC'
     });
   };
 
