@@ -53,11 +53,11 @@ const INITIAL_FORM = {
   contrato: '',
   horario: '',
   sucursal: '',
-  area: '',
+  areaId: '',
   region: ''
 };
 
-export default function EmployeeForm({ show, onClose, employee, departments, managers, onSaved }) {
+export default function EmployeeForm({ show, onClose, employee, departments, areas, managers, onSaved }) {
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [availablePositions, setAvailablePositions] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -156,7 +156,7 @@ export default function EmployeeForm({ show, onClose, employee, departments, man
         contrato: employee.contrato || '',
         horario: employee.horario || '',
         sucursal: employee.sucursal || '',
-        area: employee.area || '',
+        areaId: employee.areaId || '',
         region: employee.region || ''
       });
     } else {
@@ -388,7 +388,7 @@ export default function EmployeeForm({ show, onClose, employee, departments, man
                 ])}
                 {renderField('Horario', 'horario')}
                 {renderField('Sucursal', 'sucursal')}
-                {renderField('Área', 'area')}
+                {renderField('Área', 'areaId', 'select', areas)}
                 {renderField('Región', 'region')}
               </div>
             )}

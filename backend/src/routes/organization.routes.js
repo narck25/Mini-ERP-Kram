@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const organizationController = require('../controllers/organization.controller');
+const areaController = require('../controllers/area.controller');
 const AuthMiddleware = require('../middlewares/auth.middleware');
 
 // ==================== RUTAS DE DEPARTAMENTOS ====================
@@ -71,6 +72,30 @@ router.delete('/job-positions/:id',
 router.get('/departments/:departmentId/job-positions',
   AuthMiddleware.requireModule('EMPLEADOS'),
   organizationController.getJobPositionsByDepartment
+);
+
+// ==================== RUTAS DE ÁREAS (catálogo) ====================
+// Reemplaza el texto libre que tenía Employee.area — mismo nivel de permiso
+// que Departamentos/Puestos, que también son catálogo administrado por RH.
+
+router.get('/areas',
+  AuthMiddleware.requireModule('EMPLEADOS'),
+  areaController.getAllAreas
+);
+
+router.post('/areas',
+  AuthMiddleware.requireModule('EMPLEADOS'),
+  areaController.createArea
+);
+
+router.put('/areas/:id',
+  AuthMiddleware.requireModule('EMPLEADOS'),
+  areaController.updateArea
+);
+
+router.delete('/areas/:id',
+  AuthMiddleware.requireModule('EMPLEADOS'),
+  areaController.deleteArea
 );
 
 // ==================== RUTAS DE ESTADÍSTICAS ====================

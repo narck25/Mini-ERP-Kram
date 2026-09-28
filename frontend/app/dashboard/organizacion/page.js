@@ -16,30 +16,37 @@ const NIVELES_JERARQUICOS = [
 
 const emptyDeptForm = { nombre: '', descripcion: '', estado: 'Activo' };
 const emptyPosForm = { nombre: '', descripcion: '', nivelJerarquico: 'OPERATIVO', departamentoId: '', estado: 'Activo' };
+const emptyAreaForm = { nombre: '', estado: 'Activo' };
 
 export default function OrganizacionPage() {
   const { user } = useAuth();
   const [departments, setDepartments] = useState([]);
   const [jobPositions, setJobPositions] = useState([]);
+  const [areas, setAreas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('departments');
 
   // Formularios principales
   const [showDeptForm, setShowDeptForm] = useState(false);
   const [showPosForm, setShowPosForm] = useState(false);
+  const [showAreaForm, setShowAreaForm] = useState(false);
   const [deptForm, setDeptForm] = useState({ ...emptyDeptForm });
   const [posForm, setPosForm] = useState({ ...emptyPosForm });
+  const [areaForm, setAreaForm] = useState({ ...emptyAreaForm });
   const [editingDeptId, setEditingDeptId] = useState(null);
   const [editingPosId, setEditingPosId] = useState(null);
+  const [editingAreaId, setEditingAreaId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Búsqueda
   const [searchDept, setSearchDept] = useState('');
   const [searchPos, setSearchPos] = useState('');
+  const [searchArea, setSearchArea] = useState('');
 
   // Paginación
   const [deptPage, setDeptPage] = useState(1);
   const [posPage, setPosPage] = useState(1);
+  const [areaPage, setAreaPage] = useState(1);
 
   // Modal de puestos por departamento
   const [deptPositionsModal, setDeptPositionsModal] = useState(null);
@@ -52,12 +59,14 @@ export default function OrganizacionPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [deptsRes, positionsRes] = await Promise.all([
+      const [deptsRes, positionsRes, areasRes] = await Promise.all([
         api.get('/departments'),
-        api.get('/job-positions')
+        api.get('/job-positions'),
+        api.get('/areas')
       ]);
       setDepartments(deptsRes.data?.departments || []);
       setJobPositions(positionsRes.data?.data || []);
+      setAreas(areasRes.data?.areas || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -99,8 +108,22 @@ export default function OrganizacionPage() {
     posPage * ITEMS_PER_PAGE
   );
 
+  // ===== Áreas filtradas y paginadas =====
+  const filteredAreas = useMemo(() => {
+    if (!searchArea.trim()) return areas;
+    const q = searchArea.toLowerCase();
+    return areas.filter(a => a.nombre.toLowerCase().includes(q));
+  }, [areas, searchArea]);
+
+  const totalAreaPages = Math.max(1, Math.ceil(filteredAreas.length / ITEMS_PER_PAGE));
+  const paginatedAreas = filteredAreas.slice(
+    (areaPage - 1) * ITEMS_PER_PAGE,
+    areaPage * ITEMS_PER_PAGE
+  );
+
   useEffect(() => { setDeptPage(1); }, [searchDept]);
   useEffect(() => { setPosPage(1); }, [searchPos]);
+  useEffect(() => { setAreaPage(1); }, [searchArea]);
 
   // ===== Handlers Departamentos =====
   const openNewDept = () => {
@@ -139,6 +162,49 @@ export default function OrganizacionPage() {
     if (!confirm('¿Está seguro de eliminar este departamento?')) return;
     try {
       await api.delete(`/departments/${id}`);
+      fetchData();
+    } catch (error) {
+      alert(`Error: ${error.response?.data?.error || error.message}`);
+    }
+  };
+
+  // ===== Handlers Áreas =====
+  const openNewArea = () => {
+    setEditingAreaId(null);
+    setAreaForm({ ...emptyAreaForm });
+    setShowAreaForm(true);
+  };
+
+  const openEditArea = (area) => {
+    setEditingAreaId(area.id);
+    setAreaForm({ nombre: area.nombre, estado: area.estado || 'Activo' });
+    setShowAreaForm(true);
+  };
+
+  const handleAreaSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      if (editingAreaId) {
+        await api.put(`/areas/${editingAreaId}`, areaForm);
+      } else {
+        await api.post('/areas', areaForm);
+      }
+      setShowAreaForm(false);
+      setEditingAreaId(null);
+      setAreaForm({ ...emptyAreaForm });
+      fetchData();
+    } catch (error) {
+      alert(`Error: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteArea = async (id) => {
+    if (!confirm('¿Está seguro de eliminar esta área?')) return;
+    try {
+      await api.delete(`/areas/${id}`);
       fetchData();
     } catch (error) {
       alert(`Error: ${error.response?.data?.error || error.message}`);
@@ -436,6 +502,16 @@ export default function OrganizacionPage() {
               >
                 Puestos <span className="text-xs ml-1 text-gray-400">({jobPositions.length})</span>
               </button>
+              <button
+                onClick={() => setActiveTab('areas')}
+                className={`pb-2 border-b-2 font-medium text-sm ${
+                  activeTab === 'areas'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Áreas <span className="text-xs ml-1 text-gray-400">({areas.length})</span>
+              </button>
             </nav>
           </div>
 
@@ -671,6 +747,94 @@ export default function OrganizacionPage() {
                 )}
                 <Pagination page={posPage} totalPages={totalPosPages} setPage={setPosPage} />
               </div>
+            </div>
+          )}
+
+          {/* ===== TAB: ÁREAS ===== */}
+          {activeTab === 'areas' && (
+            <div>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                <div className="relative w-full sm:w-64">
+                  <input type="text" placeholder="Buscar área..."
+                    value={searchArea} onChange={(e) => setSearchArea(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                  />
+                  <span className="absolute left-2.5 top-2 text-gray-400 text-xs">🔍</span>
+                </div>
+                <button onClick={openNewArea}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md font-medium text-sm whitespace-nowrap"
+                >+ Nueva Área</button>
+              </div>
+
+              <p className="text-xs text-gray-500 mb-3">
+                Reemplaza el campo de texto libre que tenía el expediente del empleado — evita errores de captura como &quot;MARKETIG&quot; o &quot;Operaciom&quot;.
+              </p>
+
+              {showAreaForm && (
+                <div className="bg-white p-4 rounded-lg shadow-sm border border-blue-200 mb-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                    {editingAreaId ? 'Editar Área' : 'Nueva Área'}
+                  </h3>
+                  <form onSubmit={handleAreaSubmit}>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Nombre *</label>
+                        <input type="text" required value={areaForm.nombre}
+                          onChange={(e) => setAreaForm({ ...areaForm, nombre: e.target.value })}
+                          className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Estado</label>
+                        <select value={areaForm.estado}
+                          onChange={(e) => setAreaForm({ ...areaForm, estado: e.target.value })}
+                          className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          <option value="Activo">Activo</option>
+                          <option value="Inactivo">Inactivo</option>
+                        </select>
+                      </div>
+                      <div className="flex items-end space-x-2">
+                        <button type="submit" disabled={submitting}
+                          className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                        >{submitting ? '...' : (editingAreaId ? 'Actualizar' : 'Guardar')}</button>
+                        <button type="button"
+                          onClick={() => { setShowAreaForm(false); setEditingAreaId(null); }}
+                          className="px-3 py-1.5 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50"
+                        >Cancelar</button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {paginatedAreas.length === 0 ? (
+                  <div className="col-span-full text-center py-10">
+                    <p className="text-gray-400 text-sm">{searchArea ? 'Sin resultados' : 'No hay áreas registradas'}</p>
+                  </div>
+                ) : (
+                  paginatedAreas.map((area) => (
+                    <div key={area.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 truncate">{area.nombre}</h3>
+                          <span className={`inline-block mt-2 px-1.5 py-0.5 text-xs rounded-full ${
+                            area.estado === 'Activo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          }`}>{area.estado}</span>
+                        </div>
+                        <div className="flex space-x-1 ml-2 shrink-0">
+                          <button onClick={() => openEditArea(area)}
+                            className="text-blue-600 hover:text-blue-800 text-xs px-1.5 py-0.5 rounded hover:bg-blue-50" title="Editar">✏️</button>
+                          <button onClick={() => handleDeleteArea(area.id)}
+                            className="text-red-600 hover:text-red-800 text-xs px-1.5 py-0.5 rounded hover:bg-red-50" title="Eliminar">🗑️</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <Pagination page={areaPage} totalPages={totalAreaPages} setPage={setAreaPage} />
             </div>
           )}
         </div>

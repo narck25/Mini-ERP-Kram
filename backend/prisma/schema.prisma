@@ -74,6 +74,7 @@ model Employee {
   apellidoMaterno               String?
   apellidoPaterno               String?
   area                          String?
+  areaId                        String?
   banco                         String?
   beneficiario1                 String?
   beneficiario2                 String?
@@ -132,6 +133,7 @@ model Employee {
   responsivasEntregadas         PurchaseResponsiva[]         @relation("ComprasResponsivaEntregador")
   purchaseApprovals             PurchaseApprover[]
   puesto                        JobPosition?                 @relation(fields: [puestoId], references: [id])
+  areaCatalogo                  Area?                        @relation(fields: [areaId], references: [id])
   salaryHistory                 SalaryHistory[]
   notificationLogs              NotificationLog[]
   stationeryRequests            StationeryRequest[]          @relation("PapeleriaSolicitante")
@@ -257,6 +259,24 @@ model JobPosition {
 
   @@unique([nombre, departamentoId])
   @@map("job_positions")
+}
+
+// Catálogo de "área" — antes era texto libre en Employee.area (typos como
+// "MARKETIG"/"Operaciom" fragmentaban reportes silenciosamente). Catálogo
+// plano (no anidado por departamento, a diferencia de JobPosition) porque
+// sus valores no calzan 1:1 con Department (ej. "CEDIS CANCUN" es una sede,
+// no un departamento). El campo legado Employee.area se sigue llenando en
+// paralelo (con el nombre del catálogo) para no tocar las pantallas que ya
+// lo leen como texto — mismo patrón que nombre/nombres, ver DEUDA_TECNICA.md.
+model Area {
+  id        String     @id @default(cuid())
+  nombre    String     @unique
+  estado    String     @default("Activo")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  employees Employee[]
+
+  @@map("areas")
 }
 
 model EmployeeDocument {

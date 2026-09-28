@@ -137,10 +137,20 @@ exports.createEmployee = async (req, res) => {
     const { clave, nombres, apellidoPaterno, apellidoMaterno, fechaNacimiento, lugarNacimiento, estadoCivil,
       nacionalidad, sexo, nivelAcademico, telefonoCasa, telefonoMovil, correoElectronico, correoEmpresa,
       direccionCompleta, estado, cpFiscal, rfc, curp, nss, fecha_ingreso, fechaBaja, estatus, sucursal,
-      area, region, contrato, horario, puestoId, departamento_id, salary, clabe, numeroCuenta, banco,
+      area, areaId, region, contrato, horario, puestoId, departamento_id, salary, clabe, numeroCuenta, banco,
       jefeDirecto, sd, sdi, nivelJerarquico, reportaAId, tallaCamisa, tallaPlayera, tallaPantalon,
       tallaZapatos, nombreConyuge, beneficiario1, fechaNacBeneficiario1, porcentaje1, beneficiario2,
       fechaNacBeneficiario2, porcentaje2, esPadre, numeroHijos, fotoUrl, userId } = req.body;
+
+    // El área ahora es catálogo (Area), no texto libre — si viene areaId se
+    // resuelve el nombre desde ahí; `area` como string suelto queda solo de
+    // fallback por compatibilidad hacia atrás.
+    let areaResuelta = area || null;
+    if (areaId) {
+      const areaCatalogo = await prisma.area.findUnique({ where: { id: areaId } });
+      if (!areaCatalogo) return res.status(400).json({ error: 'El área especificada no existe' });
+      areaResuelta = areaCatalogo.nombre;
+    }
 
     if (!rfc || !curp || !nss || !fecha_ingreso || !puestoId || !departamento_id) {
       return res.status(400).json({ error: 'Faltan campos requeridos: RFC, CURP, NSS, fecha_ingreso, puestoId, departamento_id' });
@@ -179,7 +189,7 @@ exports.createEmployee = async (req, res) => {
       direccionCompleta: direccionCompleta || null, estado: estado || null, cpFiscal: cpFiscal || null,
       rfc, curp, nss, fechaAlta: new Date(fecha_ingreso),
       fechaBaja: fechaBaja ? new Date(fechaBaja) : null, motivoBaja: req.body.motivoBaja || null, estatus: estatus || 'Activo',
-      sucursal: sucursal || null, area: area || null, region: region || null,
+      sucursal: sucursal || null, area: areaResuelta, region: region || null,
       contrato: contrato || null, horario: horario || null,
       salarioMensual: salary && salary !== '' ? parseFloat(salary) : null,
       clabe: clabe || null, numeroCuenta: numeroCuenta || null, banco: banco || null,
@@ -200,6 +210,7 @@ exports.createEmployee = async (req, res) => {
 
     if (puestoId) employeeData.puesto = { connect: { id: puestoId } };
     if (departamento_id) employeeData.departamento = { connect: { id: departamento_id } };
+    if (areaId) employeeData.areaCatalogo = { connect: { id: areaId } };
     if (userId && userId.trim() !== '') employeeData.user = { connect: { id: userId } };
     if (reportaAId && reportaAId.trim() !== '') employeeData.reportaA = { connect: { id: reportaAId } };
 
@@ -268,13 +279,26 @@ exports.updateEmployee = async (req, res) => {
     const { clave, nombres, apellidoPaterno, apellidoMaterno, fechaNacimiento, lugarNacimiento, estadoCivil,
       nacionalidad, sexo, nivelAcademico, telefonoCasa, telefonoMovil, correoElectronico, correoEmpresa,
       direccionCompleta, estado, cpFiscal, rfc, curp, nss, fecha_ingreso, fechaBaja, estatus, sucursal,
-      area, region, contrato, horario, puestoId, departamento_id, salary, clabe, numeroCuenta, banco,
+      area, areaId, region, contrato, horario, puestoId, departamento_id, salary, clabe, numeroCuenta, banco,
       jefeDirecto, sd, sdi, nivelJerarquico, reportaAId, tallaCamisa, tallaPlayera, tallaPantalon,
       tallaZapatos, nombreConyuge, beneficiario1, fechaNacBeneficiario1, porcentaje1, beneficiario2,
       fechaNacBeneficiario2, porcentaje2, esPadre, numeroHijos, fotoUrl, userId } = req.body;
 
     const existingEmployee = await prisma.employee.findUnique({ where: { id } });
     if (!existingEmployee) return res.status(404).json({ error: 'Empleado no encontrado' });
+
+    // Igual que en createEmployee: si viene areaId, el string legado `area`
+    // se deriva del catálogo en vez de aceptarse suelto.
+    let areaResuelta;
+    if (areaId !== undefined) {
+      if (areaId) {
+        const areaCatalogo = await prisma.area.findUnique({ where: { id: areaId } });
+        if (!areaCatalogo) return res.status(400).json({ error: 'El área especificada no existe' });
+        areaResuelta = areaCatalogo.nombre;
+      } else {
+        areaResuelta = null;
+      }
+    }
 
     if (rfc && rfc !== existingEmployee.rfc) {
       const existingRFC = await prisma.employee.findFirst({ where: { rfc, NOT: { id } } });
@@ -313,10 +337,11 @@ exports.updateEmployee = async (req, res) => {
       fechaBaja: u(fechaBaja, existingEmployee.fechaBaja, v => v ? new Date(v) : null),
       motivoBaja: u(req.body.motivoBaja, existingEmployee.motivoBaja),
       estatus: u(estatus, existingEmployee.estatus), sucursal: u(sucursal, existingEmployee.sucursal),
-      area: u(area, existingEmployee.area), region: u(region, existingEmployee.region),
+      area: areaId !== undefined ? areaResuelta : u(area, existingEmployee.area), region: u(region, existingEmployee.region),
       contrato: u(contrato, existingEmployee.contrato), horario: u(horario, existingEmployee.horario),
       puesto: u2(puestoId, { connect: { id: puestoId } }, { disconnect: true }),
       departamento: u3(departamento_id, { connect: { id: departamento_id } }),
+      areaCatalogo: u2(areaId, { connect: { id: areaId } }, { disconnect: true }),
       salarioMensual: u(salary, existingEmployee.salarioMensual, v => v && v !== '' ? parseFloat(v) : null),
       clabe: u(clabe, existingEmployee.clabe), numeroCuenta: u(numeroCuenta, existingEmployee.numeroCuenta),
       banco: u(banco, existingEmployee.banco), jefeDirecto: u(jefeDirecto, existingEmployee.jefeDirecto),

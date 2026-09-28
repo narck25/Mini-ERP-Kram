@@ -1,4 +1,19 @@
 /**
+ * Normaliza un nombre de catálogo (departamento/puesto) para comparar sin que
+ * importen mayúsculas ni acentos — Prisma `mode: 'insensitive'` solo ignora
+ * mayúsculas, no acentos, así que "ADMINISTRACION" (típico de un CSV/Excel
+ * capturado sin acentos) y "Administración" se trataban como catálogos
+ * distintos y fragmentaban el catálogo real en cada importación.
+ */
+function normalizeForMatch(str) {
+  return (str || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+}
+
+/**
  * Columnas REQUERIDAS en el CSV de importación
  * Solo estas son obligatorias para que la importación funcione
  */
@@ -304,45 +319,33 @@ async function prepareForPrisma(employeeData, prisma) {
           console.log(`✅ Departamento creado dinámicamente: ${nombreDepartamento} (ID: ${departamento_id})`);
         }
       } else {
-        // No es numérico, buscar por nombre (exacto, los datos ya vienen en mayúsculas)
-        const departamentoByName = await prisma.department.findFirst({
-          where: {
-            nombre: departamentoValue.trim()
-          },
-          select: { id: true }
+        // No es numérico: buscar por nombre ignorando mayúsculas Y acentos (el
+        // catálogo puede tener "Administración" y el CSV traer "ADMINISTRACION"
+        // sin acento — Prisma `mode: 'insensitive'` no basta, solo ignora mayúsculas).
+        const targetNorm = normalizeForMatch(departamentoValue);
+        const todosLosDepartamentos = await prisma.department.findMany({
+          select: { id: true, nombre: true }
         });
-        
-        if (departamentoByName) {
-          departamento_id = departamentoByName.id;
+        const departamentoExistente = todosLosDepartamentos.find(
+          (d) => normalizeForMatch(d.nombre) === targetNorm
+        );
+
+        if (departamentoExistente) {
+          departamento_id = departamentoExistente.id;
         } else {
-          // Si no se encuentra por nombre exacto, intentar búsqueda insensible
-          const departamentoInsensitive = await prisma.department.findFirst({
-            where: {
-              nombre: {
-                equals: departamentoValue.trim(),
-                mode: 'insensitive'
-              }
+          // CREACIÓN DINÁMICA: El departamento no existe, crearlo automáticamente
+          // Esto permite que al escribir un departamento nuevo en el Excel, el sistema lo cree
+          console.log(`🏗️ Departamento no encontrado, creando dinámicamente: "${departamentoValue}"`);
+          const nuevoDepartamento = await prisma.department.create({
+            data: {
+              nombre: departamentoValue.trim(), // Ya viene en MAYÚSCULAS por el normalize en mapEmployeeFromCsv
+              descripcion: `Departamento importado desde CSV: ${departamentoValue}`,
+              estado: 'Activo'
             },
             select: { id: true }
           });
-          
-          if (departamentoInsensitive) {
-            departamento_id = departamentoInsensitive.id;
-          } else {
-            // CREACIÓN DINÁMICA: El departamento no existe, crearlo automáticamente
-            // Esto permite que al escribir un departamento nuevo en el Excel, el sistema lo cree
-            console.log(`🏗️ Departamento no encontrado, creando dinámicamente: "${departamentoValue}"`);
-            const nuevoDepartamento = await prisma.department.create({
-              data: {
-                nombre: departamentoValue.trim(), // Ya viene en MAYÚSCULAS por el normalize en mapEmployeeFromCsv
-                descripcion: `Departamento importado desde CSV: ${departamentoValue}`,
-                estado: 'Activo'
-              },
-              select: { id: true }
-            });
-            departamento_id = nuevoDepartamento.id;
-            console.log(`✅ Departamento creado dinámicamente: ${departamentoValue} (ID: ${departamento_id})`);
-          }
+          departamento_id = nuevoDepartamento.id;
+          console.log(`✅ Departamento creado dinámicamente: ${departamentoValue} (ID: ${departamento_id})`);
         }
       }
     } catch (error) {
@@ -360,18 +363,18 @@ async function prepareForPrisma(employeeData, prisma) {
   
   if (puestoNombre) {
     try {
-      // Buscar el puesto por nombre en el departamento correspondiente
-      const puesto = await prisma.jobPosition.findFirst({
-        where: {
-          nombre: {
-            equals: puestoNombre.trim(),
-            mode: 'insensitive'
-          },
-          departamentoId: departamento_id
-        },
-        select: { id: true }
+      // Buscar el puesto por nombre dentro del mismo departamento, ignorando
+      // mayúsculas y acentos (mismo caso que el departamento — ej. "JEFE DE
+      // ALMACEN" vs "JEFE DE ALMACÉN" fragmentaban el catálogo).
+      const puestoTargetNorm = normalizeForMatch(puestoNombre);
+      const puestosDelDepartamento = await prisma.jobPosition.findMany({
+        where: { departamentoId: departamento_id },
+        select: { id: true, nombre: true }
       });
-      
+      const puesto = puestosDelDepartamento.find(
+        (p) => normalizeForMatch(p.nombre) === puestoTargetNorm
+      );
+
       if (puesto) {
         puestoId = puesto.id;
       } else {
@@ -393,6 +396,35 @@ async function prepareForPrisma(employeeData, prisma) {
     } catch (error) {
       console.error('Error al buscar/crear puesto:', error);
       // Si hay error, continuar sin puestoId (será null)
+    }
+  }
+
+  // Buscar/crear el área en el catálogo (mismo criterio accent/case-insensitive
+  // que departamento — ej. "MARKETIG"/"MKT" quedan como entradas propias del
+  // catálogo en vez de fragmentar silenciosamente como texto libre).
+  let areaId = null;
+  const areaValue = employeeData.area;
+  if (areaValue && areaValue.trim() !== '') {
+    try {
+      const areaTargetNorm = normalizeForMatch(areaValue);
+      const todasLasAreas = await prisma.area.findMany({ select: { id: true, nombre: true } });
+      const areaExistente = todasLasAreas.find((a) => normalizeForMatch(a.nombre) === areaTargetNorm);
+
+      if (areaExistente) {
+        areaId = areaExistente.id;
+        employeeData.area = areaExistente.nombre; // usar el nombre canónico del catálogo, no el texto crudo del CSV
+      } else {
+        const nuevaArea = await prisma.area.create({
+          data: { nombre: areaValue.trim() },
+          select: { id: true, nombre: true }
+        });
+        areaId = nuevaArea.id;
+        employeeData.area = nuevaArea.nombre;
+        console.log(`✅ Área creada: ${nuevaArea.nombre}`);
+      }
+    } catch (error) {
+      console.error('Error al buscar/crear área:', error);
+      // Si hay error, continuar sin areaId (el texto libre en `area` se conserva igual)
     }
   }
 
@@ -460,6 +492,7 @@ async function prepareForPrisma(employeeData, prisma) {
     estatus: employeeData.estatus,
     sucursal: employeeData.sucursal,
     area: employeeData.area,
+    areaId: areaId,
     region: employeeData.region,
     contrato: employeeData.contrato,
     horario: employeeData.horario,
@@ -493,5 +526,6 @@ module.exports = {
   mapEmployeeFromCsv,
   validateEmployeeData,
   prepareForPrisma,
-  validateCsvHeaders
+  validateCsvHeaders,
+  normalizeForMatch
 };

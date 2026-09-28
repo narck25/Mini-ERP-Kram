@@ -18,6 +18,7 @@ function EmpleadosPageContent() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [departments, setDepartments] = useState([]);
+  const [areas, setAreas] = useState([]);
   const [managers, setManagers] = useState([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showBajaModal, setShowBajaModal] = useState(false);
@@ -35,6 +36,15 @@ function EmpleadosPageContent() {
     }
   }, []);
 
+  const fetchAreas = useCallback(async () => {
+    try {
+      const response = await api.get('/areas');
+      setAreas(response.data.areas || []);
+    } catch (error) {
+      console.error('Error fetching areas:', error);
+    }
+  }, []);
+
   const fetchManagers = useCallback(async () => {
     try {
       const response = await api.get('/managers');
@@ -46,8 +56,9 @@ function EmpleadosPageContent() {
 
   useEffect(() => {
     fetchDepartments();
+    fetchAreas();
     fetchManagers();
-  }, [fetchDepartments, fetchManagers]);
+  }, [fetchDepartments, fetchAreas, fetchManagers]);
 
   const handleEdit = (employee) => {
     setSelectedEmployee(employee);
@@ -186,6 +197,7 @@ function EmpleadosPageContent() {
           onClose={() => setShowCreateModal(false)}
           employee={null}
           departments={departments}
+          areas={areas}
           managers={managers}
           onSaved={handleSaved}
         />
@@ -199,6 +211,7 @@ function EmpleadosPageContent() {
           }}
           employee={selectedEmployee}
           departments={departments}
+          areas={areas}
           managers={managers}
           onSaved={handleSaved}
         />
