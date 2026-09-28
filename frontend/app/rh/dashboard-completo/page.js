@@ -39,7 +39,11 @@ function RHDashboardCompletoPage() {
         employees: { total: 0, active: 0, onVacation: 0, onLeave: 0 },
         vacancies: { total: 0, open: 0, inProgress: 0, closed: 0 },
         recruitment: { total: 0, thisMonth: 0, pending: 0 },
-        recentHires: []
+        recentHires: [],
+        turnover: { hiresThisMonth: 0, dischargesThisMonth: 0 },
+        pendingEvaluations: { probation: 0, operational: 0, total: 0 },
+        departmentDistribution: [],
+        disciplinaryIncidents: { thisMonth: 0, recent: [] }
       });
     } finally {
       setLoading(false);
@@ -259,6 +263,60 @@ function RHDashboardCompletoPage() {
               </div>
             </div>
 
+            {/* Sección de Rotación y Evaluaciones Pendientes */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              {/* Rotación de personal */}
+              <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-red-500">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Rotación de Personal</h3>
+                    <p className="text-sm text-gray-600">Este mes</p>
+                  </div>
+                  <div className="p-3 bg-red-100 rounded-lg">
+                    <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">{dashboardData?.turnover?.hiresThisMonth || 0}</div>
+                    <div className="text-xs text-gray-600">Altas</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">{dashboardData?.turnover?.dischargesThisMonth || 0}</div>
+                    <div className="text-xs text-gray-600">Bajas</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Evaluaciones pendientes */}
+              <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-teal-500">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Evaluaciones Pendientes</h3>
+                    <p className="text-sm text-gray-600">Toda la empresa</p>
+                  </div>
+                  <div className="p-3 bg-teal-100 rounded-lg">
+                    <span className="text-2xl">📋</span>
+                  </div>
+                </div>
+                <div className="text-3xl font-bold text-gray-900 mb-2">
+                  {dashboardData?.pendingEvaluations?.total || 0}
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-3">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-orange-600">{dashboardData?.pendingEvaluations?.probation || 0}</div>
+                    <div className="text-xs text-gray-600">Periodo de prueba</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-teal-600">{dashboardData?.pendingEvaluations?.operational || 0}</div>
+                    <div className="text-xs text-gray-600">Operativas</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Sección de Próximos Eventos (Cumpleaños y Aniversarios) */}
             <UpcomingEventsWidget />
 
@@ -318,6 +376,26 @@ function RHDashboardCompletoPage() {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Gráfica de Empleados por Departamento */}
+            <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Empleados por Departamento</h2>
+              {dashboardData?.departmentDistribution?.length > 0 ? (
+                <ResponsiveContainer width="100%" height={Math.max(250, dashboardData.departmentDistribution.length * 40)}>
+                  <BarChart data={dashboardData.departmentDistribution} layout="vertical" margin={{ left: 24 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" allowDecimals={false} />
+                    <YAxis type="category" dataKey="departamento" width={150} />
+                    <Tooltip />
+                    <Bar dataKey="total" fill="#8B5CF6" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No hay datos de departamentos disponibles</p>
+                </div>
+              )}
             </div>
 
             {/* Sección de Contrataciones Recientes */}
@@ -415,6 +493,39 @@ function RHDashboardCompletoPage() {
               )}
             </div>
 
+            {/* Sección de Incidencias Disciplinarias Recientes */}
+            <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Incidencias Disciplinarias</h2>
+                  <p className="text-gray-600">{dashboardData?.disciplinaryIncidents?.thisMonth || 0} registradas este mes</p>
+                </div>
+              </div>
+
+              {dashboardData?.disciplinaryIncidents?.recent?.length > 0 ? (
+                <div className="space-y-3">
+                  {dashboardData.disciplinaryIncidents.recent.map((inc) => (
+                    <div key={inc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-gray-900">{inc.empleado || 'Sin nombre'}</p>
+                        <p className="text-sm text-gray-600">{inc.motivo}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">{inc.tipo}</span>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {(() => { const d = inc.fecha.split('T')[0].split('-'); return `${d[2]}/${d[1]}/${d[0]}`; })()}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No hay incidencias registradas este mes</p>
+                </div>
+              )}
+            </div>
+
             {/* Sección de Acciones Rápidas */}
             <div className="bg-white rounded-xl shadow-md p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Acciones Rápidas</h2>
@@ -469,6 +580,39 @@ function RHDashboardCompletoPage() {
                   </div>
                   <h3 className="font-medium text-gray-900 mb-1">Permisos</h3>
                   <p className="text-sm text-gray-600">Administrar accesos del sistema</p>
+                </Link>
+
+                <Link
+                  href="/rh/incapacidades"
+                  className="bg-pink-50 hover:bg-pink-100 border border-pink-200 rounded-lg p-4 flex flex-col items-center justify-center text-center transition-colors"
+                >
+                  <div className="p-3 bg-pink-100 rounded-lg mb-3">
+                    <span className="text-xl">🏥</span>
+                  </div>
+                  <h3 className="font-medium text-gray-900 mb-1">Incapacidades</h3>
+                  <p className="text-sm text-gray-600">Registro y seguimiento</p>
+                </Link>
+
+                <Link
+                  href="/rh/periodo-prueba"
+                  className="bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg p-4 flex flex-col items-center justify-center text-center transition-colors"
+                >
+                  <div className="p-3 bg-amber-100 rounded-lg mb-3">
+                    <span className="text-xl">📋</span>
+                  </div>
+                  <h3 className="font-medium text-gray-900 mb-1">Periodo de Prueba</h3>
+                  <p className="text-sm text-gray-600">Evaluaciones 30/60/90 días</p>
+                </Link>
+
+                <Link
+                  href="/rh/evaluacion-operativa"
+                  className="bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg p-4 flex flex-col items-center justify-center text-center transition-colors"
+                >
+                  <div className="p-3 bg-teal-100 rounded-lg mb-3">
+                    <span className="text-xl">📈</span>
+                  </div>
+                  <h3 className="font-medium text-gray-900 mb-1">Evaluación Operativa</h3>
+                  <p className="text-sm text-gray-600">Evaluación trimestral</p>
                 </Link>
               </div>
             </div>

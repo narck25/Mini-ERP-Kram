@@ -152,6 +152,46 @@ exports.getRHDashboardStats = async (req, res) => {
       }
     });
 
+    // 5. Rotación de personal del mes (altas ya calculadas arriba en hiresThisMonth)
+    const dischargesThisMonth = await prisma.employee.count({
+      where: { fechaBaja: { gte: startOfMonth, lte: now } }
+    });
+
+    // 6. Evaluaciones pendientes de toda la empresa (no solo las del jefe que consulta)
+    const pendingProbationEvaluations = await prisma.probationEvaluation.count({
+      where: { resultado: 'PENDIENTE' }
+    });
+    const pendingOperationalEvaluations = await prisma.operationalEvaluation.count({
+      where: { resultado: 'PENDIENTE' }
+    });
+
+    // 7. Empleados activos por departamento
+    const employeesByDepartment = await prisma.employee.groupBy({
+      by: ['departamento_id'],
+      where: { estatus: 'Activo' },
+      _count: { id: true }
+    });
+    const departmentIds = employeesByDepartment.map(d => d.departamento_id);
+    const departments = await prisma.department.findMany({
+      where: { id: { in: departmentIds } },
+      select: { id: true, nombre: true }
+    });
+    const departmentNameById = Object.fromEntries(departments.map(d => [d.id, d.nombre]));
+    const departmentDistribution = employeesByDepartment
+      .map(d => ({ departamento: departmentNameById[d.departamento_id] || 'Sin departamento', total: d._count.id }))
+      .sort((a, b) => b.total - a.total);
+
+    // 8. Incidencias disciplinarias recientes (últimas 5, con nombre y tipo)
+    const recentDisciplinaryIncidents = await prisma.disciplinaryIncident.findMany({
+      where: { fecha: { gte: startOfMonth, lte: now } },
+      orderBy: { fecha: 'desc' },
+      take: 5,
+      include: { empleado: { select: { nombre: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true } } }
+    });
+    const disciplinaryIncidentsThisMonth = await prisma.disciplinaryIncident.count({
+      where: { fecha: { gte: startOfMonth, lte: now } }
+    });
+
     const responseData = {
       employees: {
         total: totalEmployees,
@@ -179,6 +219,26 @@ exports.getRHDashboardStats = async (req, res) => {
         estatus: hire.estatus,
         departamento: hire.departamento
       })),
+      turnover: {
+        hiresThisMonth,
+        dischargesThisMonth,
+      },
+      pendingEvaluations: {
+        probation: pendingProbationEvaluations,
+        operational: pendingOperationalEvaluations,
+        total: pendingProbationEvaluations + pendingOperationalEvaluations,
+      },
+      departmentDistribution,
+      disciplinaryIncidents: {
+        thisMonth: disciplinaryIncidentsThisMonth,
+        recent: recentDisciplinaryIncidents.map(inc => ({
+          id: inc.id,
+          tipo: inc.tipo,
+          fecha: inc.fecha,
+          motivo: inc.motivo,
+          empleado: `${inc.empleado?.nombres || inc.empleado?.nombre || ''} ${inc.empleado?.apellidoPaterno || ''} ${inc.empleado?.apellidoMaterno || ''}`.trim(),
+        })),
+      },
       lastUpdated: new Date().toISOString()
     };
 
