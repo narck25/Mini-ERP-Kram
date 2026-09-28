@@ -9,11 +9,21 @@ ERP completo para **Comercializadora KRAM**: empleados, reclutamiento, compras, 
 | Dashboard | ✅ | Panel personal y de gestión (siempre activo) |
 | Empleados | ✅ | Expedientes, documentos, organización, baja con motivo |
 | Reclutamiento | ✅ | Requisición de personal → candidatos → contratación |
-| Compras | ✅ | Solicitudes, cotizaciones, OC, papelería, uniformes e inventario (kardex) |
+| Compras | ✅ | Solicitudes, cotizaciones, OC, papelería, uniformes e inventario (kardex), proveedores |
 | Incidencias | ✅ | Asistencia / reporte de incidencias (checador ZKTeco) |
+| Vacaciones | ✅ | Solicitud y aprobación en dos niveles, saldo según Ley Federal del Trabajo |
+| Incapacidades | ✅ | Registro y seguimiento de incapacidades médicas |
+| Disciplina | ✅ | Faltas, retardos y actas administrativas por empleado |
+| Reportes | ✅ | 5 reportes exportables a Excel (empleados, compras, inventario, asistencia, vacaciones) |
 | Configuración | ✅ | Accesos, usuarios y roles |
-| Vacaciones | ❌ | Sin implementar (deshabilitado) |
-| Reportes | ❌ | Sin implementar (deshabilitado) |
+
+Sin gate de módulo propio (visibles por rol — RH/ADMIN):
+
+| Funcionalidad | Descripción |
+|--------|-------------|
+| Periodo de prueba | Recordatorios automáticos y evaluación a los 30/60/90 días, con autoevaluación previa del colaborador |
+| Evaluación operativa trimestral | Para 6 puestos operativos, con criterios y pesos propios por puesto |
+| Auditoría de RH | Bitácora de cambios sobre expedientes, para trazabilidad |
 
 ## 🔐 Roles
 
@@ -78,15 +88,19 @@ Configura las variables de entorno a partir de `backend/.env.example`.
 
 ```bash
 cd backend
-npm test           # suite completa (14 suites, 99 tests)
+npm test           # suite completa (34 archivos: 22 de integración + 12 unitarios)
 npm run test:unit  # solo pruebas unitarias
 ```
 
-Ver **[docs/TESTING.md](docs/TESTING.md)**.
+Ver **[docs/TESTING.md](docs/TESTING.md)**. No queda ningún módulo de negocio sin al menos una prueba automatizada.
 
 ## 🔒 Seguridad
 
 - Modelo de control de acceso en **3 niveles**: módulos (A), scoping de datos (B), operaciones críticas (C).
-- JWT con `role` y `accessibleModules`.
+- JWT con `role` y `accessibleModules`, con sesión revocable en base de datos (logout y cambio de contraseña cortan el acceso al instante, sin esperar a que expire el token).
 - Contraseñas con hash bcrypt (salt 10).
+- Verificación del contenido real de los archivos subidos (no solo la extensión declarada).
+- Rate limiting en login, reseteo de base de datos y restablecimiento de contraseña por admin.
 - **Solo ADMIN** cambia roles, elimina usuarios y gestiona roles personalizados.
+
+Ver **[PROJECT_CONTEXT.md](PROJECT_CONTEXT.md)** para el detalle técnico completo y **[RESUMEN_DIRECCION.md](RESUMEN_DIRECCION.md)** para el resumen ejecutivo.
