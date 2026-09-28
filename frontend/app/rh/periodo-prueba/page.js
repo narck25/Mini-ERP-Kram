@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import DashboardLayout from '@/components/DashboardLayout';
 import { probationApi } from '@/lib/api/probation';
+import { systemApi } from '@/lib/api';
+import FeatureToggle from '@/components/FeatureToggle';
 import { toast } from 'react-hot-toast';
 
 const TIPO_LABELS = { DIA_30: '30 días', DIA_60: '60 días', DIA_90: '90 días' };
@@ -78,6 +80,16 @@ export default function PeriodoPruebaPage() {
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900">Periodo de Prueba</h1>
             <p className="text-gray-600">Evaluaciones de 30/60/90 días de los empleados nuevos</p>
+          </div>
+
+          <div className="mb-6">
+            <FeatureToggle
+              title="Periodo de Prueba"
+              onDescription="El sistema crea la evaluación automáticamente a los 30/60/90 días. Los recordatorios (20/50/80 días) se envían siempre, esté activado o no."
+              offDescription="Pausado: no se crean nuevas evaluaciones (lo ya creado no se borra). Los recordatorios (20/50/80 días) se siguen enviando."
+              getFn={systemApi.getProbationEvaluationsEnabled}
+              setFn={systemApi.setProbationEvaluationsEnabled}
+            />
           </div>
 
           <div className="mb-6 border-b border-gray-200">

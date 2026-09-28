@@ -18,4 +18,29 @@ router.put('/settings/inventory-strict-mode',
   SystemSettingController.setInventoryStrictMode
 );
 
+// RH/ADMIN puede ver y prender/apagar el módulo de Periodo de Prueba (mismo
+// nivel de permiso que ya tienen sobre el módulo en sí, ver probationEvaluation.routes.js).
+router.get('/settings/probation-evaluations-enabled',
+  AuthMiddleware.verifyToken,
+  AuthMiddleware.requireRHOrAdmin(),
+  SystemSettingController.getProbationEvaluationsEnabled
+);
+router.put('/settings/probation-evaluations-enabled',
+  AuthMiddleware.verifyToken,
+  AuthMiddleware.requireRHOrAdmin(),
+  SystemSettingController.setProbationEvaluationsEnabled
+);
+
+// RH/ADMIN puede ver y prender/apagar el módulo de Evaluación Operativa Trimestral.
+router.get('/settings/operational-evaluations-enabled',
+  AuthMiddleware.verifyToken,
+  AuthMiddleware.requireRHOrAdmin(),
+  SystemSettingController.getOperationalEvaluationsEnabled
+);
+router.put('/settings/operational-evaluations-enabled',
+  AuthMiddleware.verifyToken,
+  AuthMiddleware.requireRHOrAdmin(),
+  SystemSettingController.setOperationalEvaluationsEnabled
+);
+
 module.exports = router;

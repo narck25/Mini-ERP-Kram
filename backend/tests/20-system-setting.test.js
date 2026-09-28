@@ -69,3 +69,71 @@ describe('🧪 Configuración del sistema — modo estricto de inventario', () =
     expect(get.body.data.enabled).toBe(false);
   });
 });
+
+/**
+ * Interruptores de Periodo de Prueba y Evaluación Operativa — pausan el cron
+ * diario sin necesitar un deploy. GET/PUT: solo RH/ADMIN (mismo nivel que el
+ * resto de esos módulos). Default: activado (comportamiento previo al switch).
+ */
+describe('🧪 Configuración del sistema — interruptores de Periodo de Prueba y Evaluación Operativa', () => {
+  let rhToken = null;
+  let noRhToken = null;
+  let adminToken = null;
+  let originalProbation = null;
+  let originalOperational = null;
+
+  const KEYS = [
+    { path: 'probation-evaluations-enabled', label: 'Periodo de Prueba' },
+    { path: 'operational-evaluations-enabled', label: 'Evaluación Operativa' },
+  ];
+
+  beforeAll(async () => {
+    rhToken = await getToken('rh@kram.com', 'password123');
+    noRhToken = await getToken('jefe.vacaciones@kram.mx', 'Kram2026!');
+    adminToken = await getToken();
+    if (!rhToken || !noRhToken || !adminToken) {
+      throw new Error('No se pudo autenticar alguno de los fixtures. Verifica prisma/seed.js.');
+    }
+
+    const probation = await request('GET', '/api/settings/probation-evaluations-enabled', null, adminToken);
+    originalProbation = probation.body?.data?.enabled ?? true;
+    const operational = await request('GET', '/api/settings/operational-evaluations-enabled', null, adminToken);
+    originalOperational = operational.body?.data?.enabled ?? true;
+  });
+
+  afterAll(async () => {
+    if (originalProbation !== null) {
+      await request('PUT', '/api/settings/probation-evaluations-enabled', { enabled: originalProbation }, adminToken);
+    }
+    if (originalOperational !== null) {
+      await request('PUT', '/api/settings/operational-evaluations-enabled', { enabled: originalOperational }, adminToken);
+    }
+  });
+
+  test.each(KEYS)('Por defecto vienen activados ($label)', async ({ path }) => {
+    // Se restablece a "true" antes de leer, ya que otra prueba pudo haberlo apagado.
+    await request('PUT', `/api/settings/${path}`, { enabled: true }, adminToken);
+    const res = await request('GET', `/api/settings/${path}`, null, adminToken);
+    expect(res.status).toBe(200);
+    expect(res.body.data.enabled).toBe(true);
+  });
+
+  test.each(KEYS)('Sin RH ni ADMIN no puede consultar ni cambiar ($label)', async ({ path }) => {
+    const get = await request('GET', `/api/settings/${path}`, null, noRhToken);
+    expect(get.status).toBe(403);
+    const put = await request('PUT', `/api/settings/${path}`, { enabled: false }, noRhToken);
+    expect(put.status).toBe(403);
+  });
+
+  test.each(KEYS)('RH puede apagarlo y volver a prenderlo ($label)', async ({ path }) => {
+    const off = await request('PUT', `/api/settings/${path}`, { enabled: false }, rhToken);
+    expect(off.status).toBe(200);
+    expect(off.body.data.enabled).toBe(false);
+
+    const get = await request('GET', `/api/settings/${path}`, null, rhToken);
+    expect(get.body.data.enabled).toBe(false);
+
+    const on = await request('PUT', `/api/settings/${path}`, { enabled: true }, rhToken);
+    expect(on.body.data.enabled).toBe(true);
+  });
+});

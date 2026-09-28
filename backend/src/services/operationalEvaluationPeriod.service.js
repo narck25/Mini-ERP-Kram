@@ -16,6 +16,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const emailService = require('./email.service');
 const { getTemplateByPuestoNombre } = require('../config/operationalEvaluationCriteria.config');
+const { isOperationalEvaluationsEnabled } = require('./system-setting.service');
 
 const TRIMESTRE_DIAS = 90;
 
@@ -77,6 +78,11 @@ async function checkAndNotify() {
   const resultado = { evaluacionesCreadas: [] };
 
   try {
+    if (!(await isOperationalEvaluationsEnabled())) {
+      console.log('⏸️  Evaluación operativa desactivada desde Configuración — se omite la verificación diaria.');
+      return resultado;
+    }
+
     console.log('\n🔍 Verificando evaluaciones operativas trimestrales...');
 
     const empleados = await prisma.employee.findMany({

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import DashboardLayout from '@/components/DashboardLayout';
 import { operationalEvaluationApi } from '@/lib/api/operationalEvaluation';
+import { systemApi } from '@/lib/api';
+import FeatureToggle from '@/components/FeatureToggle';
 import { toast } from 'react-hot-toast';
 
 // Dictamen institucional (PDF "Evaluación de Desempeño Operativo KRAM"): se
@@ -68,6 +70,16 @@ export default function EvaluacionOperativaPage() {
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900">Evaluación Operativa Trimestral</h1>
             <p className="text-gray-600">Ayudante General, Chofer, Almacenista, Preventista, Promotor y Degustador — cada 3 meses desde su fecha de ingreso</p>
+          </div>
+
+          <div className="mb-6">
+            <FeatureToggle
+              title="Evaluación Operativa"
+              onDescription="El sistema crea evaluaciones automáticamente cada 3 meses para los puestos elegibles."
+              offDescription="Pausado: no se crean nuevas evaluaciones (lo ya creado no se borra)."
+              getFn={systemApi.getOperationalEvaluationsEnabled}
+              setFn={systemApi.setOperationalEvaluationsEnabled}
+            />
           </div>
 
           <div className="mb-6 border-b border-gray-200">

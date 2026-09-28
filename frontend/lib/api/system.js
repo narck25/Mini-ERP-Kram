@@ -23,4 +23,12 @@ export const systemApi = {
   // entregas se registran igual aunque no haya inventario o stock suficiente.
   getInventoryStrictMode: () => api.get('/settings/inventory-strict-mode'),
   setInventoryStrictMode: (enabled) => api.put('/settings/inventory-strict-mode', { enabled }),
+
+  // Interruptores para pausar/reanudar los módulos de Periodo de Prueba y
+  // Evaluación Operativa (el cron diario deja de crear evaluaciones nuevas
+  // mientras estén apagados; no borra lo que ya existe).
+  getProbationEvaluationsEnabled: () => api.get('/settings/probation-evaluations-enabled'),
+  setProbationEvaluationsEnabled: (enabled) => api.put('/settings/probation-evaluations-enabled', { enabled }),
+  getOperationalEvaluationsEnabled: () => api.get('/settings/operational-evaluations-enabled'),
+  setOperationalEvaluationsEnabled: (enabled) => api.put('/settings/operational-evaluations-enabled', { enabled }),
 }

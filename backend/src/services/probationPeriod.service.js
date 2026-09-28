@@ -14,6 +14,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const emailService = require('./email.service');
+const { isProbationEvaluationsEnabled } = require('./system-setting.service');
 
 function getNombreCompleto(emp) {
   return `${emp.nombres || emp.nombre || ''} ${emp.apellidoPaterno || ''} ${emp.apellidoMaterno || ''}`.trim();
@@ -148,6 +149,16 @@ async function checkAndNotify() {
   };
 
   try {
+    // El interruptor solo pausa la CREACIÓN de la evaluación (30/60/90 días);
+    // los recordatorios previos (20/50/80 días) siguen enviándose siempre,
+    // por pedido explícito del usuario — son avisos informativos, no generan
+    // ningún registro nuevo, así que no hay razón de negocio para pausarlos
+    // junto con la evaluación.
+    const evaluacionesHabilitadas = await isProbationEvaluationsEnabled();
+    if (!evaluacionesHabilitadas) {
+      console.log('⏸️  Creación de evaluaciones de periodo de prueba desactivada desde Configuración (los recordatorios siguen activos).');
+    }
+
     console.log('\n🔍 Verificando periodos de prueba (30/60/90 días)...');
 
     const empleados = await prisma.employee.findMany({
@@ -162,8 +173,10 @@ async function checkAndNotify() {
       const recordatorio = RECORDATORIOS.find(r => r.dias === dias);
       if (recordatorio) await enviarRecordatorio(emp, recordatorio, resultado);
 
-      const evalCfg = EVALUACIONES.find(e => e.dias === dias);
-      if (evalCfg) await crearEvaluacionPendiente(emp, evalCfg, resultado);
+      if (evaluacionesHabilitadas) {
+        const evalCfg = EVALUACIONES.find(e => e.dias === dias);
+        if (evalCfg) await crearEvaluacionPendiente(emp, evalCfg, resultado);
+      }
     }
 
     console.log(`✅ Periodo de prueba: ${resultado.recordatorios.enviados} recordatorios enviados, ${resultado.evaluacionesCreadas.length} evaluaciones creadas`);
