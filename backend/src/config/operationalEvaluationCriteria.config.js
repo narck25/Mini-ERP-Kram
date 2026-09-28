@@ -148,6 +148,29 @@ const PUESTOS = {
 
 const PUESTOS_ELEGIBLES = Object.keys(PUESTOS);
 
+/**
+ * Alias de puestos reales (catálogo de producción, `plantilla_empleados_UNIFICADA.csv`)
+ * que no coinciden letra por letra con los 6 nombres canónicos de arriba pero
+ * corresponden al mismo rol operativo — confirmado con RH puesto por puesto
+ * (2026-09-28). Cada valor es el nombre EXACTO tal como quedó en `JobPosition.nombre`
+ * al importarse (mayúsculas, sin acentos donde el CSV no los llevaba).
+ *
+ * No es matching difuso: solo estas cadenas exactas resuelven al puesto canónico.
+ */
+const ALIASES = {
+  'Chofer': ['CHOFER REPARTO', 'AYUDANTE DE CHOFER', 'AUXILIAR DE REPARTO'],
+  'Almacenista': ['AUXILIAR DE DEVOLUCIONES', 'ENCARGADA DE ALMACEN'],
+  'Degustador': ['DEGUSTADORA'],
+  'Ayudante General': ['AYUDANTE DE ALMACEN', 'AUXILIAR DE ALMACEN', 'AYUDANTE DE ALMACEN CUN'],
+  'Preventista': ['KAM SUR (KEY ACCOUNT MANAGER SUR)', 'KAM (KEY ACCOUNT MANAGER)'],
+};
+
+// Mapa invertido nombre-alias (normalizado) → puesto canónico, para lookup O(1).
+const CANONICAL_BY_ALIAS = Object.entries(ALIASES).reduce((acc, [canonico, alias]) => {
+  alias.forEach((nombre) => { acc[nombre.trim().toLowerCase()] = canonico; });
+  return acc;
+}, {});
+
 const SECCION_PONDERACION = { rh: 30, actitud: 20, desempeno: 50 };
 
 const MINIMO_APROBATORIO = 90; // % — según el PDF, mínimo para ser elegible a incremento salarial
@@ -167,7 +190,7 @@ const RESULTADO_LABELS = {
 function getTemplateByPuestoNombre(nombre) {
   if (!nombre) return null;
   const normalizado = nombre.trim().toLowerCase();
-  const key = PUESTOS_ELEGIBLES.find((k) => k.toLowerCase() === normalizado);
+  const key = PUESTOS_ELEGIBLES.find((k) => k.toLowerCase() === normalizado) || CANONICAL_BY_ALIAS[normalizado];
   return key ? PUESTOS[key] : null;
 }
 
@@ -184,6 +207,7 @@ function calcularResultado(porcentaje) {
 module.exports = {
   PUESTOS,
   PUESTOS_ELEGIBLES,
+  ALIASES,
   SECCION_PONDERACION,
   MINIMO_APROBATORIO,
   RESULTADO_LABELS,
