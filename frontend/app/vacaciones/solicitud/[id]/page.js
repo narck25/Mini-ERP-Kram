@@ -7,8 +7,8 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { vacationApi } from '@/lib/api';
 
 const fmt = (iso) => (iso ? new Date(iso).toISOString().substring(0, 10).split('-').reverse().join('/') : '—');
-const nombre = (e) => [e?.nombres, e?.apellidoPaterno].filter(Boolean).join(' ') || '—';
-const nombreCompleto = (e) => [e?.nombres, e?.apellidoPaterno, e?.apellidoMaterno].filter(Boolean).join(' ');
+const nombre = (e) => [e?.nombres || e?.nombre, e?.apellidoPaterno].filter(Boolean).join(' ') || '—';
+const nombreCompleto = (e) => [e?.nombres || e?.nombre, e?.apellidoPaterno, e?.apellidoMaterno].filter(Boolean).join(' ') || '—';
 
 function calcDias(inicio, fin) {
   if (!inicio || !fin) return 0;

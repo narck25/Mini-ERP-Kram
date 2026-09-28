@@ -38,7 +38,7 @@ function calcDias(inicio, fin) {
 
 function nombreEmpleado(emp) {
   if (!emp) return '—';
-  return [emp.nombres, emp.apellidoPaterno].filter(Boolean).join(' ');
+  return [emp.nombres || emp.nombre, emp.apellidoPaterno, emp.apellidoMaterno].filter(Boolean).join(' ') || '—';
 }
 
 export default function VacacionesPage() {

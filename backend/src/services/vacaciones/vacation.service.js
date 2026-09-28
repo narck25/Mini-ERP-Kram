@@ -40,10 +40,17 @@ function formatDateForEmail(date) {
   return `${dd}/${mm}/${d.getFullYear()}`;
 }
 
+// Nombre completo de un empleado, con fallback al campo legado `nombre`
+// cuando `nombres` no está poblado (ver PROJECT_CONTEXT.md §12, deuda #3).
+function nombreCompletoEmpleado(emp) {
+  if (!emp) return '';
+  return [emp.nombres || emp.nombre, emp.apellidoPaterno, emp.apellidoMaterno].filter(Boolean).join(' ');
+}
+
 // Construye el payload de email para una solicitud.
 function buildEmailPayload(vacation, employee) {
   return {
-    empleadoNombre: [employee.nombres, employee.apellidoPaterno].filter(Boolean).join(' ') || 'Empleado',
+    empleadoNombre: nombreCompletoEmpleado(employee) || 'Empleado',
     fechaInicio: formatDateForEmail(vacation.fechaInicio),
     fechaFin: formatDateForEmail(vacation.fechaFin),
     dias: calcDias(vacation.fechaInicio, vacation.fechaFin),
@@ -150,6 +157,7 @@ class VacationService {
       select: {
         id: true,
         clave: true,
+        nombre: true,
         nombres: true,
         apellidoPaterno: true,
         apellidoMaterno: true,
@@ -170,7 +178,7 @@ class VacationService {
         return {
           id: emp.id,
           clave: emp.clave,
-          nombreCompleto: [emp.nombres, emp.apellidoPaterno, emp.apellidoMaterno].filter(Boolean).join(' '),
+          nombreCompleto: nombreCompletoEmpleado(emp),
           departamento: emp.departamento?.nombre || null,
           puesto: emp.puesto?.nombre || null,
           antiguedad: b.antiguedad,
@@ -250,7 +258,7 @@ class VacationService {
         estatus
       },
       include: {
-        empleado: { select: { id: true, nombres: true, apellidoPaterno: true, clave: true } }
+        empleado: { select: { id: true, nombre: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, clave: true } }
       }
     });
 
@@ -281,7 +289,7 @@ class VacationService {
     return prisma.vacationRequest.findMany({
       where,
       include: {
-        empleado: { select: { id: true, nombres: true, apellidoPaterno: true, clave: true } }
+        empleado: { select: { id: true, nombre: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, clave: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -294,7 +302,7 @@ class VacationService {
     return prisma.vacationRequest.findMany({
       where: { employeeId: employee.id },
       include: {
-        empleado: { select: { id: true, nombres: true, apellidoPaterno: true, clave: true } }
+        empleado: { select: { id: true, nombre: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, clave: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -307,6 +315,7 @@ class VacationService {
         empleado: {
           select: {
             id: true,
+            nombre: true,
             nombres: true,
             apellidoPaterno: true,
             apellidoMaterno: true,
@@ -315,7 +324,7 @@ class VacationService {
             reportaAId: true,
             departamento: { select: { nombre: true } },
             puesto: { select: { nombre: true } },
-            reportaA: { select: { nombres: true, apellidoPaterno: true } }
+            reportaA: { select: { nombre: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true } }
           }
         },
         jefeAutorizadoPor: { select: { id: true, name: true } },
@@ -352,7 +361,7 @@ class VacationService {
         empleado: { reportaAId: employee.id }
       },
       include: {
-        empleado: { select: { id: true, nombres: true, apellidoPaterno: true, clave: true } }
+        empleado: { select: { id: true, nombre: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, clave: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -361,7 +370,7 @@ class VacationService {
   static async authorizeByJefe(id, user, comentario) {
     const vacation = await prisma.vacationRequest.findUnique({
       where: { id },
-      include: { empleado: { select: { id: true, nombres: true, apellidoPaterno: true, reportaAId: true } } }
+      include: { empleado: { select: { id: true, nombre: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, reportaAId: true } } }
     });
     if (!vacation) throw new Error('Solicitud no encontrada');
     if (vacation.estatus !== 'PENDIENTE') {
@@ -422,7 +431,7 @@ class VacationService {
   static async reject(id, user, comentario) {
     const vacation = await prisma.vacationRequest.findUnique({
       where: { id },
-      include: { empleado: { select: { id: true, nombres: true, apellidoPaterno: true, reportaAId: true } } }
+      include: { empleado: { select: { id: true, nombre: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, reportaAId: true } } }
     });
     if (!vacation) throw new Error('Solicitud no encontrada');
     if (!['PENDIENTE', 'AUTORIZADA'].includes(vacation.estatus)) {
