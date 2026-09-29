@@ -1,5 +1,5 @@
 const OperationalEvaluationService = require('../services/operationalEvaluation.service');
-const { PUESTOS_ELEGIBLES, PUESTOS } = require('../config/operationalEvaluationCriteria.config');
+const { PUESTOS_ELEGIBLES, PUESTOS, CANONICAL_BY_ALIAS } = require('../config/operationalEvaluationCriteria.config');
 
 class OperationalEvaluationController {
   static async list(req, res) {
@@ -39,9 +39,13 @@ class OperationalEvaluationController {
   }
 
   // Plantillas fijas de criterios (los 6 puestos), para que el frontend no
-  // las duplique a mano — es la misma constante que usa el backend.
+  // las duplique a mano — es la misma constante que usa el backend. También
+  // se manda el mapa de alias (puesto real del CSV -> puesto canónico) para
+  // que el frontend resuelva la plantilla igual que getTemplateByPuestoNombre,
+  // en vez de buscar la clave exacta y fallar con puestos como "AYUDANTE DE
+  // ALMACEN CUN" que no coinciden letra por letra con el nombre canónico.
   static async getCriteriaTemplates(req, res) {
-    res.json({ data: { puestos: PUESTOS_ELEGIBLES, templates: PUESTOS } });
+    res.json({ data: { puestos: PUESTOS_ELEGIBLES, templates: PUESTOS, aliases: CANONICAL_BY_ALIAS } });
   }
 }
 

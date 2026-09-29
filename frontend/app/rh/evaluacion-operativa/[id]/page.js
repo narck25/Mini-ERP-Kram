@@ -78,7 +78,18 @@ export default function EvaluacionOperativaDetailPage() {
         ]);
         const ev = evalRes.data?.data;
         setEvaluation(ev);
-        const tpl = templatesRes.data?.data?.templates?.[ev.puesto] || null;
+
+        // El puesto guardado en la evaluación puede ser un alias real del CSV
+        // (ej. "AYUDANTE DE ALMACEN CUN") y no el nombre canónico de la
+        // plantilla (ej. "Ayudante General") — se resuelve igual que
+        // getTemplateByPuestoNombre en el backend: primero coincidencia
+        // exacta insensible a mayúsculas, luego el mapa de alias.
+        const templatesData = templatesRes.data?.data;
+        const puestoNormalizado = (ev.puesto || '').trim().toLowerCase();
+        const puestoCanonico = Object.keys(templatesData?.templates || {}).find(
+          (k) => k.toLowerCase() === puestoNormalizado
+        ) || templatesData?.aliases?.[puestoNormalizado];
+        const tpl = puestoCanonico ? templatesData.templates[puestoCanonico] : null;
         setTemplate(tpl);
 
         if (ev.criterios) {
