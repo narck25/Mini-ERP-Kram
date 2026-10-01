@@ -12,6 +12,7 @@ import PurchaseOrderModal from '@/components/PurchaseOrderModal';
 import PurchaseComments from '@/components/PurchaseComments';
 import SupplierSelect from '@/components/SupplierSelect';
 import { useProtectedFileUrl } from '@/hooks/useProtectedFileUrl';
+import * as XLSX from 'xlsx';
 
 export default function ComprasDetailPage() {
   const { user } = useAuth();
@@ -446,6 +447,34 @@ export default function ComprasDetailPage() {
     setEditedItems([]);
   };
 
+  const exportItemsToExcel = () => {
+    const dataToExport = (request.items || []).map((item, index) => ({
+      '#': index + 1,
+      'Producto/Servicio': item.productoServicio,
+      'Tipo': item.tipo === 'SERVICIO' ? 'Servicio' : 'Producto',
+      'Cantidad': item.cantidad,
+      'Entregado': item.tipo === 'SERVICIO' ? '-' : `${item.cantidadEntregada || 0} / ${item.cantidad}`,
+      'Descripción': item.descripcion || '-'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+
+    const maxWidth = dataToExport.reduce((acc, row) => {
+      Object.keys(row).forEach(key => {
+        const cellValue = String(row[key] || '');
+        acc[key] = Math.max(acc[key] || 0, cellValue.length, key.length);
+      });
+      return acc;
+    }, {});
+    worksheet['!cols'] = Object.keys(maxWidth).map(key => ({ wch: Math.min(maxWidth[key] + 2, 50) }));
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Items');
+
+    XLSX.writeFile(workbook, `Items_Solicitud_${request.folio}.xlsx`);
+    toast.success('Lista de ítems exportada');
+  };
+
   const handleItemChange = (index, field, value) => {
     const newItems = [...editedItems];
     newItems[index] = { ...newItems[index], [field]: value };
@@ -832,18 +861,31 @@ export default function ComprasDetailPage() {
             <div className="bg-white border border-gray-200 rounded-lg p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold text-gray-900">Ítems solicitados</h2>
-                {/* Botón para editar items - solo en estado NUEVO */}
-                {request.estatus === 'NUEVO' && !editingItems && (
-                  <button
-                    onClick={startEditingItems}
-                    className="px-3 py-1.5 border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md text-sm font-medium flex items-center gap-1"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    Editar items
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {!editingItems && (
+                    <button
+                      onClick={exportItemsToExcel}
+                      className="px-3 py-1.5 border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 rounded-md text-sm font-medium flex items-center gap-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                      </svg>
+                      Descargar
+                    </button>
+                  )}
+                  {/* Botón para editar items - solo en estado NUEVO */}
+                  {request.estatus === 'NUEVO' && !editingItems && (
+                    <button
+                      onClick={startEditingItems}
+                      className="px-3 py-1.5 border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md text-sm font-medium flex items-center gap-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Editar items
+                    </button>
+                  )}
+                </div>
               </div>
 
               {editingItems ? (
