@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { useProtectedFileUrl } from '@/hooks/useProtectedFileUrl';
 
-// Avatar de comentario — componente aparte porque necesita su propio hook
-// (useProtectedFileUrl) por cada elemento de la lista, y los hooks no se
-// pueden llamar dentro de un .map() directamente.
+// Comentarios estilo blog (sin tiempo real) a propósito: en una solicitud de
+// compra lo normal es comentar y que la otra parte responda más tarde, no
+// ambos viendo la pantalla a la vez — no amerita la complejidad de SSE
+// (ver TicketComments.js, con el mismo criterio para Tickets de TI).
 function CommentAvatar({ fotoUrl, userName, initials, isOwnMessage }) {
   const { blobUrl } = useProtectedFileUrl(fotoUrl);
   if (fotoUrl && blobUrl) {
@@ -32,9 +33,7 @@ export default function PurchaseComments({ requestId }) {
   const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
-  const [sseConnected, setSseConnected] = useState(false);
   const messagesEndRef = useRef(null);
-  const eventSourceRef = useRef(null);
 
   // ───────────────────────────────────────────────────────────
   // 1. Carga inicial de comentarios (GET /purchases/:id/comments)
@@ -47,230 +46,7 @@ export default function PurchaseComments({ requestId }) {
   }, [requestId]);
 
   // ───────────────────────────────────────────────────────────
-  // 2. Conexión SSE para recibir comentarios en tiempo real
-  // ───────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!requestId) return;
-
-    // Verificar que el usuario tenga acceso al módulo COMPRAS
-    // antes de intentar la conexión SSE. Si no tiene acceso,
-    // el backend respondería con 403 y EventSource entraría
-    // en un ciclo de reconexión infinito.
-    const hasModuleAccess = user?.accessibleModules?.includes('COMPRAS') ||
-                            user?.role === 'ADMIN' ||
-                            user?.role === 'RH';
-
-    if (!hasModuleAccess) {
-      console.warn('⚠️ SSE: Usuario no tiene acceso al módulo COMPRAS. No se conectará SSE.');
-      setSseConnected(false);
-      return;
-    }
-
-    /**
-     * Contador de reintentos para backoff exponencial.
-     * Se reinicia cuando la conexión es exitosa.
-     */
-    let retryCount = 0;
-    const MAX_RETRIES = 10;
-    const BASE_DELAY = 2000; // 2 segundos base
-
-    /**
-     * Calcula el delay de reconexión con backoff exponencial + jitter.
-     * Fórmula: min(BASE_DELAY * 2^retryCount, 30000) + random(0, 1000)
-     * Esto evita sobrecargar el servidor en caso de caídas prolongadas.
-     */
-    const getRetryDelay = () => {
-      const exponential = BASE_DELAY * Math.pow(2, Math.min(retryCount, 5));
-      const capped = Math.min(exponential, 30000);
-      const jitter = Math.random() * 1000;
-      return capped + jitter;
-    };
-
-    /**
-     * Establece una conexión SSE (Server-Sent Events) al backend.
-     *
-     * El token JWT se pasa como query param `token` porque
-     * EventSource (API nativa del navegador) NO soporta
-     * headers personalizados como Authorization.
-     *
-     * Eventos recibidos:
-     *   - 'connected':  Confirmación de conexión exitosa
-     *   - 'new-comment': Nuevo comentario agregado por otro usuario
-     *   - 'error':       Error del servidor
-     *   - 'shutdown':    Servidor cerrándose
-     */
-    let reconnectTimer = null;
-
-    const connectSSE = () => {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
-      // Cerrar conexión anterior si existe
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-
-      // Construir URL con token como query param.
-      // URL relativa → pasa por el rewrite del frontend (evita mixed content en HTTPS).
-      const sseUrl = `/api/purchases/${requestId}/comments/stream?token=${encodeURIComponent(token)}`;
-
-      const eventSource = new EventSource(sseUrl);
-      eventSourceRef.current = eventSource;
-
-      // ── Evento: connected ──
-      // El backend envía este evento cuando la conexión SSE se establece
-      // exitosamente. Al recibirlo, reiniciamos el contador de reintentos
-      // y marcamos la conexión como activa.
-      eventSource.addEventListener('connected', (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.log('🔌 SSE conectado:', data.message);
-          retryCount = 0; // Reiniciar contador de reintentos
-          setSseConnected(true);
-        } catch (err) {
-          console.warn('⚠️ SSE: Error parseando evento connected:', err);
-        }
-      });
-
-      // ── Evento: new-comment ──
-      // Cuando otro usuario (o el mismo desde otra pestaña) agrega
-      // un comentario, el backend lo emite y aquí lo agregamos a la
-      // lista local sin necesidad de hacer polling.
-      eventSource.addEventListener('new-comment', (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          const newComment = data.comment;
-
-          // Evitar duplicados: si el comentario ya está en la lista,
-          // no lo agregamos de nuevo (puede ocurrir si el usuario que
-          // envió el comentario ya lo agregó localmente en handleSendMessage).
-          setComments((prev) => {
-            const exists = prev.some((c) => c.id === newComment.id);
-            if (exists) return prev;
-            return [...prev, newComment];
-          });
-
-          // Scroll automático al nuevo comentario
-          setTimeout(scrollToBottom, 50);
-        } catch (err) {
-          console.warn('⚠️ SSE: Error parseando new-comment:', err);
-        }
-      });
-
-      // ── Evento: error ──
-      // Evento personalizado enviado por el backend cuando ocurre
-      // un error (ej. token inválido, módulo no autorizado).
-      // A diferencia del onerror nativo, este evento tiene datos
-      // parseables que podemos mostrar al usuario.
-      eventSource.addEventListener('error', (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.error('❌ SSE Error del servidor:', data.error, data.message);
-          // Si es un error de autenticación o autorización, no reconectar
-          if (data.error === 'Acceso denegado' || 
-              data.error === 'Invalid token' || 
-              data.error === 'Token expired' ||
-              data.error === 'No token provided') {
-            console.warn('🚫 SSE: Error de autorización, no se reconectará automáticamente');
-            setSseConnected(false);
-            eventSource.close();
-            return;
-          }
-        } catch (err) {
-          console.error('❌ SSE: Error de conexión (sin datos)');
-        }
-        setSseConnected(false);
-      });
-
-      // ── Evento: shutdown ──
-      // El servidor envía este evento cuando se está apagando
-      // (graceful shutdown). Cerramos la conexión sin reconectar.
-      eventSource.addEventListener('shutdown', (event) => {
-        console.log('🔌 SSE: Servidor cerró la conexión (shutdown)');
-        setSseConnected(false);
-        eventSource.close();
-      });
-
-      // ── Manejo de errores de conexión (onerror nativo) ──
-      // EventSource dispara onerror cuando:
-      //   a) La conexión HTTP falla (red, DNS, etc.)
-      //   b) El servidor responde con un código HTTP ≠ 200
-      //   c) El stream se cierra inesperadamente
-      //
-      // IMPORTANTE: Cuando el backend responde con 401/403 (error de
-      // autenticación o autorización), EventSource NO puede leer el
-      // body de la respuesta JSON. En su lugar, dispara onerror con
-      // readyState = CLOSED (2) sin haber pasado por OPEN (1).
-      //
-      // Para distinguir entre un error de red temporal y un error de
-      // autenticación permanente, usamos la siguiente heurística:
-      //   - Si readyState es CLOSED y NUNCA recibimos 'connected'
-      //     (retryCount === 0), es probablemente un error de auth.
-      //   - Si readyState es CLOSED pero ya habíamos recibido 'connected'
-      //     antes (retryCount > 0), es una caída de red.
-      //
-      // EventSource tiene reconexión automática nativa (~3s),
-      // pero nosotros la desactivamos cerrando el EventSource
-      // y manejando la reconexión manualmente con backoff.
-      eventSource.onerror = () => {
-        const isFirstAttempt = retryCount === 0;
-        const isClosedImmediately = eventSource.readyState === EventSource.CLOSED;
-
-        console.warn(`⚠️ SSE: Error de conexión (intento #${retryCount + 1}, readyState: ${eventSource.readyState})`);
-        setSseConnected(false);
-        eventSource.close();
-
-        // Detectar error de autenticación/autorización:
-        // Si es el primer intento y la conexión se cierra inmediatamente
-        // sin haber recibido el evento 'connected', es un error de auth.
-        if (isFirstAttempt && isClosedImmediately) {
-          console.error('🚫 SSE: Error de autenticación (401/403). No se reconectará automáticamente.');
-          return;
-        }
-
-        // Verificar si alcanzamos el máximo de reintentos
-        if (retryCount >= MAX_RETRIES) {
-          console.error(`🚫 SSE: Se alcanzó el máximo de ${MAX_RETRIES} reintentos. No se reconectará.`);
-          return;
-        }
-
-        // Backoff exponencial con jitter
-        const delay = getRetryDelay();
-        retryCount++;
-        console.log(`🔄 SSE: Reintentando en ${Math.round(delay / 1000)}s (intento #${retryCount}/${MAX_RETRIES})...`);
-
-        reconnectTimer = setTimeout(() => {
-          if (requestId) {
-            console.log(`🔄 SSE: Reintentando conexión (intento #${retryCount})...`);
-            connectSSE();
-          }
-        }, delay);
-      };
-
-    };
-
-    // Iniciar conexión SSE
-    connectSSE();
-
-    // Cleanup al desmontar el componente o cambiar requestId
-    return () => {
-      // Limpiar timer de reconexión pendiente
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
-        reconnectTimer = null;
-      }
-      if (eventSourceRef.current) {
-        console.log('🔌 SSE: Cerrando conexión (cleanup)');
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
-      setSseConnected(false);
-    };
-  }, [requestId, user]);
-
-
-  // ───────────────────────────────────────────────────────────
-  // 3. Scroll automático al último comentario
+  // 2. Scroll automático al último comentario
   // ───────────────────────────────────────────────────────────
   useEffect(() => {
     scrollToBottom();
@@ -281,7 +57,7 @@ export default function PurchaseComments({ requestId }) {
   };
 
   // ───────────────────────────────────────────────────────────
-  // 4. Carga inicial de comentarios (GET)
+  // 3. Carga inicial de comentarios (GET)
   // ───────────────────────────────────────────────────────────
   const fetchComments = async () => {
     try {
@@ -296,11 +72,11 @@ export default function PurchaseComments({ requestId }) {
   };
 
   // ───────────────────────────────────────────────────────────
-  // 5. Envío de nuevo comentario (POST)
+  // 4. Envío de nuevo comentario (POST)
   // ───────────────────────────────────────────────────────────
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    
+
     if (!newMessage.trim()) {
       toast.error('Escribe un mensaje');
       return;
@@ -311,13 +87,10 @@ export default function PurchaseComments({ requestId }) {
       const response = await api.post(`/purchases/${requestId}/comments`, {
         mensaje: newMessage.trim()
       });
-      
-      // Agregar el comentario localmente inmediatamente
-      // (el SSE también lo emitirá, pero el filtro de duplicados
-      //  en el listener de 'new-comment' evitará duplicación)
+
       setComments(prev => [...prev, response.data.data]);
       setNewMessage('');
-      
+
       setTimeout(scrollToBottom, 100);
     } catch (error) {
       console.error('Error sending comment:', error);
@@ -328,7 +101,7 @@ export default function PurchaseComments({ requestId }) {
   };
 
   // ───────────────────────────────────────────────────────────
-  // 6. Helpers de UI
+  // 5. Helpers de UI
   // ───────────────────────────────────────────────────────────
   const formatDateTime = (dateString) => {
     if (!dateString) return '';
@@ -348,7 +121,7 @@ export default function PurchaseComments({ requestId }) {
   };
 
   // ───────────────────────────────────────────────────────────
-  // 7. Render
+  // 6. Render
   // ───────────────────────────────────────────────────────────
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -363,15 +136,6 @@ export default function PurchaseComments({ requestId }) {
             <p className="text-sm text-blue-200">
               Conversación entre solicitante y compras
             </p>
-          </div>
-          {/* Indicador de conexión SSE en tiempo real */}
-          <div className="ml-auto flex items-center gap-2">
-            <span className={`inline-block w-2 h-2 rounded-full ${
-              sseConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'
-            }`}></span>
-            <span className="text-xs text-blue-200">
-              {sseConnected ? 'Tiempo real' : 'Reconectando...'}
-            </span>
           </div>
         </div>
       </div>

@@ -647,6 +647,23 @@ exports.sendPurchaseRequestCreated = async (email, nombreCompras, request) => {
 };
 
 /**
+ * Aviso de un comentario nuevo en una solicitud de compra, a "la otra
+ * parte" (si comenta el solicitante se avisa a Compras, si comenta
+ * Compras se avisa al solicitante) — no se notifica al propio autor.
+ */
+exports.sendPurchaseCommentAdded = async (email, destinatarioNombre, request, linkPath) => {
+  const title = `💬 Nuevo comentario en la solicitud #${request.folio}`;
+  const content = `
+    <p>Hola <strong>${destinatarioNombre}</strong>,</p>
+    <p>Hay un comentario nuevo en la solicitud de compra <strong>#${request.folio}</strong>.</p>
+    <center>
+      <a href="${FRONTEND_URL}${linkPath}" class="button">Ver conversación</a>
+    </center>
+  `;
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
+/**
  * Notificar que se requiere autorización para una compra > $50,000
  * El link apunta a la página pública de autorización (no requiere módulo COMPRAS)
  */

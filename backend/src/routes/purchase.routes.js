@@ -5,19 +5,9 @@ const PurchaseCommentController = require('../controllers/purchase-comment.contr
 const AuthMiddleware = require('../middlewares/auth.middleware');
 const UploadMiddleware = require('../middlewares/upload.middleware');
 
-// ===== RUTAS SSE (DEBEN IR ANTES DE verifyToken GLOBAL) =====
-// NOTA: EventSource (navegador) NO soporta headers personalizados,
-//       por lo que el token JWT se pasa como query param `token`.
-//       Estas rutas usan verifyTokenFromQuery en lugar de verifyToken.
-//       DEBEN ir ANTES de router.use(AuthMiddleware.verifyToken) para
-//       evitar que el middleware global intente leer el token de headers.
-
-// ── Endpoint SSE: Stream de comentarios en tiempo real ──
-router.get('/purchases/:id/comments/stream',
-  AuthMiddleware.verifyTokenFromQuery,
-  AuthMiddleware.requireModule('COMPRAS'),
-  PurchaseCommentController.streamComments
-);
+// Comentarios estilo blog (sin tiempo real) a propósito: en una solicitud de
+// compra lo normal es comentar y que la otra parte responda más tarde, no
+// ambos viendo la pantalla a la vez — no amerita la complejidad de SSE.
 
 // Todas las rutas requieren autenticación
 router.use(AuthMiddleware.verifyToken);
