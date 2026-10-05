@@ -353,6 +353,15 @@ export default function InventarioUniformes() {
                       {TIPOS.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Género</label>
+                    <select value={requestForm.genero} onChange={(e) => setRequestForm({ ...requestForm, genero: e.target.value })} className="w-full border rounded px-3 py-2">
+                      <option value="">-</option>
+                      <option value="HOMBRE">Hombre</option>
+                      <option value="MUJER">Mujer</option>
+                      <option value="UNISEX">Unisex</option>
+                    </select>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium mb-1">Talla</label>
