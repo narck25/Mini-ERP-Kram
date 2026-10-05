@@ -740,6 +740,60 @@ exports.sendVacationResultToEmployee = async (email, employeeName, request, deci
 };
 
 
+/**
+ * Aviso al equipo de Sistemas de que se creó un ticket nuevo.
+ */
+exports.sendTicketCreated = async (email, destinatarioNombre, ticket) => {
+  const title = '🎫 Nuevo ticket de TI';
+  const content = `
+    <p>Hola <strong>${destinatarioNombre}</strong>,</p>
+    <p><strong>${ticket.solicitanteNombre}</strong> levantó un ticket nuevo.</p>
+    <div class="info-box">
+      <strong>Folio:</strong> #${ticket.folio}<br>
+      <strong>Categoría:</strong> ${ticket.categoriaLabel}<br>
+      <strong>Prioridad:</strong> ${ticket.prioridadLabel}<br>
+      <strong>Asunto:</strong> ${ticket.asunto}
+    </div>
+    <center>
+      <a href="${FRONTEND_URL}/dashboard/ti/${ticket.id}" class="button">Ver ticket</a>
+    </center>
+  `;
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
+/**
+ * Aviso al solicitante de que el estatus de su ticket cambió (especialmente
+ * relevante cuando pasa a RESUELTO o CERRADO).
+ */
+exports.sendTicketStatusChanged = async (email, destinatarioNombre, ticket, estatusLabel) => {
+  const title = `🎫 Tu ticket #${ticket.folio} cambió de estatus`;
+  const content = `
+    <p>Hola <strong>${destinatarioNombre}</strong>,</p>
+    <p>Tu ticket <strong>#${ticket.folio}</strong> (${ticket.asunto}) ahora está: <strong>${estatusLabel}</strong>.</p>
+    <center>
+      <a href="${FRONTEND_URL}/ti/mis-tickets/${ticket.id}" class="button">Ver mi ticket</a>
+    </center>
+  `;
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
+/**
+ * Aviso de un comentario nuevo en un ticket, a la otra parte (si comenta el
+ * solicitante se avisa a TI, si comenta TI se avisa al solicitante) — no se
+ * notifica al propio autor del comentario.
+ */
+exports.sendTicketCommentAdded = async (email, destinatarioNombre, ticket, linkPath) => {
+  const title = `💬 Nuevo comentario en el ticket #${ticket.folio}`;
+  const content = `
+    <p>Hola <strong>${destinatarioNombre}</strong>,</p>
+    <p>Hay un comentario nuevo en el ticket <strong>#${ticket.folio}</strong> (${ticket.asunto}).</p>
+    <center>
+      <a href="${FRONTEND_URL}${linkPath}" class="button">Ver conversación</a>
+    </center>
+  `;
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
 // Exportar sendEmail como función pública para otros servicios
 exports.sendEmail = sendEmail;
 

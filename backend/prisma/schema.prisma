@@ -30,6 +30,9 @@ model User {
   probationEvaluationsAsEvaluador  ProbationEvaluation[]        @relation("ProbationEvaluador")
   disciplinaryIncidentsRegistradas DisciplinaryIncident[]       @relation("DisciplinaryRegistrador")
   operationalEvaluationsAsEvaluador OperationalEvaluation[]     @relation("OperationalEvaluador")
+  ticketsAsignados                 Ticket[]                     @relation("TicketAsignado")
+  ticketAttachmentsSubidos         TicketAttachment[]
+  ticketComments                   TicketComment[]
 
   @@map("users")
 }
@@ -146,6 +149,7 @@ model Employee {
   probationEvaluations          ProbationEvaluation[]        @relation("ProbationEmpleado")
   disciplinaryIncidents         DisciplinaryIncident[]       @relation("DisciplinaryEmpleado")
   operationalEvaluations        OperationalEvaluation[]      @relation("OperationalEmpleado")
+  tickets                       Ticket[]                     @relation("TicketSolicitante")
 
   @@index([departamento_id, estatus])
   @@map("employees")
@@ -424,6 +428,7 @@ enum ModuleType {
   REPORTES
   COMPRAS
   DISCIPLINA
+  TICKETS
 }
 
 enum StationeryStatus {
@@ -1030,4 +1035,108 @@ model SystemSetting {
   updatedAt DateTime @updatedAt
 
   @@map("system_settings")
+}
+
+// ─── TICKETS DE TI ───
+// Canal estructurado para que cualquier empleado reporte problemas, pida
+// informes, o haga cualquier solicitud al área de Sistemas. Mismo patrón
+// que Compras (crear -> cola de revisión -> comentarios -> cierre), pero
+// el destinatario se resuelve por rol (User.role === 'SISTEMAS'), no por
+// un Department, para no depender de la calidad de datos del catálogo.
+
+enum TicketCategoria {
+  PROBLEMA_TECNICO // algo no funciona (hardware, software, red, sistema)
+  SOLICITUD_INFORME // pedir un reporte/exportación específica
+  SOLICITUD_ACCESO // alta de usuario, permisos, reseteo de contraseña
+  SOLICITUD_EQUIPO // equipo nuevo, periférico, instalación de software
+  OTRO
+}
+
+enum TicketPrioridad {
+  BAJA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+enum TicketEstatus {
+  ABIERTO
+  EN_PROCESO
+  EN_ESPERA
+  RESUELTO
+  CERRADO
+  CANCELADO
+}
+
+model Ticket {
+  id              String          @id @default(cuid())
+  folio           Int             @default(autoincrement())
+  solicitanteId   String
+  asunto          String
+  descripcion     String
+  categoria       TicketCategoria
+  prioridad       TicketPrioridad @default(MEDIA)
+  estatus         TicketEstatus   @default(ABIERTO)
+  asignadoId      String?
+  fechaResolucion DateTime?
+  fechaCierre     DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  solicitante Employee           @relation("TicketSolicitante", fields: [solicitanteId], references: [id], onDelete: Cascade)
+  asignado    User?              @relation("TicketAsignado", fields: [asignadoId], references: [id])
+  attachments TicketAttachment[]
+  comments    TicketComment[]
+
+  @@index([solicitanteId])
+  @@index([estatus])
+  @@index([asignadoId])
+  @@map("tickets")
+}
+
+model TicketAttachment {
+  id            String   @id @default(cuid())
+  ticketId      String
+  url           String
+  nombreArchivo String
+  mimeType      String
+  sizeBytes     Int?
+  uploadedById  String
+  createdAt     DateTime @default(now())
+
+  ticket     Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  uploadedBy User   @relation(fields: [uploadedById], references: [id])
+
+  @@index([ticketId])
+  @@map("ticket_attachments")
+}
+
+model TicketComment {
+  id        String   @id @default(cuid())
+  ticketId  String
+  userId    String
+  mensaje   String
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([ticketId])
+  @@map("ticket_comments")
+}
+
+model TicketAuditLog {
+  id            String   @id @default(cuid())
+  ticketId      String
+  userId        String
+  accion        String
+  valorAnterior Json?
+  valorNuevo    Json?
+  ip            String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+
+  @@index([ticketId])
+  @@index([userId])
+  @@map("ticket_audit_logs")
 }

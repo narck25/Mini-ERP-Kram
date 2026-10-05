@@ -11,7 +11,7 @@ const { serveProtectedUpload } = require('./middlewares/uploadsAccess.middleware
 // Inicialización de directorios de uploads
 // ============================================================
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
-const UPLOAD_SUBDIRS = ['photos', 'cvs', 'employee-documents', 'psych-tests', 'purchase-quotes', 'temp', 'disciplinary-incidents'];
+const UPLOAD_SUBDIRS = ['photos', 'cvs', 'employee-documents', 'psych-tests', 'purchase-quotes', 'temp', 'disciplinary-incidents', 'ticket-attachments'];
 
 try {
   UPLOAD_SUBDIRS.forEach(subdir => {
@@ -76,6 +76,7 @@ const hrAuditRoutes = loadRoute('hr-audit', './routes/hrAudit.routes');
 const probationEvaluationRoutes = loadRoute('probation-evaluation', './routes/probationEvaluation.routes');
 const operationalEvaluationRoutes = loadRoute('operational-evaluation', './routes/operationalEvaluation.routes');
 const disciplinaryIncidentRoutes = loadRoute('disciplinary-incident', './routes/disciplinaryIncident.routes');
+const ticketRoutes = loadRoute('ticket', './routes/ticket.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -191,6 +192,7 @@ app.use('/api', hrAuditRoutes);
 app.use('/api', probationEvaluationRoutes);
 app.use('/api', operationalEvaluationRoutes);
 app.use('/api', disciplinaryIncidentRoutes);
+app.use('/api', ticketRoutes);
 app.use('/api', rolesRoutes);
 app.use('/api', notificationsRoutes);
 app.use('/api', seedRoutes);

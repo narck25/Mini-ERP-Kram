@@ -35,6 +35,7 @@ const PATHS = {
   psychTests: path.join(UPLOAD_BASE, 'psych-tests'),
   photos: path.join(UPLOAD_BASE, 'photos'),
   disciplinaryIncidents: path.join(UPLOAD_BASE, 'disciplinary-incidents'),
+  ticketAttachments: path.join(UPLOAD_BASE, 'ticket-attachments'),
 };
 
 // Asegurar que todos los directorios existan
@@ -145,6 +146,14 @@ const uploadDisciplinaryIncident = multer({
   storage: createStorage(PATHS.disciplinaryIncidents),
   fileFilter: fileFilter,
   limits: { fileSize: 10 * 1024 * 1024, files: 1 }
+});
+
+// Upload para adjuntos de tickets de TI (ej. capturas de pantalla de un
+// problema) — hasta 5 archivos por solicitud.
+const uploadTicketAttachments = multer({
+  storage: createStorage(PATHS.ticketAttachments),
+  fileFilter: fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024, files: 5 }
 });
 
 // ============================================================
@@ -286,6 +295,7 @@ module.exports = {
   uploadCandidate,
   uploadPhoto,
   uploadDisciplinaryIncident,
+  uploadTicketAttachments,
   ensureUploadDirs,
   handleMulterError,
   validateFileContent

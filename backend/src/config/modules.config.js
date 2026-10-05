@@ -60,6 +60,12 @@ const MODULES_CONFIG = {
     label: 'Disciplina',
     description: 'Incidencias disciplinarias de empleados (retardos/faltas, actas administrativas)',
     enabled: true
+  },
+  TICKETS: {
+    key: 'TICKETS',
+    label: 'Tickets TI',
+    description: 'Reportes de problemas, solicitudes de informes y cualquier solicitud al área de Sistemas',
+    enabled: true
   }
 };
 

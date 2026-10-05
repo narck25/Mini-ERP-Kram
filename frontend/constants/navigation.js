@@ -18,6 +18,7 @@ export const myPortalNavigation = [
   { name: 'Mis Compras', href: '/compras/mis-solicitudes', icon: '🛒', module: 'COMPRAS' },
   { name: 'Papelería', href: '/compras/papeleria', icon: '📄', module: 'COMPRAS' },
   { name: 'Mis Vacaciones', href: '/vacaciones/mis-solicitudes', icon: '🏖️', module: 'VACACIONES' },
+  { name: 'Mis Tickets TI', href: '/ti/mis-tickets', icon: '🎫', module: 'TICKETS' },
 ]
 
 // Sección 2: "Administración" (Gestión Total)
@@ -40,6 +41,7 @@ export const adminNavigation = [
   { name: 'Organización', href: '/dashboard/organizacion', icon: '🏢', module: 'EMPLEADOS', roles: ['ADMIN'] },
   { name: 'Permisos y Roles', href: '/dashboard/accesos', icon: '🔐', module: 'CONFIGURACION', roles: ['ADMIN'] },
   { name: 'Usuarios', href: '/dashboard/usuarios', icon: '👤', module: 'CONFIGURACION', roles: ['ADMIN'] },
+  { name: 'Tickets de TI', href: '/dashboard/ti', icon: '🎫', module: 'TICKETS', roles: ['ADMIN', 'SISTEMAS'] },
 ]
 
 // Navegación del menú desplegable del usuario

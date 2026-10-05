@@ -21,6 +21,7 @@ const { canAccessEmployeeDocuments } = require('../controllers/employeeDocument.
 const { canAccessCandidateFile } = require('../controllers/candidate.controller');
 const { canViewPurchaseRequest } = require('./purchases/purchase.service')._helpers;
 const { canManage: canManageDisciplinaryIncident } = require('./disciplinaryIncident.service');
+const ticketService = require('./ticket.service');
 
 const RULES = {
   // Fotos de perfil: se muestran en el expediente y en avatares de
@@ -89,6 +90,17 @@ const RULES = {
   // expone hoy una URL pública hacia esta carpeta. Se niega a propósito.
   temp: {
     authorize: async () => false
+  },
+
+  'ticket-attachments': {
+    authorize: async (req, fullPath) => {
+      const attachment = await prisma.ticketAttachment.findFirst({
+        where: { url: fullPath },
+        include: { ticket: { include: { solicitante: { select: { userId: true } } } } }
+      });
+      if (!attachment) return false;
+      return ticketService.canView(req.user, attachment.ticket);
+    }
   }
 };
 

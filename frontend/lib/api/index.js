@@ -19,6 +19,7 @@ export { supplierApi } from './suppliers'
 export { hrAuditApi } from './hrAudit'
 export { probationApi } from './probation'
 export { disciplinaryIncidentApi } from './disciplinaryIncidents'
+export { ticketApi } from './tickets'
 
 export const healthApi = {
   check: () => require('./client').default.get('/health'),
