@@ -33,6 +33,7 @@ model User {
   ticketsAsignados                 Ticket[]                     @relation("TicketAsignado")
   ticketAttachmentsSubidos         TicketAttachment[]
   ticketComments                   TicketComment[]
+  notifications                    UserNotification[]
 
   @@map("users")
 }
@@ -1139,4 +1140,28 @@ model TicketAuditLog {
   @@index([ticketId])
   @@index([userId])
   @@map("ticket_audit_logs")
+}
+
+// ─── CENTRO DE NOTIFICACIONES EN LA APP ───
+// Distinto de NotificationLog (ese es un log de auditoría de correos del
+// cron de cumpleaños/aniversario/recordatorios, ligado a Employee, sin
+// estado leído/no-leído). Este modelo es la "campanita": una fila por
+// aviso que un usuario ve dentro del sistema, en paralelo a los correos
+// que ya se mandan — no los reemplaza.
+model UserNotification {
+  id        String    @id @default(cuid())
+  userId    String
+  tipo      String // 'TICKET_CREADO' | 'COMPRA_ESTATUS' | ... (ver notification-center.service.js)
+  titulo    String
+  mensaje   String
+  link      String?
+  leida     Boolean   @default(false)
+  leidaAt   DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, leida])
+  @@index([userId, createdAt])
+  @@map("user_notifications")
 }

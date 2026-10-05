@@ -19,6 +19,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const emailService = require('../email.service');
+const notificationCenter = require('../notification-center.service');
 
 // ─────────────────────────────────────────────────────────────
 // Constantes: configuración de estados
@@ -458,7 +459,7 @@ exports.notifyStatusChange = async (purchaseRequestId, previousStatus, newStatus
           select: {
             nombre: true,
             correoElectronico: true,
-            user: { select: { email: true } }
+            user: { select: { id: true, email: true } }
           }
         },
         items: {
@@ -512,6 +513,17 @@ exports.notifyStatusChange = async (purchaseRequestId, previousStatus, newStatus
       console.log(`✅ StatusNotification: Email enviado a ${solicitanteEmail} para solicitud #${request.folio} (${previousStatus} → ${newStatus})`);
     } else {
       console.warn(`⚠️ StatusNotification: Falló envío a ${solicitanteEmail} para solicitud #${request.folio}`);
+    }
+
+    const solicitanteUserId = request.solicitante?.user?.id;
+    if (solicitanteUserId) {
+      await notificationCenter.notify({
+        userId: solicitanteUserId,
+        tipo: 'COMPRA_ESTATUS',
+        titulo: `Tu solicitud #${request.folio} cambió de estatus`,
+        mensaje: `${STATUS_CONFIG[newStatus]?.label || newStatus}`,
+        link: `/compras/mis-solicitudes/${purchaseRequestId}`
+      });
     }
 
     return { sent, email: solicitanteEmail, folio: request.folio };

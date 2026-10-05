@@ -14,6 +14,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const emailService = require('./email.service');
+const notificationCenter = require('./notification-center.service');
 const { isProbationEvaluationsEnabled } = require('./system-setting.service');
 
 function getNombreCompleto(emp) {
@@ -53,7 +54,7 @@ async function registrarLog(tipo, employeeId, employeeName, email, estatus, erro
 async function getDestinatariosRH() {
   return prisma.user.findMany({
     where: { role: 'RH', isActive: true },
-    select: { email: true, name: true }
+    select: { id: true, email: true, name: true }
   });
 }
 
@@ -78,7 +79,7 @@ async function enviarRecordatorio(emp, recordatorio, resultado) {
   const nombreEmpleado = getNombreCompleto(emp);
   const destinatarios = await getDestinatariosRH();
   if (emp.reportaA?.user?.email) {
-    destinatarios.push({ email: emp.reportaA.user.email, name: emp.reportaA.user.name });
+    destinatarios.push({ id: emp.reportaA.user.id, email: emp.reportaA.user.email, name: emp.reportaA.user.name });
   }
 
   let algunEnviado = false;
@@ -102,6 +103,14 @@ async function enviarRecordatorio(emp, recordatorio, resultado) {
   } else {
     resultado.recordatorios.fallidos++;
   }
+
+  await notificationCenter.notifyMany({
+    userIds: destinatarios.map((d) => d.id),
+    tipo: 'PERIODO_PRUEBA_RECORDATORIO',
+    titulo: `${nombreEmpleado} se acerca a su evaluación de ${TIPO_LABEL[recordatorio.tipoEvaluacion]}`,
+    mensaje: `Cumple hoy ${recordatorio.dias} días — en 10 días corresponde su evaluación`,
+    link: '/dashboard/mi-espacio'
+  }).catch(() => {});
 }
 
 async function crearEvaluacionPendiente(emp, evalCfg, resultado) {
@@ -124,11 +133,18 @@ async function crearEvaluacionPendiente(emp, evalCfg, resultado) {
   const nombreEmpleado = getNombreCompleto(emp);
   const destinatarios = await getDestinatariosRH();
   if (emp.reportaA?.user?.email) {
-    destinatarios.push({ email: emp.reportaA.user.email, name: emp.reportaA.user.name });
+    destinatarios.push({ id: emp.reportaA.user.id, email: emp.reportaA.user.email, name: emp.reportaA.user.name });
   }
   for (const dest of destinatarios) {
     await emailService.sendProbationEvaluationDue(dest.email, dest.name, nombreEmpleado, TIPO_LABEL[evalCfg.tipo]);
   }
+  await notificationCenter.notifyMany({
+    userIds: destinatarios.map((d) => d.id),
+    tipo: 'PERIODO_PRUEBA_EVALUAR',
+    titulo: `Evaluación de ${nombreEmpleado} lista para capturar`,
+    mensaje: `Llegó a su evaluación de ${TIPO_LABEL[evalCfg.tipo]}`,
+    link: '/dashboard/mi-espacio'
+  }).catch(() => {});
 
   // Paso 1 del formato de RH: el propio colaborador debe llenar su
   // autoevaluación antes de que RH/jefe capturen el resto.
@@ -139,6 +155,17 @@ async function crearEvaluacionPendiente(emp, evalCfg, resultado) {
     } catch (err) {
       console.error('Error enviando solicitud de autoevaluación al colaborador:', err.message);
     }
+  }
+  // emp.userId: el correo de arriba usa el correo del Employee (puede no
+  // tener cuenta); la notificación en la app solo aplica si sí la tiene.
+  if (emp.userId) {
+    await notificationCenter.notify({
+      userId: emp.userId,
+      tipo: 'PERIODO_PRUEBA_AUTOEVAL',
+      titulo: `Llena tu autoevaluación de ${TIPO_LABEL[evalCfg.tipo]}`,
+      mensaje: 'Antes de tu reunión de retroalimentación, necesitamos que la completes',
+      link: '/dashboard/mi-espacio'
+    }).catch(() => {});
   }
 }
 
@@ -163,7 +190,7 @@ async function checkAndNotify() {
 
     const empleados = await prisma.employee.findMany({
       where: { estatus: 'Activo' },
-      include: { reportaA: { include: { user: { select: { email: true, name: true } } } } }
+      include: { reportaA: { include: { user: { select: { id: true, email: true, name: true } } } } }
     });
 
     for (const emp of empleados) {

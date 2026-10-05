@@ -10,6 +10,7 @@
 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const notificationCenter = require('../notification-center.service');
 
 // ─────────────────────────────────────────────────────────────
 // 0. Notificar a Compras que se creó/envió una nueva solicitud
@@ -27,7 +28,7 @@ exports.notifyComprasNewRequest = async (requestId) => {
 
   const destinatarios = await prisma.user.findMany({
     where: { role: 'COMPRAS', isActive: true },
-    select: { email: true, name: true }
+    select: { id: true, email: true, name: true }
   });
 
   if (destinatarios.length === 0) return;
@@ -44,6 +45,13 @@ exports.notifyComprasNewRequest = async (requestId) => {
       })
     )
   );
+  await notificationCenter.notifyMany({
+    userIds: destinatarios.map(u => u.id),
+    tipo: 'COMPRA_CREADA',
+    titulo: `Nueva solicitud de compra #${request.folio}`,
+    mensaje: `${request.solicitante?.nombre || 'Alguien'} solicitó: ${request.justificacion || 'sin justificación'}`,
+    link: `/dashboard/compras/${request.id}`
+  });
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -111,6 +119,22 @@ exports.sendAuthorization = async (requestId, approverEmails) => {
 
   const sentCount = results.filter(r => r.status === 'fulfilled' && r.value).length;
   const failedCount = results.filter(r => r.status === 'rejected' || !r.value).length;
+
+  // Los aprobadores llegan como correos sueltos (elegidos en el formulario),
+  // no como User ya resueltos — se buscan los que sí correspondan a una
+  // cuenta real del sistema para la notificación en la app (el correo ya
+  // se manda arriba a todos, tengan cuenta o no).
+  const aprobadoresUsuarios = await prisma.user.findMany({
+    where: { email: { in: approverEmails } },
+    select: { id: true }
+  });
+  await notificationCenter.notifyMany({
+    userIds: aprobadoresUsuarios.map(u => u.id),
+    tipo: 'COMPRA_AUTORIZACION',
+    titulo: `Autorización requerida — solicitud #${request.folio}`,
+    mensaje: `${request.solicitante?.nombre || 'Alguien'} necesita tu autorización para una compra de $${Number(selectedQuote.monto).toLocaleString('es-MX')} MXN`,
+    link: `/autorizar-compra/${request.id}`
+  });
 
   return {
     sent: sentCount,

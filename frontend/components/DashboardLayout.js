@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { myPortalNavigation, adminNavigation, userNavigation } from '@/constants/navigation'
+import NotificationBell from './NotificationBell'
 
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -137,7 +138,7 @@ export default function DashboardLayout({ children }) {
           </div>
           <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
             <div className="flex items-center w-full">
-              <div className="ml-3 flex-1">
+              <div className="flex-1">
                 <div className="text-base font-medium text-gray-800">{user?.name || 'Usuario'}</div>
                 <div className="text-sm font-medium text-gray-500">{user?.email}</div>
                 <div className="mt-2">
@@ -149,6 +150,7 @@ export default function DashboardLayout({ children }) {
                   </button>
                 </div>
               </div>
+              <NotificationBell />
             </div>
           </div>
         </div>
@@ -221,7 +223,7 @@ export default function DashboardLayout({ children }) {
                 <div className="text-sm font-medium text-gray-800">{user?.name || 'Usuario'}</div>
 
                 {/* Menú desplegable del usuario - SOLO PARA DESKTOP */}
-                <div className="relative mt-2">
+                <div className="relative mt-2 flex items-center gap-2">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center text-sm font-medium text-gray-800 hover:text-blue-600 focus:outline-none px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-150"
@@ -231,7 +233,8 @@ export default function DashboardLayout({ children }) {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
-                  
+                  <NotificationBell />
+
                   {userMenuOpen && (
                     <div ref={userMenuRef} className="absolute left-0 -mt-48 w-56 bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-300 origin-bottom-left" style={{outline: '2px solid green'}}>
                       <div className="px-4 py-2 border-b border-gray-100">

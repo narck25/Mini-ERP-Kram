@@ -3,6 +3,7 @@ const prisma = new PrismaClient();
 
 // Servicio de notificaciones por email
 const emailService = require('../services/email.service');
+const notificationCenter = require('../services/notification-center.service');
 
 // Función auxiliar para construir URLs correctamente
 const buildFileUrl = (req, filePath) => {
@@ -264,7 +265,7 @@ exports.createVacancy = async (req, res) => {
         // Un solicitante (jefe de área) creó la solicitud → notificar a RH
         const rhUsers = await prisma.user.findMany({
           where: { role: 'RH' },
-          select: { email: true, name: true }
+          select: { id: true, email: true, name: true }
         });
         const solicitanteNombre = vacancy.solicitante?.user?.name || req.user.name;
         await Promise.allSettled(rhUsers.map(rhUser =>
@@ -275,12 +276,28 @@ exports.createVacancy = async (req, res) => {
             solicitanteNombre
           )
         ));
+        await notificationCenter.notifyMany({
+          userIds: rhUsers.map(u => u.id),
+          tipo: 'VACANTE_SOLICITADA',
+          titulo: 'Nueva solicitud de vacante',
+          mensaje: `${solicitanteNombre} solicitó: ${vacancy.titulo || 'una vacante nueva'}`,
+          link: '/rh/reclutamiento'
+        }).catch(() => {});
       } else if (isDirect === true) {
         // Flujo directo (RH/ADMIN) → notificar al solicitante
         const solicitanteEmail = vacancy.solicitante?.user?.email;
         const solicitanteNombre = vacancy.solicitante?.user?.name || 'Usuario';
         if (solicitanteEmail) {
           await emailService.sendVacancyDirectCreated(solicitanteEmail, solicitanteNombre, vacancy);
+        }
+        if (vacancy.solicitante?.user?.id) {
+          await notificationCenter.notify({
+            userId: vacancy.solicitante.user.id,
+            tipo: 'VACANTE_CREADA',
+            titulo: 'Vacante creada (flujo directo)',
+            mensaje: vacancy.titulo || 'Lista para búsqueda inmediata',
+            link: `/reclutamiento/vacantes/${vacancy.id}`
+          }).catch(() => {});
         }
       }
     } catch (emailErr) {
@@ -501,6 +518,15 @@ exports.approveVacancyRequest = async (req, res) => {
       const solicitanteNombre = vacancy.solicitante?.user?.name || 'Usuario';
       if (solicitanteEmail) {
         emailService.sendVacancyApproved(solicitanteEmail, solicitanteNombre, vacancy);
+      }
+      if (vacancy.solicitante?.user?.id) {
+        notificationCenter.notify({
+          userId: vacancy.solicitante.user.id,
+          tipo: 'VACANTE_APROBADA',
+          titulo: 'Tu solicitud de vacante fue aprobada',
+          mensaje: vacancy.titulo || 'Define ahora las actividades del puesto',
+          link: `/reclutamiento/vacantes/${id}`
+        }).catch(() => {});
       }
     } catch (emailErr) {
       console.warn('⚠️ Error al enviar notificación de aprobación:', emailErr.message);
@@ -767,7 +793,7 @@ exports.createJobActivities = async (req, res) => {
     try {
       const rhUsers = await prisma.user.findMany({
         where: { role: 'RH' },
-        select: { email: true, name: true }
+        select: { id: true, email: true, name: true }
       });
       const solicitanteNombre = updatedVacancy.solicitante?.user?.name || req.user.name;
       for (const rhUser of rhUsers) {
@@ -779,6 +805,13 @@ exports.createJobActivities = async (req, res) => {
           createdActivities.length
         );
       }
+      await notificationCenter.notifyMany({
+        userIds: rhUsers.map(u => u.id),
+        tipo: 'VACANTE_ACTIVIDADES',
+        titulo: 'Actividades del puesto definidas',
+        mensaje: `${solicitanteNombre} definió ${createdActivities.length} actividad(es) — vacante lista para búsqueda`,
+        link: '/rh/reclutamiento'
+      }).catch(() => {});
     } catch (emailErr) {
       console.warn('⚠️ Error al enviar notificación de actividades:', emailErr.message);
     }

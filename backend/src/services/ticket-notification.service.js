@@ -11,6 +11,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const emailService = require('./email.service');
+const notificationCenter = require('./notification-center.service');
 
 const CATEGORIA_LABELS = {
   PROBLEMA_TECNICO: 'Problema técnico',
@@ -56,14 +57,32 @@ const notifyNewTicket = async (ticket) => {
   await Promise.allSettled(
     destinatarios.map((dest) => emailService.sendTicketCreated(dest.email, dest.name, emailData))
   );
+  await notificationCenter.notifyMany({
+    userIds: destinatarios.map((d) => d.id),
+    tipo: 'TICKET_CREADO',
+    titulo: `Nuevo ticket #${ticket.folio}`,
+    mensaje: `${emailData.solicitanteNombre} reportó: ${ticket.asunto}`,
+    link: `/dashboard/ti/${ticket.id}`,
+  });
 };
 
 const notifyStatusChanged = async (ticket) => {
+  const userId = ticket.solicitante?.user?.id;
   const email = ticket.solicitante?.user?.email;
-  if (!email) return;
   const nombre = ticket.solicitante?.user?.name || getNombreCompleto(ticket.solicitante);
   const estatusLabel = ESTATUS_LABELS[ticket.estatus] || ticket.estatus;
-  await emailService.sendTicketStatusChanged(email, nombre, { id: ticket.id, folio: ticket.folio, asunto: ticket.asunto }, estatusLabel);
+  if (email) {
+    await emailService.sendTicketStatusChanged(email, nombre, { id: ticket.id, folio: ticket.folio, asunto: ticket.asunto }, estatusLabel);
+  }
+  if (userId) {
+    await notificationCenter.notify({
+      userId,
+      tipo: 'TICKET_ESTATUS',
+      titulo: `Tu ticket #${ticket.folio} cambió de estatus`,
+      mensaje: `${ticket.asunto} — ahora: ${estatusLabel}`,
+      link: `/ti/mis-tickets/${ticket.id}`,
+    });
+  }
 };
 
 // Avisa a "la otra parte" de un comentario nuevo: si comentó el solicitante,
@@ -73,19 +92,35 @@ const notifyNewComment = async (ticket, autorUserId) => {
   const esAutorSolicitante = ticket.solicitante?.user?.id === autorUserId;
 
   if (esAutorSolicitante) {
-    const destinatarios = ticket.asignado ? [ticket.asignado] : await getDestinatariosTI();
+    const destinatarios = (ticket.asignado ? [ticket.asignado] : await getDestinatariosTI())
+      .filter((d) => d.id !== autorUserId);
     const linkPath = `/dashboard/ti/${ticket.id}`;
     await Promise.allSettled(
-      destinatarios
-        .filter((d) => d.id !== autorUserId)
-        .map((dest) => emailService.sendTicketCommentAdded(dest.email, dest.name, { id: ticket.id, folio: ticket.folio, asunto: ticket.asunto }, linkPath))
+      destinatarios.map((dest) => emailService.sendTicketCommentAdded(dest.email, dest.name, { id: ticket.id, folio: ticket.folio, asunto: ticket.asunto }, linkPath))
     );
+    await notificationCenter.notifyMany({
+      userIds: destinatarios.map((d) => d.id),
+      tipo: 'TICKET_COMENTARIO',
+      titulo: `Nuevo comentario en el ticket #${ticket.folio}`,
+      mensaje: ticket.asunto,
+      link: linkPath,
+    });
   } else {
     const email = ticket.solicitante?.user?.email;
-    if (!email || ticket.solicitante.user.id === autorUserId) return;
+    const userId = ticket.solicitante?.user?.id;
+    if (!userId || userId === autorUserId) return;
     const nombre = ticket.solicitante?.user?.name || getNombreCompleto(ticket.solicitante);
     const linkPath = `/ti/mis-tickets/${ticket.id}`;
-    await emailService.sendTicketCommentAdded(email, nombre, { id: ticket.id, folio: ticket.folio, asunto: ticket.asunto }, linkPath);
+    if (email) {
+      await emailService.sendTicketCommentAdded(email, nombre, { id: ticket.id, folio: ticket.folio, asunto: ticket.asunto }, linkPath);
+    }
+    await notificationCenter.notify({
+      userId,
+      tipo: 'TICKET_COMENTARIO',
+      titulo: `Nuevo comentario en el ticket #${ticket.folio}`,
+      mensaje: ticket.asunto,
+      link: linkPath,
+    });
   }
 };
 

@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const { calcularAntiguedad, obtenerFactorPorAntiguedad } = require('../../utils/salaryCalculator');
 const emailService = require('../email.service');
+const notificationCenter = require('../notification-center.service');
 
 const prisma = new PrismaClient();
 
@@ -62,7 +63,7 @@ function buildEmailPayload(vacation, employee) {
 async function getRHDestinatarios() {
   return prisma.user.findMany({
     where: { role: 'RH', isActive: true },
-    select: { email: true, name: true }
+    select: { id: true, email: true, name: true }
   });
 }
 
@@ -212,7 +213,7 @@ class VacationService {
 
     const employee = await prisma.employee.findUnique({
       where: { userId: user.id },
-      include: { reportaA: { include: { user: { select: { email: true, name: true } } } } }
+      include: { reportaA: { include: { user: { select: { id: true, email: true, name: true } } } } }
     });
     if (!employee) {
       throw new Error('No tienes un expediente de empleado asociado');
@@ -264,11 +265,28 @@ class VacationService {
 
     // Notificaciones (asíncronas, no bloqueantes)
     const payload = buildEmailPayload(vacation, employee);
+    const solicitanteNombre = payload.empleadoNombre;
     if (jefeUser) {
       emailService.sendVacationRequestToJefe(jefeUser.email, jefeUser.name || 'Jefe', payload).catch(() => {});
+      if (jefeUser.id) {
+        notificationCenter.notify({
+          userId: jefeUser.id,
+          tipo: 'VACACION_SOLICITUD',
+          titulo: 'Nueva solicitud de vacaciones',
+          mensaje: `${solicitanteNombre} solicitó ${payload.dias} día(s), del ${payload.fechaInicio} al ${payload.fechaFin}`,
+          link: '/dashboard/mi-espacio'
+        }).catch(() => {});
+      }
     } else {
       const rhUsers = await getRHDestinatarios();
       for (const rh of rhUsers) emailService.sendVacationPendingRH(rh.email, rh.name, payload).catch(() => {});
+      notificationCenter.notifyMany({
+        userIds: rhUsers.map((rh) => rh.id),
+        tipo: 'VACACION_SOLICITUD',
+        titulo: 'Nueva solicitud de vacaciones',
+        mensaje: `${solicitanteNombre} solicitó ${payload.dias} día(s), del ${payload.fechaInicio} al ${payload.fechaFin}`,
+        link: '/dashboard/mi-espacio'
+      }).catch(() => {});
     }
 
     return vacation;
@@ -397,6 +415,13 @@ class VacationService {
     const rhUsers = await getRHDestinatarios();
     const payload = buildEmailPayload(updated, vacation.empleado);
     for (const rh of rhUsers) emailService.sendVacationPendingRH(rh.email, rh.name, payload).catch(() => {});
+    notificationCenter.notifyMany({
+      userIds: rhUsers.map((rh) => rh.id),
+      tipo: 'VACACION_SOLICITUD',
+      titulo: 'Solicitud de vacaciones autorizada por el jefe',
+      mensaje: `${payload.empleadoNombre} — ${payload.dias} día(s), del ${payload.fechaInicio} al ${payload.fechaFin}`,
+      link: '/dashboard/mi-espacio'
+    }).catch(() => {});
 
     return updated;
   }
@@ -423,6 +448,13 @@ class VacationService {
     if (employee?.user?.email) {
       const payload = buildEmailPayload(updated, employee);
       emailService.sendVacationResultToEmployee(employee.user.email, employee.user.name || 'Empleado', payload, 'APROBADA', comentario).catch(() => {});
+      notificationCenter.notify({
+        userId: employee.user.id,
+        tipo: 'VACACION_RESULTADO',
+        titulo: 'Tu solicitud de vacaciones fue aprobada',
+        mensaje: `${payload.fechaInicio} al ${payload.fechaFin} (${payload.dias} día(s))`,
+        link: '/dashboard/mi-espacio'
+      }).catch(() => {});
     }
 
     return updated;
@@ -455,6 +487,13 @@ class VacationService {
     if (employeeRec?.user?.email) {
       const payload = buildEmailPayload(updated, employeeRec);
       emailService.sendVacationResultToEmployee(employeeRec.user.email, employeeRec.user.name || 'Empleado', payload, 'RECHAZADA', comentario).catch(() => {});
+      notificationCenter.notify({
+        userId: employeeRec.user.id,
+        tipo: 'VACACION_RESULTADO',
+        titulo: 'Tu solicitud de vacaciones fue rechazada',
+        mensaje: comentario || `${payload.fechaInicio} al ${payload.fechaFin}`,
+        link: '/dashboard/mi-espacio'
+      }).catch(() => {});
     }
 
     return updated;

@@ -2,6 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const hrAudit = require('./hrAudit.service');
 const emailService = require('./email.service');
+const notificationCenter = require('./notification-center.service');
 
 const TIPO_LABEL = { DIA_30: '30 días', DIA_60: '60 días', DIA_90: '90 días' };
 
@@ -11,10 +12,10 @@ function getNombreCompleto(emp) {
 
 async function getDestinatariosEvaluador(empleadoId) {
   const [rhUsers, empleado] = await Promise.all([
-    prisma.user.findMany({ where: { role: 'RH', isActive: true }, select: { email: true, name: true } }),
+    prisma.user.findMany({ where: { role: 'RH', isActive: true }, select: { id: true, email: true, name: true } }),
     prisma.employee.findUnique({
       where: { id: empleadoId },
-      select: { reportaA: { select: { user: { select: { email: true, name: true } } } } }
+      select: { reportaA: { select: { user: { select: { id: true, email: true, name: true } } } } }
     })
   ]);
   const destinatarios = [...rhUsers];
@@ -158,6 +159,13 @@ const submitAutoevaluacion = async (id, payload, user, req) => {
       console.error('Error enviando correo de autoevaluación completada:', err.message);
     }
   }
+  await notificationCenter.notifyMany({
+    userIds: destinatarios.map((d) => d.id),
+    tipo: 'PERIODO_PRUEBA_AUTOEVAL_LISTA',
+    titulo: `${nombreEmpleado} ya envió su autoevaluación`,
+    mensaje: `Lista para capturar su evaluación de ${TIPO_LABEL[evaluation.tipo]}`,
+    link: '/dashboard/mi-espacio'
+  }).catch(() => {});
 
   return updated;
 };

@@ -13,6 +13,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const emailService = require('../email.service');
+const notificationCenter = require('../notification-center.service');
 
 async function getDestinatariosCompras() {
   return prisma.user.findMany({
@@ -40,16 +41,33 @@ exports.notifyNewComment = async (requestId, autorUserId) => {
   const esAutorSolicitante = request.solicitante.user?.id === autorUserId;
 
   if (esAutorSolicitante) {
-    const destinatarios = await getDestinatariosCompras();
+    const destinatarios = (await getDestinatariosCompras()).filter((d) => d.id !== autorUserId);
+    const linkPath = `/dashboard/compras/${request.id}`;
     await Promise.allSettled(
-      destinatarios
-        .filter((d) => d.id !== autorUserId)
-        .map((dest) => emailService.sendPurchaseCommentAdded(dest.email, dest.name, requestData, `/dashboard/compras/${request.id}`))
+      destinatarios.map((dest) => emailService.sendPurchaseCommentAdded(dest.email, dest.name, requestData, linkPath))
     );
+    await notificationCenter.notifyMany({
+      userIds: destinatarios.map((d) => d.id),
+      tipo: 'COMPRA_COMENTARIO',
+      titulo: `Nuevo comentario en la solicitud #${request.folio}`,
+      mensaje: request.justificacion || '',
+      link: linkPath
+    });
   } else {
     const email = request.solicitante.user?.email || request.solicitante.correoElectronico;
-    if (!email || request.solicitante.user?.id === autorUserId) return;
+    const userId = request.solicitante.user?.id;
+    if (!userId || userId === autorUserId) return;
     const nombre = request.solicitante.user?.name || request.solicitante.nombre || 'Solicitante';
-    await emailService.sendPurchaseCommentAdded(email, nombre, requestData, `/compras/mis-solicitudes/${request.id}`);
+    const linkPath = `/compras/mis-solicitudes/${request.id}`;
+    if (email) {
+      await emailService.sendPurchaseCommentAdded(email, nombre, requestData, linkPath);
+    }
+    await notificationCenter.notify({
+      userId,
+      tipo: 'COMPRA_COMENTARIO',
+      titulo: `Nuevo comentario en la solicitud #${request.folio}`,
+      mensaje: request.justificacion || '',
+      link: linkPath
+    });
   }
 };

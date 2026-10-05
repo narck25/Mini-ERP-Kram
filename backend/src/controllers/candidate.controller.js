@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const emailService = require('../services/email.service');
+const notificationCenter = require('../services/notification-center.service');
 
 const VACANCY_STATUS = {
   SOLICITADA: 'Solicitada',
@@ -112,7 +113,7 @@ exports.createCandidate = async (req, res) => {
         include: {
           solicitante: {
             include: {
-              user: { select: { email: true, name: true } }
+              user: { select: { id: true, email: true, name: true } }
             }
           }
         }
@@ -121,6 +122,15 @@ exports.createCandidate = async (req, res) => {
       const solicitanteNombre = fullVacancy?.solicitante?.user?.name || 'Solicitante';
       if (solicitanteEmail) {
         emailService.sendCandidateReviewRequest(solicitanteEmail, solicitanteNombre, fullVacancy, nombre);
+      }
+      if (fullVacancy?.solicitante?.user?.id) {
+        notificationCenter.notify({
+          userId: fullVacancy.solicitante.user.id,
+          tipo: 'CANDIDATO_REVISAR',
+          titulo: 'Nuevo candidato para revisar',
+          mensaje: `${nombre} — ${fullVacancy.titulo || 'tu vacante'}`,
+          link: `/reclutamiento/vacantes/${vacancy_id}`
+        }).catch(() => {});
       }
     } catch (emailErr) {
       console.warn('⚠️ Error al enviar notificación de nuevo candidato:', emailErr.message);
@@ -244,7 +254,7 @@ exports.updateCandidateVote = async (req, res) => {
       try {
         const rhUsers = await prisma.user.findMany({
           where: { role: 'RH' },
-          select: { email: true, name: true }
+          select: { id: true, email: true, name: true }
         });
         for (const rhUser of rhUsers) {
           emailService.sendCandidateVoted(
@@ -255,6 +265,13 @@ exports.updateCandidateVote = async (req, res) => {
             vote
           );
         }
+        await notificationCenter.notifyMany({
+          userIds: rhUsers.map(u => u.id),
+          tipo: 'CANDIDATO_VOTADO',
+          titulo: 'Voto registrado en un candidato',
+          mensaje: `${candidate.nombre}: ${voteText}`,
+          link: '/rh/reclutamiento'
+        }).catch(() => {});
       } catch (emailErr) {
         console.warn('⚠️ Error al enviar notificación de voto:', emailErr.message);
       }
@@ -333,7 +350,7 @@ exports.selectCandidate = async (req, res) => {
     try {
       const rhUsers = await prisma.user.findMany({
         where: { role: 'RH' },
-        select: { email: true, name: true }
+        select: { id: true, email: true, name: true }
       });
       for (const rhUser of rhUsers) {
         emailService.sendCandidateSelected(
@@ -343,6 +360,13 @@ exports.selectCandidate = async (req, res) => {
           candidate.nombre
         );
       }
+      await notificationCenter.notifyMany({
+        userIds: rhUsers.map(u => u.id),
+        tipo: 'CANDIDATO_SELECCIONADO',
+        titulo: 'Candidato final seleccionado',
+        mensaje: `${candidate.nombre} — vacante cerrada`,
+        link: '/rh/reclutamiento'
+      }).catch(() => {});
     } catch (emailErr) {
       console.warn('⚠️ Error al enviar notificación de selección:', emailErr.message);
     }

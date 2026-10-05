@@ -15,6 +15,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const emailService = require('./email.service');
+const notificationCenter = require('./notification-center.service');
 const { getTemplateByPuestoNombre } = require('../config/operationalEvaluationCriteria.config');
 const { isOperationalEvaluationsEnabled } = require('./system-setting.service');
 
@@ -37,7 +38,7 @@ function diasTranscurridos(fechaAlta) {
 async function getDestinatariosRH() {
   return prisma.user.findMany({
     where: { role: 'RH', isActive: true },
-    select: { email: true, name: true }
+    select: { id: true, email: true, name: true }
   });
 }
 
@@ -67,11 +68,18 @@ async function crearEvaluacionPendiente(emp, periodo, resultado) {
 
   const destinatarios = await getDestinatariosRH();
   if (emp.reportaA?.user?.email) {
-    destinatarios.push({ email: emp.reportaA.user.email, name: emp.reportaA.user.name });
+    destinatarios.push({ id: emp.reportaA.user.id, email: emp.reportaA.user.email, name: emp.reportaA.user.name });
   }
   for (const dest of destinatarios) {
     await emailService.sendOperationalEvaluationDue(dest.email, dest.name, nombreEmpleado, emp.puesto.nombre, periodo);
   }
+  await notificationCenter.notifyMany({
+    userIds: destinatarios.map((d) => d.id),
+    tipo: 'EVAL_OPERATIVA_EVALUAR',
+    titulo: `Evaluación operativa de ${nombreEmpleado} lista`,
+    mensaje: `${emp.puesto.nombre} — trimestre ${periodo}`,
+    link: '/dashboard/mi-espacio'
+  }).catch(() => {});
 }
 
 async function checkAndNotify() {
@@ -89,7 +97,7 @@ async function checkAndNotify() {
       where: { estatus: 'Activo' },
       include: {
         puesto: true,
-        reportaA: { include: { user: { select: { email: true, name: true } } } }
+        reportaA: { include: { user: { select: { id: true, email: true, name: true } } } }
       }
     });
 

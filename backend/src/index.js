@@ -77,6 +77,7 @@ const probationEvaluationRoutes = loadRoute('probation-evaluation', './routes/pr
 const operationalEvaluationRoutes = loadRoute('operational-evaluation', './routes/operationalEvaluation.routes');
 const disciplinaryIncidentRoutes = loadRoute('disciplinary-incident', './routes/disciplinaryIncident.routes');
 const ticketRoutes = loadRoute('ticket', './routes/ticket.routes');
+const notificationCenterRoutes = loadRoute('notification-center', './routes/notificationCenter.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -195,6 +196,7 @@ app.use('/api', disciplinaryIncidentRoutes);
 app.use('/api', ticketRoutes);
 app.use('/api', rolesRoutes);
 app.use('/api', notificationsRoutes);
+app.use('/api', notificationCenterRoutes);
 app.use('/api', seedRoutes);
 
 // ============================================================
