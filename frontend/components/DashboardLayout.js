@@ -7,10 +7,27 @@ import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { myPortalNavigation, adminNavigation, userNavigation } from '@/constants/navigation'
 import NotificationBell from './NotificationBell'
+import NavCategorySection from './NavCategorySection'
+
+const NAV_COLLAPSE_STORAGE_KEY = 'kram_nav_collapsed_categories'
+
+// Agrupa una lista ya filtrada de ítems de nav por su `category`, preservando
+// el orden de primera aparición (no hace falta una lista de orden aparte).
+function groupByCategory(items) {
+  const order = []
+  const map = {}
+  for (const item of items) {
+    const cat = item.category || 'General'
+    if (!map[cat]) { map[cat] = []; order.push(cat) }
+    map[cat].push(item)
+  }
+  return order.map((category) => ({ category, items: map[category] }))
+}
 
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [collapsedCategories, setCollapsedCategories] = useState({})
   const pathname = usePathname()
   const { user, logout, hasRole } = useAuth()
   const userMenuRef = useRef(null)
@@ -28,6 +45,29 @@ export default function DashboardLayout({ children }) {
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [userMenuOpen])
+
+  // Recordar qué categorías del sidebar dejó colapsadas el usuario (por navegador).
+  // Si falla (modo privado, storage bloqueado) simplemente se queda todo expandido.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(NAV_COLLAPSE_STORAGE_KEY)
+      if (saved) setCollapsedCategories(JSON.parse(saved))
+    } catch {
+      // noop
+    }
+  }, [])
+
+  const toggleCategory = (category) => {
+    setCollapsedCategories((prev) => {
+      const next = { ...prev, [category]: !prev[category] }
+      try {
+        localStorage.setItem(NAV_COLLAPSE_STORAGE_KEY, JSON.stringify(next))
+      } catch {
+        // noop
+      }
+      return next
+    })
+  }
 
   // Filtrar navegación de "Mi Portal" basada en módulos accesibles
   const filteredMyPortal = myPortalNavigation.filter(item => {
@@ -64,6 +104,9 @@ export default function DashboardLayout({ children }) {
     return true
   })
 
+  const myPortalGroups = groupByCategory(filteredMyPortal)
+  const adminGroups = groupByCategory(filteredAdmin)
+
   return (
     <div className="min-h-screen">
       {/* Sidebar para móviles */}
@@ -88,52 +131,40 @@ export default function DashboardLayout({ children }) {
               {/* Sección: Mi Portal */}
               {filteredMyPortal.length > 0 && (
                 <>
-                  <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <div className="px-2 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                     Mi Portal
                   </div>
-                  {filteredMyPortal.map((item) => {
-                    const isActive = pathname === item.href
-                    return (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        className={`${
-                          isActive
-                            ? 'bg-gray-100 text-gray-900'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                        } group flex items-center px-2 py-2 text-base font-medium rounded-md`}
-                      >
-                        <span className="mr-3 text-lg">{item.icon}</span>
-                        {item.name}
-                      </Link>
-                    )
-                  })}
+                  {myPortalGroups.map(({ category, items }) => (
+                    <NavCategorySection
+                      key={category}
+                      title={category}
+                      items={items}
+                      pathname={pathname}
+                      collapsed={!!collapsedCategories[category]}
+                      onToggle={() => toggleCategory(category)}
+                      textSizeClass="text-base"
+                    />
+                  ))}
                 </>
               )}
 
               {/* Sección: Administración Global */}
               {filteredAdmin.length > 0 && (
                 <>
-                  <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">
+                  <div className="px-2 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-4">
                     Administración Global
                   </div>
-                  {filteredAdmin.map((item) => {
-                    const isActive = pathname === item.href
-                    return (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        className={`${
-                          isActive
-                            ? 'bg-gray-100 text-gray-900'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                        } group flex items-center px-2 py-2 text-base font-medium rounded-md`}
-                      >
-                        <span className="mr-3 text-lg">{item.icon}</span>
-                        {item.name}
-                      </Link>
-                    )
-                  })}
+                  {adminGroups.map(({ category, items }) => (
+                    <NavCategorySection
+                      key={category}
+                      title={category}
+                      items={items}
+                      pathname={pathname}
+                      collapsed={!!collapsedCategories[category]}
+                      onToggle={() => toggleCategory(category)}
+                      textSizeClass="text-base"
+                    />
+                  ))}
                 </>
               )}
             </nav>
@@ -169,52 +200,40 @@ export default function DashboardLayout({ children }) {
               {/* Sección: Mi Portal */}
               {filteredMyPortal.length > 0 && (
                 <>
-                  <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <div className="px-2 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                     Mi Portal
                   </div>
-                  {filteredMyPortal.map((item) => {
-                    const isActive = pathname === item.href
-                    return (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        className={`${
-                          isActive
-                            ? 'bg-gray-100 text-gray-900'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                        } group flex items-center px-2 py-2 text-sm font-medium rounded-md`}
-                      >
-                        <span className="mr-3 text-lg">{item.icon}</span>
-                        {item.name}
-                      </Link>
-                    )
-                  })}
+                  {myPortalGroups.map(({ category, items }) => (
+                    <NavCategorySection
+                      key={category}
+                      title={category}
+                      items={items}
+                      pathname={pathname}
+                      collapsed={!!collapsedCategories[category]}
+                      onToggle={() => toggleCategory(category)}
+                      textSizeClass="text-sm"
+                    />
+                  ))}
                 </>
               )}
 
               {/* Sección: Administración Global */}
               {filteredAdmin.length > 0 && (
                 <>
-                  <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4">
+                  <div className="px-2 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider mt-4">
                     Administración Global
                   </div>
-                  {filteredAdmin.map((item) => {
-                    const isActive = pathname === item.href
-                    return (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        className={`${
-                          isActive
-                            ? 'bg-gray-100 text-gray-900'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                        } group flex items-center px-2 py-2 text-sm font-medium rounded-md`}
-                      >
-                        <span className="mr-3 text-lg">{item.icon}</span>
-                        {item.name}
-                      </Link>
-                    )
-                  })}
+                  {adminGroups.map(({ category, items }) => (
+                    <NavCategorySection
+                      key={category}
+                      title={category}
+                      items={items}
+                      pathname={pathname}
+                      collapsed={!!collapsedCategories[category]}
+                      onToggle={() => toggleCategory(category)}
+                      textSizeClass="text-sm"
+                    />
+                  ))}
                 </>
               )}
             </nav>
