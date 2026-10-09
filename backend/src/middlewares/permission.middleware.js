@@ -121,6 +121,44 @@ class PermissionMiddleware {
       next();
     };
   }
+
+  /**
+   * Middleware híbrido: pasa si el usuario tiene el módulo (Nivel A) O si su
+   * nivel jerárquico (puesto) está en la lista permitida — independientemente
+   * de si tiene el módulo asignado. Útil para capacidades que dependen del
+   * puesto (jefe/gerente) y no de un módulo manualmente otorgado.
+   * @param {string} moduleName
+   * @param {string[]} nivelesPermitidos - valores de Employee.nivelJerarquico
+   */
+  static requireModuleOrNivel(moduleName, nivelesPermitidos) {
+    return (req, res, next) => {
+      if (!req.user) {
+        return SSEMiddleware._sendSSEAwareError(req, res, 401, 'error', {
+          error: 'Authentication required',
+          message: 'Debe iniciar sesión para acceder a este recurso'
+        });
+      }
+
+      if (req.user.role === 'ADMIN' || req.user.role === 'RH') {
+        return next();
+      }
+
+      const tieneModulo = req.user.accessibleModules && req.user.accessibleModules.includes(moduleName);
+      const tieneNivel = nivelesPermitidos.includes(req.user.employeeNivelJerarquico);
+
+      if (tieneModulo || tieneNivel) {
+        return next();
+      }
+
+      return SSEMiddleware._sendSSEAwareError(req, res, 403, 'error', {
+        error: 'Acceso denegado',
+        message: 'No tiene acceso a esta función.',
+        details: 'Contacte al administrador o al departamento de RH para solicitar acceso.',
+        requiredModule: moduleName,
+        userModules: req.user.accessibleModules || []
+      });
+    };
+  }
 }
 
 module.exports = PermissionMiddleware;

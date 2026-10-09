@@ -28,7 +28,8 @@ class AuthController {
           isActive: true,
           accessibleModules: true,
           password: true,
-          createdAt: true
+          createdAt: true,
+          employee: { select: { nivelJerarquico: true } }
         }
       });
 
@@ -80,7 +81,8 @@ class AuthController {
           isActive: true,
           accessibleModules: true,
           createdAt: true,
-          updatedAt: true
+          updatedAt: true,
+          employee: { select: { nivelJerarquico: true } }
         }
       });
 
@@ -88,7 +90,13 @@ class AuthController {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      res.json({ user });
+      res.json({
+        user: {
+          ...user,
+          employeeNivelJerarquico: user.employee?.nivelJerarquico || null,
+          employee: undefined
+        }
+      });
     } catch (error) {
       console.error('Get profile error:', error);
       res.status(500).json({ error: 'Failed to get profile' });

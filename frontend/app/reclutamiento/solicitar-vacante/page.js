@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 import api from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -38,6 +39,7 @@ const TIPO_CONTRATACION_OPTIONS = [
 
 export default function SolicitarVacantePage() {
   const { user } = useAuth();
+  const { hasRecruitmentAccess } = useAuthorization();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState([]);
@@ -273,7 +275,7 @@ export default function SolicitarVacantePage() {
   }
 
   return (
-    <ProtectedRoute requiredModule="RECLUTAMIENTO">
+    <ProtectedRoute requiredModule="RECLUTAMIENTO" additionalAccessCheck={hasRecruitmentAccess()}>
       <DashboardLayout>
         <div className="p-6">
           {/* Header */}

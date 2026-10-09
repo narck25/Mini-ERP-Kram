@@ -26,6 +26,7 @@ const sanitizeUserData = (user) => ({
   role: user.role,
   isActive: user.isActive,
   accessibleModules: user.accessibleModules || ['DASHBOARD'],
+  employeeNivelJerarquico: user.employee?.nivelJerarquico || null,
   createdAt: user.createdAt,
 });
 

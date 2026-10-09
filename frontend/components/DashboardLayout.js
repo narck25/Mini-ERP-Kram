@@ -32,7 +32,9 @@ export default function DashboardLayout({ children }) {
   // Filtrar navegación de "Mi Portal" basada en módulos accesibles
   const filteredMyPortal = myPortalNavigation.filter(item => {
     if (item.module === 'DASHBOARD') return true
-    return user?.accessibleModules?.includes(item.module)
+    if (user?.accessibleModules?.includes(item.module)) return true
+    if (item.nivelesJerarquicos?.includes(user?.employeeNivelJerarquico)) return true
+    return false
   })
 
   // Filtrar navegación de "Administración Global"

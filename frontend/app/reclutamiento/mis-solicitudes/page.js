@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 import api from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
@@ -9,6 +10,7 @@ import Link from 'next/link';
 
 export default function MisSolicitudesPage() {
   const { user } = useAuth();
+  const { hasRecruitmentAccess } = useAuthorization();
   const [vacancies, setVacancies] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -21,7 +23,7 @@ export default function MisSolicitudesPage() {
   });
 
   useEffect(() => {
-    if (user && user.accessibleModules?.includes('RECLUTAMIENTO')) {
+    if (user && hasRecruitmentAccess()) {
       fetchMyVacancies();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -66,7 +68,7 @@ export default function MisSolicitudesPage() {
     }
   };
 
-  if (!user || !user.accessibleModules?.includes('RECLUTAMIENTO')) {
+  if (!user || !hasRecruitmentAccess()) {
     return (
       <DashboardLayout>
         <div className="p-6">

@@ -13,6 +13,8 @@ import { useEffect } from 'react'
  * @param {React.ReactNode} props.children - Contenido a renderizar si el usuario tiene acceso
  * @param {string} props.requiredModule - Nombre del módulo requerido (Nivel A)
  * @param {string[]} props.allowedRoles - [DEPRECADO] Usar requiredModule en su lugar. Solo para Nivel C.
+ * @param {boolean} props.additionalAccessCheck - Si es true, satisface el gate de requiredModule aunque
+ *   el usuario no tenga ese módulo (p.ej. acceso por nivel jerárquico en vez de por módulo asignado).
  * @param {boolean} props.requireAuth - Si es true, requiere autenticación (por defecto: true)
  * @param {string} props.redirectTo - Ruta a la que redirigir si no tiene acceso (por defecto: '/')
  * @param {React.ReactNode} props.loadingComponent - Componente a mostrar mientras se verifica autenticación
@@ -22,6 +24,7 @@ export default function ProtectedRoute({
   children,
   allowedRoles = [],
   requiredModule = null,
+  additionalAccessCheck = false,
   requireAuth = true,
   redirectTo = '/',
   forbiddenRedirectTo = '/403',
@@ -48,11 +51,11 @@ export default function ProtectedRoute({
     }
 
     // Nivel A: verificación por módulo (método principal de control de acceso)
-    if (user && requiredModule && !hasModule(requiredModule)) {
+    if (user && requiredModule && !hasModule(requiredModule) && !additionalAccessCheck) {
       if (unauthorizedComponent) return
       router.push(forbiddenRedirectTo)
     }
-  }, [user, loading, authChecked, allowedRoles, requiredModule, requireAuth, redirectTo, forbiddenRedirectTo, hasRole, hasModule, router, unauthorizedComponent])
+  }, [user, loading, authChecked, allowedRoles, requiredModule, additionalAccessCheck, requireAuth, redirectTo, forbiddenRedirectTo, hasRole, hasModule, router, unauthorizedComponent])
 
   if (loading || !authChecked) {
     return loadingComponent || (
@@ -72,7 +75,7 @@ export default function ProtectedRoute({
     return unauthorizedComponent ? <>{unauthorizedComponent}</> : null
   }
 
-  if (requiredModule && !hasModule(requiredModule)) {
+  if (requiredModule && !hasModule(requiredModule) && !additionalAccessCheck) {
     return unauthorizedComponent ? <>{unauthorizedComponent}</> : null
   }
 

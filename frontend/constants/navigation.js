@@ -14,7 +14,7 @@ export const myPortalNavigation = [
   { name: 'Mis Documentos', href: '/dashboard/mis-documentos', icon: '📁', module: 'DASHBOARD' },
   { name: 'Mi Asistencia', href: '/dashboard/mi-asistencia', icon: '⏱️', module: 'ASISTENCIA' },
   { name: 'Mi Equipo', href: '/rh/empleados', icon: '👥', module: 'EMPLEADOS' },
-  { name: 'Mis Vacantes', href: '/reclutamiento/mis-solicitudes', icon: '📝', module: 'RECLUTAMIENTO' },
+  { name: 'Mis Vacantes', href: '/reclutamiento/mis-solicitudes', icon: '📝', module: 'RECLUTAMIENTO', nivelesJerarquicos: ['JEFE', 'GERENTE', 'DIRECTOR', 'PRESIDENTE'] },
   { name: 'Mis Compras', href: '/compras/mis-solicitudes', icon: '🛒', module: 'COMPRAS' },
   { name: 'Papelería', href: '/compras/papeleria', icon: '📄', module: 'COMPRAS' },
   { name: 'Mis Vacaciones', href: '/vacaciones/mis-solicitudes', icon: '🏖️', module: 'VACACIONES' },

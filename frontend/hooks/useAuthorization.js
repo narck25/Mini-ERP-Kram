@@ -35,6 +35,16 @@ export function useAuthorization() {
     return user.accessibleModules?.includes(moduleName) ?? false
   }
 
+  /**
+   * Acceso a Reclutamiento (autoservicio): por módulo, o por nivel jerárquico
+   * del puesto (JEFE/GERENTE/DIRECTOR/PRESIDENTE pueden solicitar vacantes de
+   * su equipo aunque no tengan el módulo asignado).
+   */
+  const hasRecruitmentAccess = () => {
+    if (hasModule('RECLUTAMIENTO')) return true
+    return ['JEFE', 'GERENTE', 'DIRECTOR', 'PRESIDENTE'].includes(user?.employeeNivelJerarquico)
+  }
+
   /** Helpers semánticos para operaciones de Nivel C */
   const isAdmin = () => user?.role === 'ADMIN'
   const isRH = () => ['ADMIN', 'RH'].includes(user?.role)
@@ -45,6 +55,7 @@ export function useAuthorization() {
   return {
     hasRole,
     hasModule,
+    hasRecruitmentAccess,
     isAdmin,
     isRH,
     isSistemas,
