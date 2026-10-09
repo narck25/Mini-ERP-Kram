@@ -3,59 +3,39 @@ const prisma = new PrismaClient();
 const bcrypt = require('bcryptjs');
 const { calcularTodo } = require('../utils/salaryCalculator');
 const hrAudit = require('../services/hrAudit.service');
+const employeeScope = require('../services/employeeScope.service');
 
 // Obtener todos los empleados con reglas de visibilidad basadas en jerarquía
 exports.getAllEmployees = async (req, res) => {
   try {
     const { estatus, departamento_id, search, page = '1', limit = '20' } = req.query;
     const user = req.user;
-    
+
     const pageNum = Math.max(1, parseInt(page));
     const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
     const skip = (pageNum - 1) * limitNum;
-    
+
     const where = {};
-    
-    if (user.role === 'ADMIN' || user.role === 'RH') {
-      // Sin restricciones
-    } else if (user.employeeNivelJerarquico && user.employeeId) {
-      const nivelJerarquico = user.employeeNivelJerarquico;
-      const employeeId = user.employeeId;
-      const departamentoId = user.employeeDepartamentoId;
-      
-      if (nivelJerarquico === 'PRESIDENTE' || nivelJerarquico === 'DIRECTOR' || 
-          nivelJerarquico === 'GERENTE' || nivelJerarquico === 'JEFE') {
-        if (departamentoId) {
-          where.departamento_id = departamentoId;
-        } else {
-          where.id = employeeId;
-        }
-      } else if (nivelJerarquico === 'COORDINADOR' || nivelJerarquico === 'ANALISTA' ||
-                 nivelJerarquico === 'SUPERVISOR' || nivelJerarquico === 'AUX_ADMINISTRATIVO') {
-        where.OR = [
-          { id: employeeId },
-          { reportaAId: employeeId }
-        ];
-      } else if (nivelJerarquico === 'OPERATIVO') {
-        where.id = employeeId;
-      } else {
-        where.id = employeeId;
-      }
-    } else {
-      where.id = null;
-    }
-    
+
+    // Visibilidad por cadena real de reporte (yo + todos mis subordinados,
+    // en cualquier nivel) — no por departamento, para no mezclar equipos de
+    // distintos jefes que comparten departamento.
+    const scopedIds = await employeeScope.getScopedEmployeeIds(user);
+    if (scopedIds !== null) where.id = { in: scopedIds };
+
     if (estatus) where.estatus = estatus;
     if (departamento_id) where.departamento_id = departamento_id;
-    
+
     if (search) {
-      where.OR = [
-        { nombre: { contains: search, mode: 'insensitive' } },
-        { rfc: { contains: search, mode: 'insensitive' } },
-        { curp: { contains: search, mode: 'insensitive' } },
-        { nss: { contains: search, mode: 'insensitive' } },
-        { puesto: { nombre: { contains: search, mode: 'insensitive' } } }
-      ];
+      where.AND = [{
+        OR: [
+          { nombre: { contains: search, mode: 'insensitive' } },
+          { rfc: { contains: search, mode: 'insensitive' } },
+          { curp: { contains: search, mode: 'insensitive' } },
+          { nss: { contains: search, mode: 'insensitive' } },
+          { puesto: { nombre: { contains: search, mode: 'insensitive' } } }
+        ]
+      }];
     }
 
     const [employees, totalCount] = await Promise.all([
