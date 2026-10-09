@@ -30,6 +30,7 @@ exports.getAllEmployees = async (req, res) => {
       where.AND = [{
         OR: [
           { nombre: { contains: search, mode: 'insensitive' } },
+          { clave: { contains: search, mode: 'insensitive' } },
           { rfc: { contains: search, mode: 'insensitive' } },
           { curp: { contains: search, mode: 'insensitive' } },
           { nss: { contains: search, mode: 'insensitive' } },

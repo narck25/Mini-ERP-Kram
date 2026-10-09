@@ -24,7 +24,6 @@ export default function EmployeeTable({
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ estatus: '', departamento_id: '', search: '' });
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
-  const [searchTimeout, setSearchTimeout] = useState(null);
 
   const fetchEmployees = useCallback(async (page = 1) => {
     try {
@@ -59,8 +58,15 @@ export default function EmployeeTable({
     fetchDepartments();
   }, []);
 
+  // Debounce sobre el efecto, no sobre el handler del input: así el timeout
+  // siempre dispara con el cierre (closure) más reciente de fetchEmployees
+  // (que ya trae el valor de búsqueda actual), en vez de capturar uno viejo
+  // y pisar el resultado correcto con uno de un caracter atrás.
   useEffect(() => {
-    fetchEmployees(1);
+    const timeout = setTimeout(() => {
+      fetchEmployees(1);
+    }, 300);
+    return () => clearTimeout(timeout);
   }, [fetchEmployees, refreshTrigger]);
 
   const handleFilterChange = (key, value) => {
@@ -68,14 +74,7 @@ export default function EmployeeTable({
   };
 
   const handleSearchChange = (e) => {
-    const value = e.target.value;
-    handleFilterChange('search', value);
-    // Debounce: esperar 300ms antes de buscar
-    if (searchTimeout) clearTimeout(searchTimeout);
-    const timeout = setTimeout(() => {
-      fetchEmployees(1);
-    }, 300);
-    setSearchTimeout(timeout);
+    handleFilterChange('search', e.target.value);
   };
 
   const handlePageChange = (newPage) => {
@@ -99,7 +98,7 @@ export default function EmployeeTable({
               type="text"
               value={filters.search}
               onChange={handleSearchChange}
-              placeholder="Nombre, RFC, CURP, NSS..."
+              placeholder="Nombre, No. de empleado, RFC, CURP, NSS..."
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
@@ -107,7 +106,7 @@ export default function EmployeeTable({
             <label className="block text-sm font-medium text-gray-700 mb-1">Estatus</label>
             <select
               value={filters.estatus}
-              onChange={(e) => { handleFilterChange('estatus', e.target.value); fetchEmployees(1); }}
+              onChange={(e) => handleFilterChange('estatus', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             >
               <option value="">Todos</option>
@@ -119,7 +118,7 @@ export default function EmployeeTable({
             <label className="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
             <select
               value={filters.departamento_id}
-              onChange={(e) => { handleFilterChange('departamento_id', e.target.value); fetchEmployees(1); }}
+              onChange={(e) => handleFilterChange('departamento_id', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             >
               <option value="">Todos</option>
@@ -159,6 +158,7 @@ export default function EmployeeTable({
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No. Empleado</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empleado</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Información</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Departamento</th>
@@ -175,6 +175,9 @@ export default function EmployeeTable({
                 <tbody className="bg-white divide-y divide-gray-200">
                   {employees.map((employee) => (
                     <tr key={employee.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{employee.clave || '—'}</div>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
