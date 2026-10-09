@@ -1,9 +1,9 @@
 /**
  * Configuración de navegación del ERP KRAM.
- * 
+ *
  * Centraliza los menús del sidebar para que DashboardLayout.js sea un componente
  * delgado que solo renderiza, sin lógica de negocio hardcodeada.
- * 
+ *
  * Para agregar un nuevo ítem de menú, solo modificar este archivo.
  * En el futuro, estos datos pueden venir de GET /api/modules.
  */
@@ -12,7 +12,7 @@
 export const myPortalNavigation = [
   { name: 'Mi Espacio', href: '/dashboard/mi-espacio', icon: '🌟', module: 'DASHBOARD' },
   { name: 'Mis Documentos', href: '/dashboard/mis-documentos', icon: '📁', module: 'DASHBOARD' },
-  { name: 'Mi Asistencia', href: '/dashboard/mi-asistencia', icon: '⏱️', module: 'DASHBOARD' },
+  { name: 'Mi Asistencia', href: '/dashboard/mi-asistencia', icon: '⏱️', module: 'ASISTENCIA' },
   { name: 'Mi Equipo', href: '/rh/empleados', icon: '👥', module: 'EMPLEADOS' },
   { name: 'Mis Vacantes', href: '/reclutamiento/mis-solicitudes', icon: '📝', module: 'RECLUTAMIENTO' },
   { name: 'Mis Compras', href: '/compras/mis-solicitudes', icon: '🛒', module: 'COMPRAS' },

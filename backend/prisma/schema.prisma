@@ -430,6 +430,7 @@ enum ModuleType {
   COMPRAS
   DISCIPLINA
   TICKETS
+  ASISTENCIA
 }
 
 enum StationeryStatus {

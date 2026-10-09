@@ -19,11 +19,12 @@ router.post(
 /**
  * @route   GET /my
  * @desc    Get the authenticated user's own attendance records by date range
- * @access  Protected (cualquier usuario autenticado, sin necesitar el módulo INCIDENCIAS)
+ * @access  Protected (Module: ASISTENCIA — activable/desactivable por empleado desde Gestión de Accesos)
  */
 router.get(
   '/my',
   AuthMiddleware.verifyToken,
+  AuthMiddleware.requireModule('ASISTENCIA'),
   AttendanceController.getMyRecords
 );
 

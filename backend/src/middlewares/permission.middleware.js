@@ -3,7 +3,7 @@ const SSEMiddleware = require('./sse.middleware');
 
 /**
  * Middleware para control de acceso (Nivel A y Nivel C).
- * 
+ *
  * Responsabilidades:
  * - requireModule: Verifica acceso a módulos (Nivel A). ADMIN/RH bypass automático.
  * - requireRole: Verifica rol del usuario (Nivel C: operaciones críticas).
@@ -17,7 +17,7 @@ class PermissionMiddleware {
   static requireRole(allowedRoles) {
     return (req, res, next) => {
       if (!req.user) {
-        return res.status(401).json({ 
+        return res.status(401).json({
           error: 'Authentication required',
           message: 'Debe iniciar sesión para acceder a este recurso'
         });
@@ -31,11 +31,11 @@ class PermissionMiddleware {
           'COMPRAS': 'Jefe de Compras',
           'PRODUCCION': 'Jefe de Producción'
         };
-        
+
         const userRoleName = roleNames[req.user.role] || req.user.role;
         const requiredRolesNames = allowedRoles.map(role => roleNames[role] || role).join(', ');
-        
-        return res.status(403).json({ 
+
+        return res.status(403).json({
           error: 'Acceso denegado',
           message: `Su rol (${userRoleName}) no tiene permisos para acceder a esta función.`,
           details: `Roles permitidos: ${requiredRolesNames}`,
@@ -103,11 +103,12 @@ class PermissionMiddleware {
           'REPORTES': 'Reportes',
           'DASHBOARD': 'Dashboard',
           'COMPRAS': 'Compras',
-          'DISCIPLINA': 'Disciplina'
+          'DISCIPLINA': 'Disciplina',
+          'ASISTENCIA': 'Mi Asistencia'
         };
 
         const moduleDisplayName = moduleNames[moduleName] || moduleName;
-        
+
         return SSEMiddleware._sendSSEAwareError(req, res, 403, 'error', {
           error: 'Acceso denegado',
           message: `No tiene acceso al módulo de ${moduleDisplayName}.`,

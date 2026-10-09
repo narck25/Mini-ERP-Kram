@@ -66,6 +66,12 @@ const MODULES_CONFIG = {
     label: 'Tickets TI',
     description: 'Reportes de problemas, solicitudes de informes y cualquier solicitud al área de Sistemas',
     enabled: true
+  },
+  ASISTENCIA: {
+    key: 'ASISTENCIA',
+    label: 'Mi Asistencia',
+    description: 'Ver el propio historial de entradas y salidas',
+    enabled: true
   }
 };
 

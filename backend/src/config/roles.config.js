@@ -21,7 +21,8 @@ const ROLES_PRESETS = {
     'VACACIONES',
     'REPORTES',
     'DISCIPLINA',
-    'TICKETS'
+    'TICKETS',
+    'ASISTENCIA'
   ],
   RH: [
     'DASHBOARD',
@@ -31,32 +32,37 @@ const ROLES_PRESETS = {
     'VACACIONES',
     'REPORTES',
     'DISCIPLINA',
-    'TICKETS'
+    'TICKETS',
+    'ASISTENCIA'
   ],
   SISTEMAS: [
     'DASHBOARD',
     'CONFIGURACION',
     'RECLUTAMIENTO',
     'VACACIONES',
-    'TICKETS'
+    'TICKETS',
+    'ASISTENCIA'
   ],
   COMPRAS: [
     'DASHBOARD',
     'COMPRAS',
     'RECLUTAMIENTO',
     'VACACIONES',
-    'TICKETS'
+    'TICKETS',
+    'ASISTENCIA'
   ],
   PRODUCCION: [
     'DASHBOARD',
     'RECLUTAMIENTO',
     'VACACIONES',
-    'TICKETS'
+    'TICKETS',
+    'ASISTENCIA'
   ],
   EMPLEADO_BASICO: [
     'DASHBOARD',
     'VACACIONES',
-    'TICKETS'
+    'TICKETS',
+    'ASISTENCIA'
   ]
 };
 
