@@ -440,6 +440,23 @@ exports.updateActivity = async (req, res) => {
     const { activityId } = req.params;
     const { isCompleted } = req.body;
 
+    const existing = await prisma.jobActivity.findUnique({
+      where: { id: activityId },
+      include: { vacancy: { select: { solicitanteId: true } } }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Actividad no encontrada' });
+    }
+
+    // Verificar permisos: ADMIN y RH pueden editar cualquier actividad; el resto solo las de su propia vacante.
+    if (req.user.role !== 'ADMIN' && req.user.role !== 'RH') {
+      const employee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
+      if (!employee || existing.vacancy.solicitanteId !== employee.id) {
+        return res.status(403).json({ error: 'Solo el solicitante de la vacante puede actualizar sus actividades' });
+      }
+    }
+
     const activity = await prisma.jobActivity.update({
       where: { id: activityId },
       data: {

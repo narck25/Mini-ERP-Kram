@@ -73,7 +73,7 @@ export default function DashboardLayout({ children }) {
   const filteredMyPortal = myPortalNavigation.filter(item => {
     if (item.module === 'DASHBOARD') return true
     if (user?.accessibleModules?.includes(item.module)) return true
-    if (item.nivelesJerarquicos?.includes(user?.employeeNivelJerarquico)) return true
+    if (item.requiresDirectReports && user?.employeeTieneReportes) return true
     return false
   })
 

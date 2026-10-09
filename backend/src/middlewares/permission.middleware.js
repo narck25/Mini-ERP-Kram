@@ -1,5 +1,8 @@
+const { PrismaClient } = require('@prisma/client');
 const AuthUtils = require('../utils/auth.utils');
 const SSEMiddleware = require('./sse.middleware');
+
+const prisma = new PrismaClient();
 
 /**
  * Middleware para control de acceso (Nivel A y Nivel C).
@@ -123,15 +126,17 @@ class PermissionMiddleware {
   }
 
   /**
-   * Middleware híbrido: pasa si el usuario tiene el módulo (Nivel A) O si su
-   * nivel jerárquico (puesto) está en la lista permitida — independientemente
-   * de si tiene el módulo asignado. Útil para capacidades que dependen del
-   * puesto (jefe/gerente) y no de un módulo manualmente otorgado.
+   * Middleware híbrido: pasa si el usuario tiene el módulo (Nivel A) O si
+   * tiene al menos un reporte directo (Employee.reportaAId) — independientemente
+   * de si tiene el módulo asignado. Útil para capacidades que dependen de ser
+   * jefe directo de alguien, sin importar el nivel jerárquico nominal del
+   * puesto (un COORDINADOR o SUPERVISOR con gente a cargo cuenta igual que un
+   * JEFE o GERENTE) — mismo criterio que employeeScope.service.js usa para
+   * visibilidad, aplicado aquí como gate de acceso.
    * @param {string} moduleName
-   * @param {string[]} nivelesPermitidos - valores de Employee.nivelJerarquico
    */
-  static requireModuleOrNivel(moduleName, nivelesPermitidos) {
-    return (req, res, next) => {
+  static requireModuleOrHasDirectReports(moduleName) {
+    return async (req, res, next) => {
       if (!req.user) {
         return SSEMiddleware._sendSSEAwareError(req, res, 401, 'error', {
           error: 'Authentication required',
@@ -143,11 +148,15 @@ class PermissionMiddleware {
         return next();
       }
 
-      const tieneModulo = req.user.accessibleModules && req.user.accessibleModules.includes(moduleName);
-      const tieneNivel = nivelesPermitidos.includes(req.user.employeeNivelJerarquico);
-
-      if (tieneModulo || tieneNivel) {
+      if (req.user.accessibleModules && req.user.accessibleModules.includes(moduleName)) {
         return next();
+      }
+
+      if (req.user.employeeId) {
+        const reportesDirectos = await prisma.employee.count({ where: { reportaAId: req.user.employeeId } });
+        if (reportesDirectos > 0) {
+          return next();
+        }
       }
 
       return SSEMiddleware._sendSSEAwareError(req, res, 403, 'error', {

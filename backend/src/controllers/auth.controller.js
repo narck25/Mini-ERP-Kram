@@ -29,7 +29,7 @@ class AuthController {
           accessibleModules: true,
           password: true,
           createdAt: true,
-          employee: { select: { nivelJerarquico: true } }
+          employee: { select: { id: true, nivelJerarquico: true } }
         }
       });
 
@@ -55,9 +55,13 @@ class AuthController {
 
       await createSession(user.id, token);
 
+      const tieneReportes = user.employee
+        ? (await prisma.employee.count({ where: { reportaAId: user.employee.id } })) > 0
+        : false;
+
       res.json({
         message: 'Login successful',
-        user: sanitizeUserData(user),
+        user: sanitizeUserData(user, tieneReportes),
         token
       });
     } catch (error) {
@@ -82,7 +86,7 @@ class AuthController {
           accessibleModules: true,
           createdAt: true,
           updatedAt: true,
-          employee: { select: { nivelJerarquico: true } }
+          employee: { select: { id: true, nivelJerarquico: true } }
         }
       });
 
@@ -90,10 +94,15 @@ class AuthController {
         return res.status(404).json({ error: 'User not found' });
       }
 
+      const tieneReportes = user.employee
+        ? (await prisma.employee.count({ where: { reportaAId: user.employee.id } })) > 0
+        : false;
+
       res.json({
         user: {
           ...user,
           employeeNivelJerarquico: user.employee?.nivelJerarquico || null,
+          employeeTieneReportes: tieneReportes,
           employee: undefined
         }
       });

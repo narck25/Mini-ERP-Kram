@@ -7,20 +7,21 @@ const { upload, uploadCV, uploadPsychTest, uploadCandidate, ensureUploadDirs, ha
 // Aplicar autenticación a todas las rutas
 router.use(authMiddleware.verifyToken);
 
-// Jefe de área, Gerente, Director o Presidente: pueden solicitar/gestionar sus
-// propias vacantes aunque no tengan el módulo RECLUTAMIENTO asignado — el puesto
-// (nivelJerarquico) y el rol del sistema (accessibleModules) son ejes independientes.
-const NIVELES_SOLICITANTE = ['JEFE', 'GERENTE', 'DIRECTOR', 'PRESIDENTE'];
+// Cualquier jefe directo (tiene al menos un reporte en Employee.reportaAId)
+// puede solicitar/gestionar sus propias vacantes aunque no tenga el módulo
+// RECLUTAMIENTO asignado — el puesto y el rol del sistema (accessibleModules)
+// son ejes independientes, y usar "¿tiene gente a cargo?" en vez de una lista
+// fija de niveles cubre a cualquier COORDINADOR/SUPERVISOR con equipo real.
 
 // Datos para formulario de solicitud de vacante (departamentos + puestos)
 router.get('/vacancies/form-data',
-  authMiddleware.requireModuleOrNivel('RECLUTAMIENTO', NIVELES_SOLICITANTE),
+  authMiddleware.requireModuleOrHasDirectReports('RECLUTAMIENTO'),
   recruitmentController.getVacancyFormData
 );
 
 // Alias cortos para crear vacante (el frontend llama a /api/vacancies/*)
 router.post('/vacancies',
-  authMiddleware.requireModuleOrNivel('RECLUTAMIENTO', NIVELES_SOLICITANTE),
+  authMiddleware.requireModuleOrHasDirectReports('RECLUTAMIENTO'),
   recruitmentController.createVacancyRequest
 );
 router.get('/vacancies',
@@ -28,7 +29,7 @@ router.get('/vacancies',
   recruitmentController.getAllVacancyRequests
 );
 router.get('/vacancies/my',
-  authMiddleware.requireModuleOrNivel('RECLUTAMIENTO', NIVELES_SOLICITANTE),
+  authMiddleware.requireModuleOrHasDirectReports('RECLUTAMIENTO'),
   recruitmentController.getMyVacancyRequests
 );
 router.get('/vacancies/stats',
@@ -36,7 +37,7 @@ router.get('/vacancies/stats',
   recruitmentController.getVacancyRequestStats
 );
 router.get('/vacancies/:id',
-  authMiddleware.requireModuleOrNivel('RECLUTAMIENTO', NIVELES_SOLICITANTE),
+  authMiddleware.requireModuleOrHasDirectReports('RECLUTAMIENTO'),
   recruitmentController.getVacancyRequestById
 );
 
@@ -46,21 +47,21 @@ router.post('/recruitment/vacancies',
 
 
 
-  authMiddleware.requireModuleOrNivel('RECLUTAMIENTO', NIVELES_SOLICITANTE),
+  authMiddleware.requireModuleOrHasDirectReports('RECLUTAMIENTO'),
   recruitmentController.createVacancyRequest
 );
 router.get('/recruitment/my-vacancies',
-  authMiddleware.requireModuleOrNivel('RECLUTAMIENTO', NIVELES_SOLICITANTE),
+  authMiddleware.requireModuleOrHasDirectReports('RECLUTAMIENTO'),
   recruitmentController.getMyVacancyRequests
 );
 router.put('/recruitment/vacancies/:id/technical-profile',
-  authMiddleware.requireModuleOrNivel('RECLUTAMIENTO', NIVELES_SOLICITANTE),
+  authMiddleware.requireModuleOrHasDirectReports('RECLUTAMIENTO'),
   recruitmentController.updateTechnicalProfile
 );
 
 // Rutas para actividades del puesto (Flujo Estándar) - Solo jefes de área
 router.post('/recruitment/vacancies/:id/activities',
-  authMiddleware.requireModuleOrNivel('RECLUTAMIENTO', NIVELES_SOLICITANTE),
+  authMiddleware.requireModuleOrHasDirectReports('RECLUTAMIENTO'),
   recruitmentController.createJobActivities
 );
 
@@ -90,11 +91,11 @@ router.post('/recruitment/vacancies/direct',
 
 // Rutas comunes (accesibles por todos los roles autorizados)
 router.get('/recruitment/vacancies/:id',
-  authMiddleware.requireModuleOrNivel('RECLUTAMIENTO', NIVELES_SOLICITANTE),
+  authMiddleware.requireModuleOrHasDirectReports('RECLUTAMIENTO'),
   recruitmentController.getVacancyRequestById
 );
 router.post('/recruitment/vacancies/:id/comments',
-  authMiddleware.requireModuleOrNivel('RECLUTAMIENTO', NIVELES_SOLICITANTE),
+  authMiddleware.requireModuleOrHasDirectReports('RECLUTAMIENTO'),
   recruitmentController.addComment
 );
 
@@ -167,19 +168,19 @@ router.put('/recruitment/candidates/:candidate_id/documents',
 
 // Solicitante: Votar por candidatos (like/dislike) - Solo jefes de área
 router.put('/recruitment/candidates/:candidate_id/vote',
-  authMiddleware.requireModuleOrNivel('RECLUTAMIENTO', NIVELES_SOLICITANTE),
+  authMiddleware.requireModuleOrHasDirectReports('RECLUTAMIENTO'),
   recruitmentController.updateCandidateVote
 );
 
 // Solicitante: Seleccionar candidato final y cerrar vacante - Solo jefes de área
 router.put('/recruitment/candidates/:candidate_id/select',
-  authMiddleware.requireModuleOrNivel('RECLUTAMIENTO', NIVELES_SOLICITANTE),
+  authMiddleware.requireModuleOrHasDirectReports('RECLUTAMIENTO'),
   recruitmentController.selectCandidate
 );
 
 // Descargar CV de candidato - Todos los roles autorizados
 router.get('/recruitment/candidates/:candidate_id/cv',
-  authMiddleware.requireModuleOrNivel('RECLUTAMIENTO', NIVELES_SOLICITANTE),
+  authMiddleware.requireModuleOrHasDirectReports('RECLUTAMIENTO'),
   recruitmentController.downloadCandidateCV
 );
 
@@ -191,13 +192,13 @@ router.delete('/recruitment/vacancies/:id',
 
 // Actualizar actividad (marcar como completada)
 router.put('/recruitment/activities/:activityId',
-  authMiddleware.requireModuleOrNivel('RECLUTAMIENTO', NIVELES_SOLICITANTE),
+  authMiddleware.requireModuleOrHasDirectReports('RECLUTAMIENTO'),
   recruitmentController.updateActivity
 );
 
 // Cancelar vacante por el solicitante (cambia a estado Cerrada)
 router.put('/recruitment/vacancies/:id/cancel',
-  authMiddleware.requireModuleOrNivel('RECLUTAMIENTO', NIVELES_SOLICITANTE),
+  authMiddleware.requireModuleOrHasDirectReports('RECLUTAMIENTO'),
   recruitmentController.cancelVacancy
 );
 

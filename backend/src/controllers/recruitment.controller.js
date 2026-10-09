@@ -843,9 +843,17 @@ exports.updateTechnicalProfile = async (req, res) => {
       return res.status(404).json({ error: 'Solicitud de vacante no encontrada' });
     }
 
+    // Verificar permisos: ADMIN y RH pueden editar cualquier vacante; el resto solo la suya.
+    if (req.user.role !== 'ADMIN' && req.user.role !== 'RH') {
+      const employee = await prisma.employee.findUnique({ where: { userId } });
+      if (!employee || vacancy.solicitanteId !== employee.id) {
+        return res.status(403).json({ error: 'Solo el solicitante de la vacante puede definir su perfil técnico' });
+      }
+    }
+
     if (vacancy.estatus !== VACANCY_STATUS.APROBADA) {
-      return res.status(400).json({ 
-        error: 'La solicitud debe estar aprobada por RH antes de definir el perfil técnico' 
+      return res.status(400).json({
+        error: 'La solicitud debe estar aprobada por RH antes de definir el perfil técnico'
       });
     }
 

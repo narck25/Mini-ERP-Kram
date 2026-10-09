@@ -36,13 +36,14 @@ export function useAuthorization() {
   }
 
   /**
-   * Acceso a Reclutamiento (autoservicio): por módulo, o por nivel jerárquico
-   * del puesto (JEFE/GERENTE/DIRECTOR/PRESIDENTE pueden solicitar vacantes de
-   * su equipo aunque no tengan el módulo asignado).
+   * Acceso a Reclutamiento (autoservicio): por módulo, o por tener al menos
+   * un reporte directo (puede solicitar vacantes de su equipo aunque no
+   * tenga el módulo asignado) — cualquier nivel jerárquico cuenta, no solo
+   * JEFE+, para cubrir también a un COORDINADOR/SUPERVISOR con gente a cargo.
    */
   const hasRecruitmentAccess = () => {
     if (hasModule('RECLUTAMIENTO')) return true
-    return ['JEFE', 'GERENTE', 'DIRECTOR', 'PRESIDENTE'].includes(user?.employeeNivelJerarquico)
+    return user?.employeeTieneReportes === true
   }
 
   /** Helpers semánticos para operaciones de Nivel C */

@@ -17,9 +17,10 @@ const AuthUtils = require('../../utils/auth.utils');
  * accessibleModules para la respuesta al frontend.
  *
  * @param {Object} user - Objeto user de Prisma
+ * @param {boolean} [tieneReportes] - Si el empleado tiene al menos un reporte directo
  * @returns {Object} UserData sin campos sensibles
  */
-const sanitizeUserData = (user) => ({
+const sanitizeUserData = (user, tieneReportes = false) => ({
   id: user.id,
   email: user.email,
   name: user.name,
@@ -27,6 +28,7 @@ const sanitizeUserData = (user) => ({
   isActive: user.isActive,
   accessibleModules: user.accessibleModules || ['DASHBOARD'],
   employeeNivelJerarquico: user.employee?.nivelJerarquico || null,
+  employeeTieneReportes: tieneReportes,
   createdAt: user.createdAt,
 });
 

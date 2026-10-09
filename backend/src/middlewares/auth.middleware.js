@@ -113,8 +113,8 @@ class AuthMiddleware {
     return PermissionMiddleware.requireModule(...args);
   }
 
-  static requireModuleOrNivel(...args) {
-    return PermissionMiddleware.requireModuleOrNivel(...args);
+  static requireModuleOrHasDirectReports(...args) {
+    return PermissionMiddleware.requireModuleOrHasDirectReports(...args);
   }
 
   static verifyTokenFromQuery(...args) {
