@@ -132,7 +132,7 @@ export default function MiTicketDetallePage() {
           )}
         </div>
 
-        <TicketComments ticketId={id} />
+        <TicketComments ticketId={id} onAttachmentAdded={fetchTicket} />
       </div>
     </DashboardLayout>
   );

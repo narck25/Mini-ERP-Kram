@@ -6,22 +6,20 @@ import api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { useProtectedFileUrl } from '@/hooks/useProtectedFileUrl';
 
-// Comentarios estilo blog (sin tiempo real) a propósito: en una solicitud de
-// compra lo normal es comentar y que la otra parte responda más tarde, no
-// ambos viendo la pantalla a la vez — no amerita la complejidad de SSE
-// (ver TicketComments.js, con el mismo criterio para Tickets de TI).
-function CommentAvatar({ fotoUrl, userName, initials, isOwnMessage }) {
+// Estilo bitácora (sin burbujas de chat) a propósito: ya no es tiempo real
+// (se quitó el SSE), así que el aspecto de chat ya no calzaba — mismo
+// criterio aplicado en TicketComments.js, para que ambos módulos se vean
+// parejos.
+function CommentAvatar({ fotoUrl, userName, initials }) {
   const { blobUrl } = useProtectedFileUrl(fotoUrl);
   if (fotoUrl && blobUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- blob: URL, next/image no la optimiza
-      <img src={blobUrl} alt={userName} width={40} height={40} className="w-10 h-10 rounded-full object-cover" />
+      <img src={blobUrl} alt={userName} width={36} height={36} className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
     );
   }
   return (
-    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white ${
-      isOwnMessage ? 'bg-blue-600' : 'bg-gray-500'
-    }`}>
+    <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white bg-gray-500 flex-shrink-0">
       {initials}
     </div>
   );
@@ -35,9 +33,6 @@ export default function PurchaseComments({ requestId }) {
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // ───────────────────────────────────────────────────────────
-  // 1. Carga inicial de comentarios (GET /purchases/:id/comments)
-  // ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (requestId) {
       fetchComments();
@@ -45,9 +40,6 @@ export default function PurchaseComments({ requestId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId]);
 
-  // ───────────────────────────────────────────────────────────
-  // 2. Scroll automático al último comentario
-  // ───────────────────────────────────────────────────────────
   useEffect(() => {
     scrollToBottom();
   }, [comments]);
@@ -56,9 +48,6 @@ export default function PurchaseComments({ requestId }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // ───────────────────────────────────────────────────────────
-  // 3. Carga inicial de comentarios (GET)
-  // ───────────────────────────────────────────────────────────
   const fetchComments = async () => {
     try {
       setLoading(true);
@@ -71,9 +60,6 @@ export default function PurchaseComments({ requestId }) {
     }
   };
 
-  // ───────────────────────────────────────────────────────────
-  // 4. Envío de nuevo comentario (POST)
-  // ───────────────────────────────────────────────────────────
   const handleSendMessage = async (e) => {
     e.preventDefault();
 
@@ -100,9 +86,6 @@ export default function PurchaseComments({ requestId }) {
     }
   };
 
-  // ───────────────────────────────────────────────────────────
-  // 5. Helpers de UI
-  // ───────────────────────────────────────────────────────────
   const formatDateTime = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -120,12 +103,8 @@ export default function PurchaseComments({ requestId }) {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  // ───────────────────────────────────────────────────────────
-  // 6. Render
-  // ───────────────────────────────────────────────────────────
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-      {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
         <div className="flex items-center gap-3">
           <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,17 +119,16 @@ export default function PurchaseComments({ requestId }) {
         </div>
       </div>
 
-      {/* Lista de mensajes */}
-      <div className="h-80 overflow-y-auto p-6 space-y-4 bg-gray-50">
+      <div className="max-h-96 overflow-y-auto">
         {loading ? (
-          <div className="flex items-center justify-center h-full">
+          <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               <p className="mt-2 text-sm text-gray-500">Cargando comentarios...</p>
             </div>
           </div>
         ) : comments.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
+          <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <svg className="w-12 h-12 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -161,38 +139,21 @@ export default function PurchaseComments({ requestId }) {
           </div>
         ) : (
           comments.map((comment) => {
-            const isOwnMessage = comment.user?.id === user?.id;
             const userName = comment.user?.employee?.nombre || comment.user?.name || 'Usuario';
-
             return (
-              <div
-                key={comment.id}
-                className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className={`flex gap-3 max-w-[80%] ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
-                  {/* Avatar */}
-                  <div className="flex-shrink-0">
-                    <CommentAvatar
-                      fotoUrl={comment.user?.employee?.fotoUrl}
-                      userName={userName}
-                      initials={getInitials(userName)}
-                      isOwnMessage={isOwnMessage}
-                    />
-                  </div>
-
-                  {/* Burbuja de mensaje */}
-                  <div>
-                    <div className={`rounded-2xl px-4 py-3 ${
-                      isOwnMessage
-                        ? 'bg-blue-600 text-white rounded-br-md'
-                        : 'bg-white border border-gray-200 text-gray-900 rounded-bl-md shadow-sm'
-                    }`}>
-                      <p className="text-sm whitespace-pre-wrap">{comment.mensaje}</p>
-                    </div>
-                    <div className={`flex items-center gap-2 mt-1 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
-                      <span className="text-xs text-gray-500">{userName}</span>
+              <div key={comment.id} className="px-6 py-4 border-b border-gray-100 last:border-0">
+                <div className="flex items-start gap-3">
+                  <CommentAvatar
+                    fotoUrl={comment.user?.employee?.fotoUrl}
+                    userName={userName}
+                    initials={getInitials(userName)}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-gray-900">{userName}</span>
                       <span className="text-xs text-gray-400">{formatDateTime(comment.createdAt)}</span>
                     </div>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap mt-0.5">{comment.mensaje}</p>
                   </div>
                 </div>
               </div>
@@ -202,7 +163,6 @@ export default function PurchaseComments({ requestId }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input para nuevo mensaje */}
       <form onSubmit={handleSendMessage} className="border-t border-gray-200 p-4 bg-white">
         <div className="flex gap-3">
           <input

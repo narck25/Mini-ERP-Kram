@@ -188,7 +188,7 @@ function TicketTIDetalleContent() {
           </div>
         </div>
 
-        <TicketComments ticketId={id} />
+        <TicketComments ticketId={id} onAttachmentAdded={fetchTicket} />
       </div>
     </DashboardLayout>
   );
