@@ -588,6 +588,73 @@ exports.closeVacancyRequest = async (req, res) => {
   }
 };
 
+// RH envía un recordatorio puntual al solicitante (vacante sigue abierta, faltan datos, etc.)
+exports.sendReminder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { mensaje } = req.body;
+
+    if (!mensaje || !mensaje.trim()) {
+      return res.status(400).json({ error: 'El mensaje no puede estar vacío' });
+    }
+
+    const vacancy = await prisma.jobVacancy.findUnique({
+      where: { id },
+      include: {
+        solicitante: {
+          include: {
+            user: { select: { id: true, email: true, name: true } }
+          }
+        }
+      }
+    });
+
+    if (!vacancy) {
+      return res.status(404).json({ error: 'Solicitud de vacante no encontrada' });
+    }
+
+    const solicitanteUserId = vacancy.solicitante?.user?.id;
+    const solicitanteEmail = vacancy.solicitante?.user?.email;
+    const solicitanteNombre = vacancy.solicitante?.user?.name || 'Solicitante';
+
+    if (!solicitanteUserId) {
+      return res.status(400).json({ error: 'El solicitante no tiene una cuenta para notificar' });
+    }
+
+    const mensajeLimpio = mensaje.trim();
+    const linkPath = `/reclutamiento/vacantes/${id}`;
+
+    try {
+      if (solicitanteEmail) {
+        await emailService.sendVacancyReminder(solicitanteEmail, solicitanteNombre, vacancy, mensajeLimpio, linkPath);
+      }
+      await notificationCenter.notify({
+        userId: solicitanteUserId,
+        tipo: 'VACANTE_RECORDATORIO',
+        titulo: 'Recordatorio de RH sobre tu vacante',
+        mensaje: mensajeLimpio,
+        link: linkPath
+      }).catch(() => {});
+    } catch (notifErr) {
+      console.warn('No se pudo enviar el recordatorio de la vacante:', notifErr.message);
+    }
+
+    // Crear comentario automático con el mensaje enviado, para que quede en el historial
+    await prisma.vacancyComment.create({
+      data: {
+        vacancy_id: id,
+        user_id: req.user.id,
+        mensaje: `📢 RH envió un recordatorio: "${mensajeLimpio}"`
+      }
+    });
+
+    res.json({ message: 'Recordatorio enviado exitosamente' });
+  } catch (error) {
+    console.error('Error sending vacancy reminder:', error);
+    res.status(500).json({ error: 'Error al enviar el recordatorio' });
+  }
+};
+
 // Función auxiliar para eliminar archivos del disco
 const deleteFileFromDisk = (filePath) => {
   if (!filePath) return;

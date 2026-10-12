@@ -74,9 +74,13 @@ router.put('/recruitment/vacancies/:id/approve',
   authMiddleware.requireRHOrAdmin(), 
   recruitmentController.approveVacancyRequest
 );
-router.put('/recruitment/vacancies/:id/close', 
-  authMiddleware.requireRHOrAdmin(), 
+router.put('/recruitment/vacancies/:id/close',
+  authMiddleware.requireRHOrAdmin(),
   recruitmentController.closeVacancyRequest
+);
+router.put('/recruitment/vacancies/:id/remind',
+  authMiddleware.requireRHOrAdmin(),
+  recruitmentController.sendReminder
 );
 router.get('/recruitment/vacancies/stats', 
   authMiddleware.requireModule('RECLUTAMIENTO'), 

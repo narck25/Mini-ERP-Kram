@@ -424,6 +424,25 @@ exports.sendVacancyCommentAdded = async (email, destinatarioNombre, vacancy, lin
 };
 
 /**
+ * Recordatorio puntual que RH le manda al solicitante sobre una vacante
+ * (sigue abierta sin avance, falta el perfil técnico, etc.).
+ */
+exports.sendVacancyReminder = async (email, nombreSolicitante, vacancy, mensaje, linkPath) => {
+  const title = `⏰ Recordatorio de RH: ${vacancy.titulo || 'tu vacante'}`;
+  const content = `
+    <p>Hola <strong>${nombreSolicitante}</strong>,</p>
+    <p>RH te dejó un recordatorio sobre tu vacante <strong>${vacancy.titulo || ''}</strong>:</p>
+    <div class="info-box">
+      ${mensaje}
+    </div>
+    <center>
+      <a href="${FRONTEND_URL}${linkPath}" class="button">Ver vacante</a>
+    </center>
+  `;
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
+/**
  * Enviar felicitación de cumpleaños al empleado
  */
 exports.sendBirthdayWish = async (email, employeeName) => {

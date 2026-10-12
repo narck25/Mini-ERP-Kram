@@ -19,6 +19,38 @@ function VacancyDetailPageContent() {
   const [newComment, setNewComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
   const [activeTab, setActiveTab] = useState('info');
+  const [showReminderModal, setShowReminderModal] = useState(false);
+  const [reminderMensaje, setReminderMensaje] = useState('');
+  const [sendingReminder, setSendingReminder] = useState(false);
+
+  const REMINDER_CHIPS = [
+    'Sigue abierta sin avance.',
+    'Falta definir el perfil técnico.',
+    'Faltan actividades del puesto.'
+  ];
+
+  const addReminderChip = (texto) => {
+    setReminderMensaje((prev) => (prev.trim() ? `${prev.trim()} ${texto}` : texto));
+  };
+
+  const handleSendReminder = async (e) => {
+    e.preventDefault();
+    if (!reminderMensaje.trim()) return;
+
+    try {
+      setSendingReminder(true);
+      await api.put(`/recruitment/vacancies/${id}/remind`, { mensaje: reminderMensaje.trim() });
+      toast.success('Recordatorio enviado');
+      setShowReminderModal(false);
+      setReminderMensaje('');
+      fetchVacancy();
+    } catch (error) {
+      console.error('Error sending reminder:', error);
+      toast.error(error.response?.data?.error || 'Error al enviar el recordatorio');
+    } finally {
+      setSendingReminder(false);
+    }
+  };
 
   useEffect(() => {
     if (user && id) {
@@ -197,7 +229,12 @@ function VacancyDetailPageContent() {
   };
 
   const canClose = () => {
-    return user && (user.role === 'RH' || user.role === 'ADMIN') && 
+    return user && (user.role === 'RH' || user.role === 'ADMIN') &&
+           vacancy?.estatus !== 'Cerrada';
+  };
+
+  const canRemind = () => {
+    return user && (user.role === 'RH' || user.role === 'ADMIN') &&
            vacancy?.estatus !== 'Cerrada';
   };
 
@@ -301,7 +338,16 @@ function VacancyDetailPageContent() {
                   Cerrar Solicitud
                 </button>
               )}
-              
+
+              {canRemind() && (
+                <button
+                  onClick={() => setShowReminderModal(true)}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-md font-medium text-sm"
+                >
+                  📢 Enviar Recordatorio
+                </button>
+              )}
+
               {canDefineTechnicalProfile() && (
                 <Link
                   href={`/reclutamiento/vacantes/${id}/perfil-tecnico`}
@@ -672,13 +718,76 @@ function VacancyDetailPageContent() {
         )}
 
         {activeTab === 'candidates' && (
-          <CandidatesTab 
-            vacancy={vacancy} 
-            user={user} 
+          <CandidatesTab
+            vacancy={vacancy}
+            user={user}
             onRefresh={fetchVacancy}
           />
         )}
       </div>
+
+      {/* Modal de recordatorio */}
+      {showReminderModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="flex justify-between items-center px-6 py-4 border-b">
+              <h2 className="text-lg font-semibold text-gray-900">Enviar Recordatorio</h2>
+              <button
+                onClick={() => setShowReminderModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+            <form onSubmit={handleSendReminder}>
+              <div className="px-6 py-4 space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  {REMINDER_CHIPS.map((chip) => (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => addReminderChip(chip)}
+                      className="px-3 py-1 text-xs border border-gray-300 rounded-full text-gray-700 hover:bg-gray-50"
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mensaje *</label>
+                  <textarea
+                    value={reminderMensaje}
+                    onChange={(e) => setReminderMensaje(e.target.value)}
+                    rows={4}
+                    placeholder="Escribe el recordatorio para el solicitante..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <p className="text-xs text-gray-500">
+                  Se le avisará al solicitante por correo y en la campanita de notificaciones, y quedará registrado en el historial de comentarios.
+                </p>
+              </div>
+              <div className="flex justify-end gap-3 px-6 py-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => setShowReminderModal(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={sendingReminder || !reminderMensaje.trim()}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-md text-sm font-medium disabled:opacity-50"
+                >
+                  {sendingReminder ? 'Enviando...' : 'Enviar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }
