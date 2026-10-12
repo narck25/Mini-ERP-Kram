@@ -391,7 +391,7 @@ exports.sendCandidateVoted = async (email, nombreRH, vacancy, candidateName, vot
   const content = `
     <p>Hola <strong>${nombreRH}</strong>,</p>
     <p>El solicitante ha emitido su voto para el candidato <strong>${candidateName}</strong>:</p>
-    
+
     <div class="info-box">
       <strong>Vacante:</strong> ${vacancy.titulo}<br>
       <strong>Candidato:</strong> ${candidateName}<br>
@@ -405,6 +405,21 @@ exports.sendCandidateVoted = async (email, nombreRH, vacancy, candidateName, vot
     </center>
   `;
 
+  return sendEmail(email, title, emailLayout(title, content));
+};
+
+/**
+ * Notificar que hay un comentario nuevo en una solicitud de vacante.
+ */
+exports.sendVacancyCommentAdded = async (email, destinatarioNombre, vacancy, linkPath) => {
+  const title = `💬 Nuevo comentario en la vacante: ${vacancy.titulo || ''}`;
+  const content = `
+    <p>Hola <strong>${destinatarioNombre}</strong>,</p>
+    <p>Hay un comentario nuevo en la vacante <strong>${vacancy.titulo || ''}</strong>.</p>
+    <center>
+      <a href="${FRONTEND_URL}${linkPath}" class="button">Ver conversación</a>
+    </center>
+  `;
   return sendEmail(email, title, emailLayout(title, content));
 };
 

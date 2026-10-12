@@ -4,6 +4,7 @@ const prisma = new PrismaClient();
 // Servicio de notificaciones por email
 const emailService = require('../services/email.service');
 const notificationCenter = require('../services/notification-center.service');
+const recruitmentCommentNotification = require('../services/recruitment-comment-notification.service');
 
 // Función auxiliar para construir URLs correctamente
 const buildFileUrl = (req, filePath) => {
@@ -1070,6 +1071,12 @@ exports.addComment = async (req, res) => {
         }
       }
     });
+
+    try {
+      await recruitmentCommentNotification.notifyNewComment(id, userId);
+    } catch (notifErr) {
+      console.warn('No se pudo notificar el comentario nuevo de la vacante:', notifErr.message);
+    }
 
     res.status(201).json({
       message: 'Comentario agregado exitosamente',
