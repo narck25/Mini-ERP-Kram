@@ -6,19 +6,36 @@
  */
 
 /**
- * LÓGICA CRÍTICA DE FECHAS: El CSV viene con el header "Tiempo" y valores como "25/02/2026 08:26:17 a. m."
- * Usa esta lógica exacta para convertirlo antes de guardarlo en Prisma.
- * Si el formato no coincide, regresa la fecha/hora actual (comportamiento existente, sin cambios).
+ * LÓGICA CRÍTICA DE FECHAS: el CSV trae el header "Tiempo" en uno de dos formatos
+ * según la fuente —
+ *   - Export manual de ZKTime.Net Lite: "25/02/2026 08:26:17 a. m." (con segundos y AM/PM en español)
+ *   - bot_asistencias_zk/descargar_asistencias.py: "05/10/2026 08:47" (24h, sin segundos, sin AM/PM)
+ * Si ninguno de los dos coincide, regresa null — nunca debe inventar una fecha
+ * (antes regresaba `new Date()` en silencio, lo que corrompía el timestamp de
+ * TODOS los registros de un CSV con formato no reconocido sin que nadie se
+ * diera cuenta, ya que el mensaje de "CSV procesado" seguía saliendo exitoso).
  */
 function parseZKTecoDate(dateStr) {
-  // Espera formato: "25/02/2026 08:26:17 a. m." o "p. m."
-  const parts = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2}):(\d{2}) (a\. m\.|p\. m\.)/);
-  if (!parts) return new Date();
-  let [_, day, month, year, hours, minutes, seconds, ampm] = parts;
-  hours = parseInt(hours);
-  if (ampm === 'p. m.' && hours < 12) hours += 12;
-  if (ampm === 'a. m.' && hours === 12) hours = 0;
-  return new Date(`${year}-${month}-${day}T${hours.toString().padStart(2, '0')}:${minutes}:${seconds}`);
+  if (!dateStr) return null;
+
+  // Formato ZKTime.Net: con segundos y "a. m."/"p. m."
+  const conAmPm = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2}):(\d{2}) (a\. m\.|p\. m\.)/);
+  if (conAmPm) {
+    let [, day, month, year, hours, minutes, seconds, ampm] = conAmPm;
+    hours = parseInt(hours);
+    if (ampm === 'p. m.' && hours < 12) hours += 12;
+    if (ampm === 'a. m.' && hours === 12) hours = 0;
+    return new Date(`${year}-${month}-${day}T${hours.toString().padStart(2, '0')}:${minutes}:${seconds}`);
+  }
+
+  // Formato del bot: 24h, sin segundos ni AM/PM
+  const formato24h = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})$/);
+  if (formato24h) {
+    const [, day, month, year, hours, minutes] = formato24h;
+    return new Date(`${year}-${month}-${day}T${hours}:${minutes}:00`);
+  }
+
+  return null;
 }
 
 /**

@@ -27,19 +27,41 @@ describe('parseZKTecoDate', () => {
     expect(result.getHours()).toBe(23);
   });
 
-  test('entrada malformada: regresa la fecha/hora actual (comportamiento existente)', () => {
-    jest.useFakeTimers().setSystemTime(new Date('2026-05-01T10:00:00'));
-    const result = parseZKTecoDate('esto no es una fecha');
-    expect(result.getTime()).toBe(new Date('2026-05-01T10:00:00').getTime());
-    jest.useRealTimers();
+  test('entrada malformada: regresa null (nunca debe inventar una fecha)', () => {
+    expect(parseZKTecoDate('esto no es una fecha')).toBeNull();
   });
 
-  test('día de un solo dígito: no coincide con el regex, regresa la fecha/hora actual', () => {
-    // Caracteriza el comportamiento actual (el regex exige \d{2}) — no es una corrección aquí.
-    jest.useFakeTimers().setSystemTime(new Date('2026-05-01T10:00:00'));
-    const result = parseZKTecoDate('5/02/2026 08:26:17 a. m.');
-    expect(result.getTime()).toBe(new Date('2026-05-01T10:00:00').getTime());
-    jest.useRealTimers();
+  test('día de un solo dígito: no coincide con ningún formato reconocido, regresa null', () => {
+    expect(parseZKTecoDate('5/02/2026 08:26:17 a. m.')).toBeNull();
+  });
+
+  test('vacío/undefined: regresa null', () => {
+    expect(parseZKTecoDate('')).toBeNull();
+    expect(parseZKTecoDate(undefined)).toBeNull();
+  });
+
+  describe('formato del bot (bot_asistencias_zk): 24h, sin segundos ni AM/PM', () => {
+    test('hora de la mañana', () => {
+      const result = parseZKTecoDate('05/10/2026 08:47');
+      expect(result.getFullYear()).toBe(2026);
+      expect(result.getMonth()).toBe(9); // octubre (0-indexed)
+      expect(result.getDate()).toBe(5);
+      expect(result.getHours()).toBe(8);
+      expect(result.getMinutes()).toBe(47);
+      expect(result.getSeconds()).toBe(0);
+    });
+
+    test('hora de la tarde (24h, no debe convertirse como si fuera 12h)', () => {
+      const result = parseZKTecoDate('05/10/2026 20:08');
+      expect(result.getHours()).toBe(20);
+      expect(result.getMinutes()).toBe(8);
+    });
+
+    test('medianoche', () => {
+      const result = parseZKTecoDate('01/01/2026 00:15');
+      expect(result.getHours()).toBe(0);
+      expect(result.getMinutes()).toBe(15);
+    });
   });
 });
 
