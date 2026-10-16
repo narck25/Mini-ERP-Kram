@@ -4,7 +4,9 @@ import { useState, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import DashboardLayout from '@/components/DashboardLayout';
+import AttendanceMatrixView from '@/components/AttendanceMatrixView';
 import api from '@/lib/api/client';
+import { fHoraStr, formatDate, getEstadoDescriptivo, formatDuracion } from '@/utils/attendanceHelpers';
 
 export default function IncidenciasPage() {
   const { user } = useAuth();
@@ -16,6 +18,7 @@ export default function IncidenciasPage() {
   const [uploading, setUploading] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [message, setMessage] = useState('');
+  const [vistaActual, setVistaActual] = useState('detallada');
   const fileInputRef = useRef(null);
 
   // Función para procesar la asistencia según la lógica exacta proporcionada
@@ -79,19 +82,25 @@ export default function IncidenciasPage() {
       
       // Alertas
       if (t2 && !t3) alertas.push("❓ Falta Regreso Desayuno");
-      if (dia.desayunoMin > 20) alertas.push(`⚠️ Desayuno Excedido`);
+      if (dia.desayunoMin > 20) alertas.push(`⚠️ Desayuno Excedido (${dia.desayunoMin}m)`);
       if (t4 && !t5) alertas.push("❓ Falta Regreso Comida");
-      if (dia.comidaMin > 65) alertas.push(`⚠️ Comida Excedida`);
-      if (!t1 || !t6) alertas.push("❌ Registro Incompleto");
-      else if (parseFloat(dia.totalHoras) < 6.5) alertas.push("ℹ️ Turno Corto");
-      
-      // Determinar Estado Principal para UI
+      if (dia.comidaMin > 65) alertas.push(`⚠️ Comida Excedida (${dia.comidaMin}m)`);
+      if (!t1) {
+        // Ya se alertó "Falta Entrada Mañana" arriba — no duplicar con Registro Incompleto.
+      } else if (!t6) {
+        alertas.push("❌ Registro Incompleto");
+      } else if (parseFloat(dia.totalHoras) < 6.5) {
+        alertas.push("ℹ️ Turno Corto");
+      }
+
+      // Determinar Estado Principal para UI — el ❓ (falta regreso) es solo informativo
+      // en Alertas, nunca escala el estatus por sí solo.
       if (alertas.some(a => a.includes("❌"))) dia.estatus = 'Crítico';
-      else if (alertas.some(a => a.includes("⚠️") || a.includes("❓"))) dia.estatus = 'Atención';
+      else if (alertas.some(a => a.includes("⚠️"))) dia.estatus = 'Atención';
       else if (alertas.some(a => a.includes("ℹ️"))) dia.estatus = 'Información';
       else dia.estatus = 'Normal';
-      
-      dia.alertasText = alertas.join(', ');
+
+      dia.alertasText = alertas.join('; ');
       return dia;
     });
     
@@ -139,9 +148,6 @@ export default function IncidenciasPage() {
     };
   }, [datosProcesados]);
 
-  // Función helper para formatear horas en string
-  const fHoraStr = (date) => date ? date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--';
-  
   // Función para obtener icono de estado
   const getEstadoIcon = (estatus) => {
     if (estatus === 'Crítico') return '❌';
@@ -150,21 +156,39 @@ export default function IncidenciasPage() {
     return '✅';
   };
 
-  // Función para exportar a CSV
+  // Función para exportar a CSV — mismas columnas que usa RH para procesar el reporte del checador.
   const exportToCSV = () => {
     if (datosFiltrados.length === 0) return alert('No hay datos para exportar');
-    
-    let csv = 'Num.,Nombre,Fecha,Entrada,Desayuno,Comida,Salida,Total,Estado\n';
-    
+
+    // Solo se entrecomilla un campo si lo necesita (trae coma o comilla) — igual
+    // que el reporte de referencia, que no trae comillas en ningún campo normal.
+    const csvField = (value) => {
+      const str = String(value ?? '');
+      return /[",]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    };
+
+    let csv = 'ID,Nombre,Fecha,Entrada,Desayuno_Salida,Desayuno_Entrada,Comida_Salida,Comida_Entrada,Salida,Duración_Total_Horas,Desayuno_Minutos,Comida_Minutos,Estado,Alertas\n';
+
     datosFiltrados.forEach(row => {
-      const desayunoText = `${fHoraStr(row.t2)} / ${fHoraStr(row.t3)} (${row.desayunoMin} min)`;
-      const comidaText = `${fHoraStr(row.t4)} / ${fHoraStr(row.t5)} (${row.comidaMin} min)`;
-      const estadoText = `${getEstadoIcon(row.estatus)} ${row.estatus}`;
-      
-      csv += `"${row.numeroEmpleado}","${row.nombre}","${row.fecha}","${fHoraStr(row.t1)}","${desayunoText}","${comidaText}","${fHoraStr(row.t6)}","${row.totalHoras}h","${estadoText}"\n`;
+      csv += [
+        row.numeroEmpleado,
+        row.nombre,
+        formatDate(row.fecha),
+        fHoraStr(row.t1),
+        fHoraStr(row.t2),
+        fHoraStr(row.t3),
+        fHoraStr(row.t4),
+        fHoraStr(row.t5),
+        fHoraStr(row.t6),
+        formatDuracion(row.totalHoras),
+        row.desayunoMin,
+        row.comidaMin,
+        getEstadoDescriptivo(row.estatus),
+        row.alertasText || ''
+      ].map(csvField).join(',') + '\n';
     });
-    
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.setAttribute('download', 'Reporte_Incidencias.csv');
@@ -282,12 +306,6 @@ export default function IncidenciasPage() {
       minute: '2-digit',
       hour12: false 
     });
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    const [year, month, day] = dateStr.split('-');
-    return `${day}/${month}/${year}`;
   };
 
   const getStatusColor = (estatus) => {
@@ -454,8 +472,43 @@ export default function IncidenciasPage() {
             </div>
           </div>
 
-          {/* Tabla de resultados */}
+          {/* Toggle de vista */}
           {datosFiltrados.length > 0 && (
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setVistaActual('detallada')}
+                className={`px-4 py-2 rounded-md text-sm font-medium ${
+                  vistaActual === 'detallada' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                📋 Vista Detallada
+              </button>
+              <button
+                onClick={() => setVistaActual('matriz')}
+                className={`px-4 py-2 rounded-md text-sm font-medium ${
+                  vistaActual === 'matriz' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                🗓️ Matriz Quincenal
+              </button>
+            </div>
+          )}
+
+          {/* Tabla de resultados */}
+          {datosFiltrados.length > 0 && vistaActual === 'matriz' && (
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-800">Matriz Quincenal de Asistencia</h2>
+                <p className="text-sm text-gray-600">
+                  Mostrando {datosFiltrados.length} de {datosProcesados.length} días de trabajo
+                  {searchTerm && <span className="text-blue-600"> (filtrados por &ldquo;{searchTerm}&rdquo;)</span>}
+                </p>
+              </div>
+              <AttendanceMatrixView allDatos={datosProcesados} datos={datosFiltrados} />
+            </div>
+          )}
+
+          {datosFiltrados.length > 0 && vistaActual === 'detallada' && (
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <div>
@@ -480,7 +533,7 @@ export default function IncidenciasPage() {
                   </button>
                 </div>
               </div>
-              
+
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
