@@ -28,8 +28,8 @@ export default function IncapacidadesPage() {
 
   const fetchEmployees = async () => {
     try {
-      const res = await employeeApi.getAll({ estatus: 'Activo', limit: 1000 });
-      const list = res.data?.data || res.data || [];
+      const res = await employeeApi.getAll({ estatus: 'Activo', limit: 500 });
+      const list = res.data?.employees || [];
       setEmployees(Array.isArray(list) ? list : []);
     } catch (e) { console.error(e); }
   };

@@ -18,8 +18,8 @@ export default function HistorialUniformesRH() {
   const loadEmployees = async () => {
     try {
       setLoading(true)
-      const res = await employeeApi.getAll()
-      setEmployees(res.data.data || [])
+      const res = await employeeApi.getAll({ limit: 500 })
+      setEmployees(res.data.employees || [])
     } catch (err) {
       console.error('Error al cargar empleados:', err)
     } finally {

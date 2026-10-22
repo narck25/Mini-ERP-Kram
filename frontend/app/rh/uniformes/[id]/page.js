@@ -25,7 +25,7 @@ export default function HistorialUniformesEmpleado() {
         employeeApi.getById(id),
         uniformApi.getEmployeeHistory(id)
       ])
-      setEmployee(empRes.data.data)
+      setEmployee(empRes.data.employee)
       setDeliveries(histRes.data.data || [])
     } catch (err) {
       setError('Error al cargar datos')

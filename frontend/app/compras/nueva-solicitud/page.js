@@ -42,7 +42,7 @@ function NuevaSolicitudComprasContent() {
     (async () => {
       try {
         const res = await api.get(`/purchases/details/${draftIdFromUrl}`);
-        const request = res.data.data.request;
+        const request = res.data.request;
         if (request.estatus !== 'BORRADOR') {
           toast.error('Esta solicitud ya fue enviada y no se puede editar aquí');
           router.push('/compras/mis-solicitudes');
@@ -50,7 +50,7 @@ function NuevaSolicitudComprasContent() {
         }
         setFormData({ justificacion: request.justificacion || '' });
         setItems(
-          (res.data.data.items || []).map(item => ({
+          (request.items || []).map(item => ({
             productoServicio: item.productoServicio || '',
             cantidad: item.cantidad ? String(item.cantidad) : '',
             descripcion: item.descripcion || ''
