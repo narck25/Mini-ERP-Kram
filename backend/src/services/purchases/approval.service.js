@@ -18,7 +18,7 @@ const prisma = new PrismaClient();
 exports.getPotentialApprovers = async (requestId) => {
   const request = await prisma.purchaseRequest.findUnique({
     where: { id: requestId },
-    select: { departamentoId: true, solicitanteId: true }
+    select: { departamentoId: true, solicitanteId: true, requiereAutorizacion: true }
   });
 
   if (!request) {
@@ -93,6 +93,26 @@ exports.getPotentialApprovers = async (requestId) => {
     }
   });
 
+  // Jefe directo del solicitante: solo cuando la solicitud ya supera el
+  // umbral que requiere autorización (> $50,000 MXN — mismo criterio que
+  // UMBRAL_AUTORIZACION en quote.service.js, reflejado aquí en
+  // request.requiereAutorizacion). Decisión de negocio: el jefe directo de
+  // quien solicita siempre debe poder autorizar sus compras grandes, sin
+  // importar su departamento o nivel jerárquico.
+  let jefeDirecto = null;
+  if (request.requiereAutorizacion) {
+    const solicitante = await prisma.employee.findUnique({
+      where: { id: request.solicitanteId },
+      select: { reportaAId: true }
+    });
+    if (solicitante?.reportaAId) {
+      jefeDirecto = await prisma.employee.findFirst({
+        where: { id: solicitante.reportaAId, estatus: 'Activo' },
+        select: EMPLOYEE_SELECT
+      });
+    }
+  }
+
   // Combinar y deduplicar
   const gerentesMap = new Map();
   [...directores, ...presidentes, ...gerentesFinanzas].forEach(g => gerentesMap.set(g.id, g));
@@ -101,6 +121,7 @@ exports.getPotentialApprovers = async (requestId) => {
       gerentesMap.set(u.employee.id, u.employee);
     }
   });
+  if (jefeDirecto) gerentesMap.set(jefeDirecto.id, jefeDirecto);
 
   // Separación de funciones: quien solicita la compra nunca puede aparecer
   // como su propio aprobador potencial, sin excepción (política de negocio
