@@ -4,8 +4,8 @@ const { PUESTOS_ELEGIBLES, PUESTOS, CANONICAL_BY_ALIAS } = require('../config/op
 class OperationalEvaluationController {
   static async list(req, res) {
     try {
-      const data = await OperationalEvaluationService.getAll();
-      res.json({ data });
+      const { data, pagination } = await OperationalEvaluationService.getAll(req.query);
+      res.json({ data, pagination });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }

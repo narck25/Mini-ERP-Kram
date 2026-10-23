@@ -70,19 +70,43 @@ class IncapacidadService {
   }
 
   static async list(filters = {}) {
+    const { estatus, employeeId, search, page = '1', limit = '20' } = filters;
     const where = {};
-    if (filters.estatus) where.estatus = filters.estatus;
-    if (filters.employeeId) where.employeeId = filters.employeeId;
+    if (estatus) where.estatus = estatus;
+    if (employeeId) where.employeeId = employeeId;
 
-    return prisma.incapacidad.findMany({
-      where,
-      include: {
-        empleado: { select: { id: true, nombres: true, apellidoPaterno: true, clave: true, departamento: { select: { nombre: true } } } },
-        registradoPor: { select: { id: true, name: true } },
-        documento: { select: DOCUMENTO_SELECT }
-      },
-      orderBy: { fechaInicio: 'desc' }
-    });
+    // Búsqueda por nombre de empleado (insensible a mayúsculas/acentos de caja).
+    if (search) {
+      where.empleado = {
+        OR: [
+          { nombre: { contains: search, mode: 'insensitive' } },
+          { nombres: { contains: search, mode: 'insensitive' } },
+          { apellidoPaterno: { contains: search, mode: 'insensitive' } },
+          { apellidoMaterno: { contains: search, mode: 'insensitive' } }
+        ]
+      };
+    }
+
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(1000, Math.max(1, parseInt(limit) || 20));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [data, total] = await Promise.all([
+      prisma.incapacidad.findMany({
+        where,
+        skip,
+        take: limitNum,
+        include: {
+          empleado: { select: { id: true, nombres: true, apellidoPaterno: true, clave: true, departamento: { select: { nombre: true } } } },
+          registradoPor: { select: { id: true, name: true } },
+          documento: { select: DOCUMENTO_SELECT }
+        },
+        orderBy: { fechaInicio: 'desc' }
+      }),
+      prisma.incapacidad.count({ where })
+    ]);
+
+    return { data, pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) } };
   }
 
   static async getById(id) {

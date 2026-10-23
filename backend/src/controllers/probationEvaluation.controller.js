@@ -3,8 +3,8 @@ const ProbationEvaluationService = require('../services/probationEvaluation.serv
 class ProbationEvaluationController {
   static async list(req, res) {
     try {
-      const data = await ProbationEvaluationService.getAll();
-      res.json({ data });
+      const { data, pagination } = await ProbationEvaluationService.getAll(req.query);
+      res.json({ data, pagination });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }

@@ -19,8 +19,8 @@ class VacationController {
 
   static async list(req, res) {
     try {
-      const data = await VacationService.list(req.query, req.user);
-      res.json({ data });
+      const { data, pagination } = await VacationService.list(req.query, req.user);
+      res.json({ data, pagination });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }

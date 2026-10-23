@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -53,27 +53,46 @@ export default function PeriodoPruebaPage() {
   const [evaluations, setEvaluations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('pendientes');
+  const [search, setSearch] = useState('');
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
+  const [pendientesTotal, setPendientesTotal] = useState(0);
 
-  const fetchEvaluations = async () => {
+  const fetchEvaluations = useCallback(async (page = 1) => {
     try {
       setLoading(true);
-      const res = await probationApi.listAll();
+      const params = { page, limit: 20, soloPendientes: tab === 'pendientes' };
+      if (search) params.search = search;
+      const res = await probationApi.listAll(params);
       setEvaluations(res.data?.data || []);
+      const pag = res.data?.pagination || { page: 1, limit: 20, total: 0, totalPages: 0 };
+      setPagination(pag);
+      if (tab === 'pendientes') setPendientesTotal(pag.total);
     } catch (error) {
       console.error(error);
       toast.error('Error al cargar las evaluaciones');
     } finally {
       setLoading(false);
     }
+  }, [tab, search]);
+
+  // Debounce sobre el efecto, no sobre el handler del input: así el timeout
+  // siempre dispara con el cierre (closure) más reciente de fetchEvaluations
+  // (que ya trae el valor de búsqueda/tab actual), en vez de capturar uno
+  // viejo y pisar el resultado correcto con uno de un caracter atrás.
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      fetchEvaluations(1);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [fetchEvaluations]);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      fetchEvaluations(newPage);
+    }
   };
 
-  useEffect(() => {
-    fetchEvaluations();
-  }, []);
-
-  const pendientes = evaluations.filter(e => e.resultado === 'PENDIENTE');
-  const historial = evaluations.filter(e => e.resultado !== 'PENDIENTE');
-  const visibles = tab === 'pendientes' ? pendientes : historial;
+  const visibles = evaluations;
 
   return (
     <ProtectedRoute allowedRoles={['ADMIN', 'RH']} redirectTo="/dashboard/mi-espacio">
@@ -100,7 +119,7 @@ export default function PeriodoPruebaPage() {
                 onClick={() => setTab('pendientes')}
                 className={`pb-2 px-1 text-sm font-medium border-b-2 ${tab === 'pendientes' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               >
-                Pendientes ({pendientes.length})
+                Pendientes ({pendientesTotal})
               </button>
               <button
                 onClick={() => setTab('historial')}
@@ -109,6 +128,16 @@ export default function PeriodoPruebaPage() {
                 Historial
               </button>
             </nav>
+          </div>
+
+          <div className="mb-6 flex justify-end">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nombre de empleado"
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm w-64"
+            />
           </div>
 
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -183,6 +212,60 @@ export default function PeriodoPruebaPage() {
               </div>
             )}
           </div>
+
+          {pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between bg-white px-4 py-3 sm:px-6 mt-4 rounded-lg shadow-sm border border-gray-200">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                  Anterior
+                </button>
+                <button onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page === pagination.totalPages} className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                  Siguiente
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Mostrando <span className="font-medium">{((pagination.page - 1) * pagination.limit) + 1}</span> a{' '}
+                    <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> de{' '}
+                    <span className="font-medium">{pagination.total}</span> evaluaciones
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <button onClick={() => handlePageChange(1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <span className="sr-only">Primera</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M15.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 010 1.414zm-6 0a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 1.414L5.414 10l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
+                    </button>
+                    <button onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <span className="sr-only">Anterior</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                    </button>
+                    {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                      .filter(p => p === 1 || p === pagination.totalPages || Math.abs(p - pagination.page) <= 1)
+                      .map((p, idx, arr) => (
+                        <span key={p}>
+                          {idx > 0 && arr[idx - 1] !== p - 1 && (
+                            <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>
+                          )}
+                          <button onClick={() => handlePageChange(p)} className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${p === pagination.page ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'}`}>
+                            {p}
+                          </button>
+                        </span>
+                      ))}
+                    <button onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page === pagination.totalPages} className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <span className="sr-only">Siguiente</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                    </button>
+                    <button onClick={() => handlePageChange(pagination.totalPages)} disabled={pagination.page === pagination.totalPages} className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <span className="sr-only">Última</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10.293 15.707a1 1 0 010-1.414L14.586 10l-4.293-4.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </DashboardLayout>
     </ProtectedRoute>

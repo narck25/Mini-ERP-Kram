@@ -293,24 +293,49 @@ class VacationService {
   }
 
   static async list(filters = {}, user) {
+    const { estatus, search, page = '1', limit = '20' } = filters;
     const where = {};
+
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(1000, Math.max(1, parseInt(limit) || 20));
+    const skip = (pageNum - 1) * limitNum;
+    const emptyResult = { data: [], pagination: { page: pageNum, limit: limitNum, total: 0, totalPages: 0 } };
 
     // Scoping Nivel B: ADMIN/RH ven todas; el resto solo las propias.
     if (user.role !== 'ADMIN' && user.role !== 'RH') {
       const employee = await this.getEmployeeByUser(user.id);
-      if (!employee) return [];
+      if (!employee) return emptyResult;
       where.employeeId = employee.id;
     }
 
-    if (filters.estatus) where.estatus = filters.estatus;
+    if (estatus) where.estatus = estatus;
 
-    return prisma.vacationRequest.findMany({
-      where,
-      include: {
-        empleado: { select: { id: true, nombre: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, clave: true } }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+    // Búsqueda por nombre de empleado (insensible a mayúsculas/acentos de caja).
+    if (search) {
+      where.empleado = {
+        OR: [
+          { nombre: { contains: search, mode: 'insensitive' } },
+          { nombres: { contains: search, mode: 'insensitive' } },
+          { apellidoPaterno: { contains: search, mode: 'insensitive' } },
+          { apellidoMaterno: { contains: search, mode: 'insensitive' } }
+        ]
+      };
+    }
+
+    const [data, total] = await Promise.all([
+      prisma.vacationRequest.findMany({
+        where,
+        skip,
+        take: limitNum,
+        include: {
+          empleado: { select: { id: true, nombre: true, nombres: true, apellidoPaterno: true, apellidoMaterno: true, clave: true } }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.vacationRequest.count({ where })
+    ]);
+
+    return { data, pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) } };
   }
 
   static async myRequests(user) {

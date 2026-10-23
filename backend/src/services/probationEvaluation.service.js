@@ -38,14 +38,47 @@ const getPendingForRH = async () => {
   });
 };
 
-const getAll = async () => {
-  return prisma.probationEvaluation.findMany({
-    include: {
-      empleado: { select: EMPLEADO_SELECT },
-      evaluador: { select: { id: true, name: true, email: true } }
-    },
-    orderBy: { fechaProgramada: 'desc' }
-  });
+const getAll = async (filters = {}) => {
+  const { search, page = '1', limit = '20', soloPendientes } = filters;
+  const where = {};
+
+  if (soloPendientes === 'true' || soloPendientes === true) {
+    where.resultado = 'PENDIENTE';
+  } else if (soloPendientes === 'false' || soloPendientes === false) {
+    where.resultado = { not: 'PENDIENTE' };
+  }
+
+  // Búsqueda por nombre de empleado (insensible a mayúsculas/acentos de caja).
+  if (search) {
+    where.empleado = {
+      OR: [
+        { nombre: { contains: search, mode: 'insensitive' } },
+        { nombres: { contains: search, mode: 'insensitive' } },
+        { apellidoPaterno: { contains: search, mode: 'insensitive' } },
+        { apellidoMaterno: { contains: search, mode: 'insensitive' } }
+      ]
+    };
+  }
+
+  const pageNum = Math.max(1, parseInt(page) || 1);
+  const limitNum = Math.min(1000, Math.max(1, parseInt(limit) || 20));
+  const skip = (pageNum - 1) * limitNum;
+
+  const [data, total] = await Promise.all([
+    prisma.probationEvaluation.findMany({
+      where,
+      skip,
+      take: limitNum,
+      include: {
+        empleado: { select: EMPLEADO_SELECT },
+        evaluador: { select: { id: true, name: true, email: true } }
+      },
+      orderBy: { fechaProgramada: 'desc' }
+    }),
+    prisma.probationEvaluation.count({ where })
+  ]);
+
+  return { data, pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) } };
 };
 
 const getPendingForJefe = async (user) => {

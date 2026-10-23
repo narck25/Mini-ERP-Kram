@@ -19,8 +19,8 @@ class IncapacidadController {
 
   static async list(req, res) {
     try {
-      const data = await IncapacidadService.list(req.query);
-      res.json({ data });
+      const { data, pagination } = await IncapacidadService.list(req.query);
+      res.json({ data, pagination });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
