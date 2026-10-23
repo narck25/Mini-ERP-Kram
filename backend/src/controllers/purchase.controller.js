@@ -122,8 +122,8 @@ class PurchaseController {
   // ───────────────────────────────────────────────────────────
   static async getAllRequests(req, res) {
     try {
-      const requests = await PurchaseService.getAllRequests(req);
-      res.json({ requests });
+      const { requests, pagination } = await PurchaseService.getAllRequests(req);
+      res.json({ requests, pagination });
     } catch (error) {
       if (error.status) {
         return res.status(error.status).json({ error: error.error, message: error.message });

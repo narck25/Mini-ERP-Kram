@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -11,45 +11,40 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import QuoteSelectionModal from '@/components/QuoteSelectionModal';
 import SendAuthorizationModal from '@/components/SendAuthorizationModal';
 
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
 export default function ComprasAdminPage() {
   const { user } = useAuth();
+  // Dataset completo (sin paginar) — alimenta estadísticas, gráficas, gastos
+  // por depto/proveedor y la exportación a Excel, que siempre deben reflejar
+  // TODO lo que hay (filtrado solo por estado), no nada más la página actual.
   const [requests, setRequests] = useState([]);
+  // Subconjunto paginado/buscado — es lo único que alimenta la tabla.
+  const [tableRequests, setTableRequests] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
+  const [anioFilter, setAnioFilter] = useState('');
+  const [mesFilter, setMesFilter] = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [selectedRequestForAuth, setSelectedRequestForAuth] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
+  const hasAccess = user && user.accessibleModules?.includes('COMPRAS');
 
-  useEffect(() => {
-    if (user && user.accessibleModules?.includes('COMPRAS')) {
-      fetchAllRequests();
-      fetchStats();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, statusFilter]);
-
-  const fetchAllRequests = async () => {
+  const fetchFullData = async () => {
     try {
-      setLoading(true);
-      const url = statusFilter ? `/purchases?status=${statusFilter}` : '/purchases';
-      const response = await api.get(url);
-      setRequests(response.data.requests || []);
-    } catch (error) {
-      console.error('Error fetching purchase requests:', error);
-      toast.error('Error al cargar las solicitudes de compra');
-    } finally {
-      setLoading(false);
-    }
-  };
+      const params = new URLSearchParams();
+      if (statusFilter) params.append('status', statusFilter);
+      if (anioFilter) params.append('anio', anioFilter);
+      if (mesFilter) params.append('mes', mesFilter);
+      params.append('limit', '1000');
+      const response = await api.get(`/purchases?${params.toString()}`);
+      const data = response.data.requests || [];
+      setRequests(data);
 
-  const fetchStats = async () => {
-    try {
-      // Calcular estadísticas desde los datos
-      const allRequests = await api.get('/purchases');
-      const data = allRequests.data.requests || [];
-      
       const statsData = {
         total: data.length,
         nuevo: data.filter(r => r.estatus === 'NUEVO').length,
@@ -59,10 +54,59 @@ export default function ComprasAdminPage() {
         entregado: data.filter(r => r.estatus === 'ENTREGADO').length,
         cancelado: data.filter(r => r.estatus === 'CANCELADO').length,
       };
-      
       setStats(statsData);
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('Error fetching purchase requests:', error);
+      toast.error('Error al cargar las solicitudes de compra');
+    }
+  };
+
+  const fetchTableRequests = useCallback(async (page = 1) => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (statusFilter) params.append('status', statusFilter);
+      if (anioFilter) params.append('anio', anioFilter);
+      if (mesFilter) params.append('mes', mesFilter);
+      if (search) params.append('search', search);
+      params.append('page', page.toString());
+      params.append('limit', '20');
+      const response = await api.get(`/purchases?${params.toString()}`);
+      setTableRequests(response.data.requests || []);
+      setPagination(response.data.pagination || { page: 1, limit: 20, total: 0, totalPages: 0 });
+    } catch (error) {
+      console.error('Error fetching purchase requests:', error);
+      toast.error('Error al cargar las solicitudes de compra');
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter, anioFilter, mesFilter, search]);
+
+  const refreshAll = () => {
+    fetchFullData();
+    fetchTableRequests(pagination.page);
+  };
+
+  useEffect(() => {
+    if (hasAccess) fetchFullData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, statusFilter, anioFilter, mesFilter]);
+
+  // Debounce sobre el efecto (no sobre el onChange del input de búsqueda):
+  // así siempre corre con el closure más reciente de fetchTableRequests, sin
+  // el riesgo de carrera que ya encontramos antes en el buscador de empleados.
+  useEffect(() => {
+    if (!hasAccess) return;
+    const timeout = setTimeout(() => {
+      fetchTableRequests(1);
+    }, 300);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchTableRequests]);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      fetchTableRequests(newPage);
     }
   };
 
@@ -144,8 +188,7 @@ export default function ComprasAdminPage() {
     try {
       await api.post(`/purchases/${requestId}/deliver`);
       toast.success('Solicitud marcada como entregada');
-      fetchAllRequests();
-      fetchStats();
+      refreshAll();
     } catch (error) {
       console.error('Error marking as delivered:', error);
       toast.error(error.response?.data?.message || 'Error al marcar como entregada');
@@ -160,8 +203,7 @@ export default function ComprasAdminPage() {
       setDeletingId(requestId);
       await api.delete(`/purchases/${requestId}`);
       toast.success('Solicitud eliminada exitosamente');
-      fetchAllRequests();
-      fetchStats();
+      refreshAll();
     } catch (error) {
       console.error('Error deleting purchase request:', error);
       toast.error(error.response?.data?.message || 'Error al eliminar la solicitud');
@@ -273,6 +315,8 @@ export default function ComprasAdminPage() {
     
     return Object.values(deptos).sort((a, b) => b.total - a.total);
   })();
+  // Solo para la gráfica — la tabla de abajo sigue mostrando todos.
+  const gastosPorDeptoChart = gastosPorDepto.slice(0, 8);
 
   // ─────────────────────────────────────────────────────────────
   // Calcular gastos por proveedor (mismo criterio: APROBADO/ENTREGADO)
@@ -300,6 +344,8 @@ export default function ComprasAdminPage() {
 
     return Object.values(proveedores).sort((a, b) => b.total - a.total);
   })();
+  // Solo para la gráfica — la tabla de abajo sigue mostrando todos.
+  const gastosPorProveedorChart = gastosPorProveedor.slice(0, 8);
 
   const exportGastosPorProveedor = () => {
     if (!gastosPorProveedor.length) {
@@ -393,10 +439,6 @@ export default function ComprasAdminPage() {
     }
   };
 
-  // Verificar permisos
-  const hasAccess = user && user.accessibleModules?.includes('COMPRAS');
-
-  
   if (!hasAccess) {
     return (
       <DashboardLayout>
@@ -508,9 +550,10 @@ export default function ComprasAdminPage() {
             </div>
             <p className="text-sm text-gray-500 mb-4">
               Montos totales de solicitudes aprobadas y entregadas, agrupados por departamento.
+              {gastosPorDepto.length > 8 && ' Gráfica: top 8 — la tabla de abajo muestra todos.'}
             </p>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={gastosPorDepto}>
+              <BarChart data={gastosPorDeptoChart}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="departamento" />
                 <YAxis tickFormatter={(val) => `$${(val/1000).toFixed(0)}k`} />
@@ -563,9 +606,10 @@ export default function ComprasAdminPage() {
             </div>
             <p className="text-sm text-gray-500 mb-4">
               Montos totales de solicitudes aprobadas y entregadas, agrupados por proveedor de la cotización usada.
+              {gastosPorProveedor.length > 8 && ' Gráfica: top 8 — la tabla de abajo muestra todos.'}
             </p>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={gastosPorProveedor}>
+              <BarChart data={gastosPorProveedorChart}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="proveedor" />
                 <YAxis tickFormatter={(val) => `$${(val/1000).toFixed(0)}k`} />
@@ -606,6 +650,18 @@ export default function ComprasAdminPage() {
           <div className="flex flex-wrap gap-4 items-center">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
+                Buscar:
+              </label>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Folio, solicitante, departamento..."
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Filtrar por estado:
               </label>
               <select
@@ -622,6 +678,33 @@ export default function ComprasAdminPage() {
                 <option value="CANCELADO">Cancelado</option>
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Año</label>
+              <select
+                value={anioFilter}
+                onChange={(e) => { setAnioFilter(e.target.value); if (!e.target.value) setMesFilter(''); }}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Todos</option>
+                {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mes</label>
+              <select
+                value={mesFilter}
+                onChange={(e) => setMesFilter(e.target.value)}
+                disabled={!anioFilter}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">Todos</option>
+                {MESES.map((m, idx) => (
+                  <option key={idx} value={idx + 1}>{m}</option>
+                ))}
+              </select>
+            </div>
             <div className="flex-1"></div>
             <div className="flex gap-2">
               <button
@@ -635,7 +718,7 @@ export default function ComprasAdminPage() {
                 Exportar a Excel
               </button>
               <button
-                onClick={fetchAllRequests}
+                onClick={refreshAll}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
               >
                 Actualizar
@@ -650,7 +733,7 @@ export default function ComprasAdminPage() {
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             <p className="mt-2 text-gray-600">Cargando solicitudes...</p>
           </div>
-        ) : requests.length === 0 ? (
+        ) : tableRequests.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
             <div className="text-gray-400 mb-4">
               <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -693,7 +776,7 @@ export default function ComprasAdminPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {requests.map((request) => {
+                  {tableRequests.map((request) => {
                     const amountDisplay = getAmountDisplay(request);
                     
                     return (
@@ -777,6 +860,61 @@ export default function ComprasAdminPage() {
           </div>
         )}
 
+        {/* Paginación */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between bg-white px-4 py-3 sm:px-6 mt-4 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex-1 flex justify-between sm:hidden">
+              <button onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                Anterior
+              </button>
+              <button onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page === pagination.totalPages} className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                Siguiente
+              </button>
+            </div>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Mostrando <span className="font-medium">{((pagination.page - 1) * pagination.limit) + 1}</span> a{' '}
+                  <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> de{' '}
+                  <span className="font-medium">{pagination.total}</span> solicitudes
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                  <button onClick={() => handlePageChange(1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span className="sr-only">Primera</span>
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M15.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 010 1.414zm-6 0a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 1.414L5.414 10l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
+                  </button>
+                  <button onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span className="sr-only">Anterior</span>
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                  </button>
+                  {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                    .filter(p => p === 1 || p === pagination.totalPages || Math.abs(p - pagination.page) <= 1)
+                    .map((p, idx, arr) => (
+                      <span key={p}>
+                        {idx > 0 && arr[idx - 1] !== p - 1 && (
+                          <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>
+                        )}
+                        <button onClick={() => handlePageChange(p)} className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${p === pagination.page ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'}`}>
+                          {p}
+                        </button>
+                      </span>
+                    ))}
+                  <button onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page === pagination.totalPages} className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span className="sr-only">Siguiente</span>
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                  </button>
+                  <button onClick={() => handlePageChange(pagination.totalPages)} disabled={pagination.page === pagination.totalPages} className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span className="sr-only">Última</span>
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10.293 15.707a1 1 0 010-1.414L14.586 10l-4.293-4.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Modal de Enviar a Autorización */}
         {showAuthModal && selectedRequestForAuth && (
           <SendAuthorizationModal
@@ -786,8 +924,7 @@ export default function ComprasAdminPage() {
               setSelectedRequestForAuth(null);
             }}
             onSuccess={() => {
-              fetchAllRequests();
-              fetchStats();
+              refreshAll();
             }}
           />
         )}

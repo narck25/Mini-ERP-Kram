@@ -386,7 +386,7 @@ exports.getRequestDetails = async (req) => {
 // 4. Obtener todas las solicitudes (Admin/Compras)
 // ─────────────────────────────────────────────────────────────
 exports.getAllRequests = async (req) => {
-  const { status, department } = req.query;
+  const { status, department, search, anio, mes, page = '1', limit = '20' } = req.query;
   const where = {};
 
   if (status) where.estatus = status;
@@ -397,28 +397,68 @@ exports.getAllRequests = async (req) => {
     if (dept) where.departamentoId = dept.id;
   }
 
-  const requests = await prisma.purchaseRequest.findMany({
-    where,
-    include: {
-      solicitante: {
-        select: {
-          id: true,
-          nombre: true,
-          user: { select: { id: true, name: true, email: true } }
-        }
-      },
-      departamento: { select: { id: true, nombre: true } },
-      items: true,
-      quotes: true,
-      autorizadoPor: { select: { id: true, nombre: true } }
-    },
-    orderBy: { createdAt: 'desc' }
-  });
+  // Filtro Año + Mes sobre fechaSolicitud. Límites en UTC explícito (no
+  // new Date('YYYY-MM-DD') local) para no desfasar el mes por zona horaria.
+  const anioNum = parseInt(anio, 10);
+  if (!isNaN(anioNum)) {
+    const mesNum = parseInt(mes, 10);
+    if (!isNaN(mesNum) && mesNum >= 1 && mesNum <= 12) {
+      where.fechaSolicitud = {
+        gte: new Date(Date.UTC(anioNum, mesNum - 1, 1)),
+        lt: new Date(Date.UTC(anioNum, mesNum, 1))
+      };
+    } else {
+      where.fechaSolicitud = {
+        gte: new Date(Date.UTC(anioNum, 0, 1)),
+        lt: new Date(Date.UTC(anioNum + 1, 0, 1))
+      };
+    }
+  }
 
-  return requests.map(request => ({
-    ...request,
-    quotes: transformQuoteUrls(req, request.quotes)
-  }));
+  if (search) {
+    const searchOr = [
+      { solicitante: { nombre: { contains: search, mode: 'insensitive' } } },
+      { departamento: { nombre: { contains: search, mode: 'insensitive' } } }
+    ];
+    const folioNum = parseInt(search.replace('#', ''), 10);
+    if (!isNaN(folioNum)) searchOr.push({ folio: folioNum });
+    where.AND = [{ OR: searchOr }];
+  }
+
+  const pageNum = Math.max(1, parseInt(page) || 1);
+  const limitNum = Math.min(1000, Math.max(1, parseInt(limit) || 20));
+  const skip = (pageNum - 1) * limitNum;
+
+  const [requests, total] = await Promise.all([
+    prisma.purchaseRequest.findMany({
+      where,
+      skip,
+      take: limitNum,
+      include: {
+        solicitante: {
+          select: {
+            id: true,
+            nombre: true,
+            user: { select: { id: true, name: true, email: true } }
+          }
+        },
+        departamento: { select: { id: true, nombre: true } },
+        items: true,
+        quotes: true,
+        autorizadoPor: { select: { id: true, nombre: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    }),
+    prisma.purchaseRequest.count({ where })
+  ]);
+
+  return {
+    requests: requests.map(request => ({
+      ...request,
+      quotes: transformQuoteUrls(req, request.quotes)
+    })),
+    pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) }
+  };
 };
 
 // ─────────────────────────────────────────────────────────────
