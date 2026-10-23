@@ -7,6 +7,7 @@ export const getStatusColor = (estatus) => {
   switch (estatus) {
     case 'BORRADOR': return 'bg-gray-100 text-gray-600'
     case 'NUEVO': return 'bg-red-100 text-red-800'
+    case 'EN_PROCESO': return 'bg-orange-100 text-orange-800'
     case 'PENDIENTE': return 'bg-yellow-100 text-yellow-800'
     case 'EN_AUTORIZACION': return 'bg-blue-100 text-blue-800'
     case 'APROBADO': return 'bg-green-100 text-green-800'
@@ -20,6 +21,7 @@ export const getStatusText = (estatus) => {
   switch (estatus) {
     case 'BORRADOR': return 'Borrador'
     case 'NUEVO': return 'Nuevo'
+    case 'EN_PROCESO': return 'En Proceso'
     case 'PENDIENTE': return 'Pendiente de cotización'
     case 'EN_AUTORIZACION': return 'En autorización'
     case 'APROBADO': return 'Aprobado'

@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const purchaseCommentNotification = require('../services/purchases/purchase-comment-notification.service');
+const audit = require('../services/audit.service');
 
 class PurchaseCommentController {
   /**
@@ -101,6 +102,20 @@ class PurchaseCommentController {
           error: 'Acceso denegado',
           message: 'No tiene permisos para comentar en esta solicitud'
         });
+      }
+
+      // Cuando Compras/Admin comenta por primera vez una solicitud NUEVA,
+      // pasa a EN_PROCESO — señal de que Compras ya empezó a atenderla
+      // (el comentario del propio solicitante no la mueve: "en proceso"
+      // significa que Compras la está trabajando, no solo que existe
+      // actividad en el hilo).
+      if (isAdminOrCompras && request.estatus === 'NUEVO') {
+        await prisma.purchaseRequest.update({
+          where: { id },
+          data: { estatus: 'EN_PROCESO' }
+        });
+        audit.logWithReq(id, userId, audit.ACCIONES.ACTUALIZACION, { estatus: 'NUEVO' }, { estatus: 'EN_PROCESO' }, req)
+          .catch(err => console.error('Error registrando auditoría NUEVO->EN_PROCESO:', err.message));
       }
 
       // Crear el comentario

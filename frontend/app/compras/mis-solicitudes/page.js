@@ -119,9 +119,9 @@ export default function MisSolicitudesComprasPage() {
               const selectedQuote = request?.quotes?.find(q => q.isSelected);
               const isAdminOrCompras = ['ADMIN', 'COMPRAS'].includes(user?.role);
               const isBorrador = request.estatus === 'BORRADOR';
-              const canCancel = ['NUEVO', 'PENDIENTE'].includes(request.estatus);
+              const canCancel = ['NUEVO', 'EN_PROCESO', 'PENDIENTE'].includes(request.estatus);
               const canSelectQuote = request.estatus === 'PENDIENTE' && request.quotes?.length > 0;
-              const canDelete = (isAdminOrCompras && ['NUEVO', 'PENDIENTE', 'CANCELADO'].includes(request.estatus)) || isBorrador;
+              const canDelete = (isAdminOrCompras && ['NUEVO', 'EN_PROCESO', 'PENDIENTE', 'CANCELADO'].includes(request.estatus)) || isBorrador;
 
               return (
                 <div key={request.id} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">

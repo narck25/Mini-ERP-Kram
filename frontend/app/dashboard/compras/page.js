@@ -48,6 +48,7 @@ export default function ComprasAdminPage() {
       const statsData = {
         total: data.length,
         nuevo: data.filter(r => r.estatus === 'NUEVO').length,
+        enProceso: data.filter(r => r.estatus === 'EN_PROCESO').length,
         pendiente: data.filter(r => r.estatus === 'PENDIENTE').length,
         enAutorizacion: data.filter(r => r.estatus === 'EN_AUTORIZACION').length,
         aprobado: data.filter(r => r.estatus === 'APROBADO').length,
@@ -113,6 +114,7 @@ export default function ComprasAdminPage() {
   const getStatusColor = (estatus) => {
     switch (estatus) {
       case 'NUEVO': return 'bg-red-100 text-red-800';
+      case 'EN_PROCESO': return 'bg-orange-100 text-orange-800';
       case 'PENDIENTE': return 'bg-yellow-100 text-yellow-800';
       case 'EN_AUTORIZACION': return 'bg-blue-100 text-blue-800';
       case 'APROBADO': return 'bg-green-100 text-green-800';
@@ -125,6 +127,7 @@ export default function ComprasAdminPage() {
   const getStatusText = (estatus) => {
     switch (estatus) {
       case 'NUEVO': return 'Nuevo';
+      case 'EN_PROCESO': return 'En Proceso';
       case 'PENDIENTE': return 'Pendiente';
       case 'EN_AUTORIZACION': return 'En Autorización';
       case 'APROBADO': return 'Aprobado';
@@ -467,7 +470,7 @@ export default function ComprasAdminPage() {
 
         {/* Estadísticas */}
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-8 gap-4 mb-6">
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <h3 className="text-sm font-medium text-gray-700">Total</h3>
               <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
@@ -475,6 +478,10 @@ export default function ComprasAdminPage() {
             <div className="bg-white border border-red-200 rounded-lg p-4">
               <h3 className="text-sm font-medium text-gray-700">Nuevo</h3>
               <p className="text-2xl font-bold text-red-600 mt-1">{stats.nuevo}</p>
+            </div>
+            <div className="bg-white border border-orange-200 rounded-lg p-4">
+              <h3 className="text-sm font-medium text-gray-700">En Proceso</h3>
+              <p className="text-2xl font-bold text-orange-600 mt-1">{stats.enProceso}</p>
             </div>
             <div className="bg-white border border-yellow-200 rounded-lg p-4">
               <h3 className="text-sm font-medium text-gray-700">Pendiente</h3>
@@ -506,6 +513,7 @@ export default function ComprasAdminPage() {
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={[
                 { name: 'Nuevo', value: stats.nuevo || 0, fill: '#EF4444' },
+                { name: 'En Proceso', value: stats.enProceso || 0, fill: '#F97316' },
                 { name: 'Pendiente', value: stats.pendiente || 0, fill: '#F59E0B' },
                 { name: 'En Aut.', value: stats.enAutorizacion || 0, fill: '#3B82F6' },
                 { name: 'Aprobado', value: stats.aprobado || 0, fill: '#10B981' },
@@ -519,6 +527,7 @@ export default function ComprasAdminPage() {
                 <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                   {[
                     { name: 'Nuevo', value: stats.nuevo || 0, fill: '#EF4444' },
+                    { name: 'En Proceso', value: stats.enProceso || 0, fill: '#F97316' },
                     { name: 'Pendiente', value: stats.pendiente || 0, fill: '#F59E0B' },
                     { name: 'En Aut.', value: stats.enAutorizacion || 0, fill: '#3B82F6' },
                     { name: 'Aprobado', value: stats.aprobado || 0, fill: '#10B981' },
@@ -671,6 +680,7 @@ export default function ComprasAdminPage() {
               >
                 <option value="">Todos los estados</option>
                 <option value="NUEVO">Nuevo</option>
+                <option value="EN_PROCESO">En Proceso</option>
                 <option value="PENDIENTE">Pendiente</option>
                 <option value="EN_AUTORIZACION">En Autorización</option>
                 <option value="APROBADO">Aprobado</option>
@@ -840,7 +850,7 @@ export default function ComprasAdminPage() {
                             </button>
                           )}
                           {/* Botón Eliminar: solo ADMIN y COMPRAS, solo en estatus NUEVO, PENDIENTE o CANCELADO */}
-                          {['NUEVO', 'PENDIENTE', 'CANCELADO'].includes(request.estatus) && (
+                          {['NUEVO', 'EN_PROCESO', 'PENDIENTE', 'CANCELADO'].includes(request.estatus) && (
                             <button
                               onClick={() => handleDelete(request.id)}
                               disabled={deletingId === request.id}

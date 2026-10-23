@@ -453,6 +453,7 @@ enum StationeryStatus {
 enum PurchaseStatus {
   BORRADOR
   NUEVO
+  EN_PROCESO
   PENDIENTE
   EN_AUTORIZACION
   APROBADO

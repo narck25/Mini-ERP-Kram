@@ -87,6 +87,7 @@ export default function MisSolicitudesDetallePage() {
   const getStatusColor = (estatus) => {
     switch (estatus) {
       case 'NUEVO': return 'bg-red-100 text-red-800';
+      case 'EN_PROCESO': return 'bg-orange-100 text-orange-800';
       case 'PENDIENTE': return 'bg-yellow-100 text-yellow-800';
       case 'EN_AUTORIZACION': return 'bg-blue-100 text-blue-800';
       case 'APROBADO': return 'bg-green-100 text-green-800';
@@ -99,6 +100,7 @@ export default function MisSolicitudesDetallePage() {
   const getStatusText = (estatus) => {
     switch (estatus) {
       case 'NUEVO': return 'Nuevo';
+      case 'EN_PROCESO': return 'En Proceso';
       case 'PENDIENTE': return 'Pendiente de selección';
       case 'EN_AUTORIZACION': return 'En Autorización Gerencial';
       case 'APROBADO': return 'Aprobado';
@@ -288,7 +290,7 @@ export default function MisSolicitudesDetallePage() {
 
   // Determinar si el usuario puede editar items (solicitante, ADMIN, o COMPRAS)
   const isSolicitante = request?.solicitante?.user?.id === user?.id;
-  const canEditItems = request?.estatus === 'NUEVO' && (isSolicitante || user?.role === 'ADMIN' || user?.role === 'COMPRAS');
+  const canEditItems = ['NUEVO', 'EN_PROCESO'].includes(request?.estatus) && (isSolicitante || user?.role === 'ADMIN' || user?.role === 'COMPRAS');
 
   return (
     <DashboardLayout>
@@ -601,11 +603,11 @@ export default function MisSolicitudesDetallePage() {
               <h2 className="text-lg font-semibold text-blue-900 mb-4">Flujo del proceso</h2>
               <div className="space-y-3">
                 <div className="flex items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${request.estatus === 'NUEVO' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${request.estatus === 'NUEVO' ? 'bg-red-100 text-red-800' : request.estatus === 'EN_PROCESO' ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-800'}`}>
                     1
                   </div>
                   <div>
-                    <div className="font-medium">NUEVO</div>
+                    <div className="font-medium">{request.estatus === 'EN_PROCESO' ? 'EN PROCESO' : 'NUEVO'}</div>
                     <div className="text-sm text-gray-600">Esperando cotizaciones</div>
                   </div>
                 </div>

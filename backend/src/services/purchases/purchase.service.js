@@ -598,8 +598,8 @@ exports.uploadQuoteFileForNewQuote = async (requestId, filename, quoteIndex) => 
     throw { status: 404, error: 'Solicitud no encontrada', message: 'La solicitud de compra no existe' };
   }
 
-  if (request.estatus !== 'NUEVO' && request.estatus !== 'PENDIENTE') {
-    throw { status: 400, error: 'Estado inválido', message: 'Solo se pueden subir archivos para cotizaciones en solicitudes NUEVO o PENDIENTE' };
+  if (!['NUEVO', 'EN_PROCESO', 'PENDIENTE'].includes(request.estatus)) {
+    throw { status: 400, error: 'Estado inválido', message: 'Solo se pueden subir archivos para cotizaciones en solicitudes NUEVO, EN_PROCESO o PENDIENTE' };
   }
 
   const index = parseInt(quoteIndex);
@@ -843,9 +843,9 @@ exports.updateItems = async (userId, userRole, requestId, items) => {
     throw { status: 403, error: 'Acceso denegado', message: 'No tiene permisos para modificar esta solicitud' };
   }
 
-  // Solo permitir en estado NUEVO
-  if (request.estatus !== 'NUEVO') {
-    throw { status: 400, error: 'Estado inválido', message: 'Solo se pueden modificar items en solicitudes en estado NUEVO' };
+  // Solo permitir en estado NUEVO o EN_PROCESO
+  if (!['NUEVO', 'EN_PROCESO'].includes(request.estatus)) {
+    throw { status: 400, error: 'Estado inválido', message: 'Solo se pueden modificar items en solicitudes en estado NUEVO o EN_PROCESO' };
   }
 
   return prisma.$transaction(async (tx) => {

@@ -582,6 +582,7 @@ export default function ComprasDetailPage() {
   const getStatusColor = (estatus) => {
     switch (estatus) {
       case 'NUEVO': return 'bg-red-100 text-red-800';
+      case 'EN_PROCESO': return 'bg-orange-100 text-orange-800';
       case 'PENDIENTE': return 'bg-yellow-100 text-yellow-800';
       case 'EN_AUTORIZACION': return 'bg-blue-100 text-blue-800';
       case 'APROBADO': return 'bg-green-100 text-green-800';
@@ -594,6 +595,7 @@ export default function ComprasDetailPage() {
   const getStatusText = (estatus) => {
     switch (estatus) {
       case 'NUEVO': return 'Nuevo';
+      case 'EN_PROCESO': return 'En Proceso';
       case 'PENDIENTE': return 'Pendiente';
       case 'EN_AUTORIZACION': return 'En Autorización';
       case 'APROBADO': return 'Aprobado';
@@ -755,11 +757,11 @@ export default function ComprasDetailPage() {
           <h2 className="text-lg font-semibold text-blue-900 mb-4">Flujo del proceso</h2>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="flex flex-col items-center">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${request.estatus === 'NUEVO' ? 'bg-red-100 text-red-800 border-2 border-red-300' : 'bg-gray-100 text-gray-800'}`}>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${request.estatus === 'NUEVO' ? 'bg-red-100 text-red-800 border-2 border-red-300' : request.estatus === 'EN_PROCESO' ? 'bg-orange-100 text-orange-800 border-2 border-orange-300' : 'bg-gray-100 text-gray-800'}`}>
                 1
               </div>
               <div className="text-center">
-                <div className="font-medium text-sm">NUEVO</div>
+                <div className="font-medium text-sm">{request.estatus === 'EN_PROCESO' ? 'EN PROCESO' : 'NUEVO'}</div>
                 <div className="text-xs text-gray-600">Subir cotizaciones</div>
               </div>
             </div>
@@ -874,7 +876,7 @@ export default function ComprasDetailPage() {
                     </button>
                   )}
                   {/* Botón para editar items - solo en estado NUEVO */}
-                  {request.estatus === 'NUEVO' && !editingItems && (
+                  {['NUEVO', 'EN_PROCESO'].includes(request.estatus) && !editingItems && (
                     <button
                       onClick={startEditingItems}
                       className="px-3 py-1.5 border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md text-sm font-medium flex items-center gap-1"
@@ -1048,7 +1050,7 @@ export default function ComprasDetailPage() {
 
 
             {/* Subir cotizaciones (para estados NUEVO o PENDIENTE con menos de 3 cotizaciones) - Solo Admin/Compras */}
-            {(request.estatus === 'NUEVO' || request.estatus === 'PENDIENTE') && (!request.quotes || request.quotes.length < 3) && (user.role === 'ADMIN' || user.role === 'COMPRAS') && (
+            {['NUEVO', 'EN_PROCESO', 'PENDIENTE'].includes(request.estatus) && (!request.quotes || request.quotes.length < 3) && (user.role === 'ADMIN' || user.role === 'COMPRAS') && (
               <div className="bg-white border border-gray-200 rounded-lg p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Subir cotizaciones</h2>
                 <p className="text-sm text-gray-600 mb-6">

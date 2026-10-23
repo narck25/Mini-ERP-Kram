@@ -29,8 +29,8 @@ exports.uploadQuotes = async (req) => {
     throw { status: 404, error: 'Solicitud no encontrada', message: 'La solicitud de compra no existe' };
   }
 
-  if (request.estatus !== 'NUEVO') {
-    throw { status: 400, error: 'Estado inválido', message: 'Solo se pueden subir cotizaciones a solicitudes en estado NUEVO' };
+  if (!['NUEVO', 'EN_PROCESO'].includes(request.estatus)) {
+    throw { status: 400, error: 'Estado inválido', message: 'Solo se pueden subir cotizaciones a solicitudes en estado NUEVO o EN_PROCESO' };
   }
 
   if (!quotes || !Array.isArray(quotes) || quotes.length === 0 || quotes.length > 3) {
@@ -173,8 +173,8 @@ exports.uploadQuoteWithFile = async (req) => {
     throw { status: 404, error: 'Solicitud no encontrada', message: 'La solicitud de compra no existe' };
   }
 
-  if (request.estatus !== 'NUEVO' && request.estatus !== 'PENDIENTE') {
-    throw { status: 400, error: 'Estado inválido', message: 'Solo se pueden subir cotizaciones a solicitudes en estado NUEVO o PENDIENTE' };
+  if (!['NUEVO', 'EN_PROCESO', 'PENDIENTE'].includes(request.estatus)) {
+    throw { status: 400, error: 'Estado inválido', message: 'Solo se pueden subir cotizaciones a solicitudes en estado NUEVO, EN_PROCESO o PENDIENTE' };
   }
 
   if (!monto) {

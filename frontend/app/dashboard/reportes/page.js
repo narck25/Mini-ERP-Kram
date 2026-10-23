@@ -24,7 +24,7 @@ const FETCHERS = {
 
 const ESTATUS_OPCIONES = {
   empleados: [['Activo', 'Activos'], ['Inactivo', 'Inactivos']],
-  compras: [['NUEVO', 'Nuevo'], ['PENDIENTE', 'Pendiente'], ['EN_AUTORIZACION', 'En autorización'], ['APROBADO', 'Aprobado'], ['ENTREGADO', 'Entregado'], ['CANCELADO', 'Cancelado']],
+  compras: [['NUEVO', 'Nuevo'], ['EN_PROCESO', 'En proceso'], ['PENDIENTE', 'Pendiente'], ['EN_AUTORIZACION', 'En autorización'], ['APROBADO', 'Aprobado'], ['ENTREGADO', 'Entregado'], ['CANCELADO', 'Cancelado']],
   vacaciones: [['PENDIENTE', 'Pendiente'], ['AUTORIZADA', 'Autorizada'], ['APROBADA', 'Aprobada'], ['RECHAZADA', 'Rechazada'], ['CANCELADA', 'Cancelada']],
 };
 
