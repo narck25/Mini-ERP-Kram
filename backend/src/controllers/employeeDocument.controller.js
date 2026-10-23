@@ -12,8 +12,13 @@ const ALLOWED_DOCUMENT_TYPES = [
   'CURP',
   'RFC',
   'NSS',
+  'Comprobante de Alta IMSS',
   'Título Profesional',
+  'Comprobante de Estudios',
   'Carta de Recomendación',
+  'Carta de No Antecedentes Penales',
+  'Examen Médico de Ingreso',
+  'Comprobante de Incapacidad',
   'Otro'
 ];
 
