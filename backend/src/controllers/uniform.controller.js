@@ -72,9 +72,9 @@ class UniformController {
 
   static async getDeliveries(req, res) {
     try {
-      const { empleadoId } = req.query;
-      const deliveries = await UniformService.getDeliveries({ empleadoId });
-      res.json({ data: deliveries });
+      const { empleadoId, search, page, limit } = req.query;
+      const { deliveries, pagination } = await UniformService.getDeliveries({ empleadoId, search, page, limit });
+      res.json({ data: deliveries, pagination });
     } catch (error) {
       console.error('Error al obtener entregas:', error);
       res.status(500).json({ error: error.message });

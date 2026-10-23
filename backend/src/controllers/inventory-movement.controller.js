@@ -3,8 +3,8 @@ const { listMovements } = require('../services/purchases/inventory-movement.serv
 class InventoryMovementController {
   static async list(req, res) {
     try {
-      const { movements, total } = await listMovements(req.query);
-      res.json({ data: movements, total });
+      const { movements, total, pagination } = await listMovements(req.query);
+      res.json({ data: movements, total, pagination });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }

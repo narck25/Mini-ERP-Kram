@@ -167,14 +167,41 @@ class UniformService {
     const where = {};
     if (filters.empleadoId) where.empleadoId = filters.empleadoId;
 
-    return prisma.uniformDelivery.findMany({
-      where,
-      include: {
-        empleado: { select: { id: true, nombres: true, apellidoPaterno: true, clave: true } },
-        entregadoPor: { select: { id: true, nombres: true, apellidoPaterno: true } }
-      },
-      orderBy: { fechaEntrega: 'desc' }
-    });
+    // Búsqueda por nombre del empleado que recibió la entrega
+    if (filters.search) {
+      const search = filters.search;
+      where.empleado = {
+        OR: [
+          { nombre: { contains: search, mode: 'insensitive' } },
+          { nombres: { contains: search, mode: 'insensitive' } },
+          { apellidoPaterno: { contains: search, mode: 'insensitive' } },
+          { apellidoMaterno: { contains: search, mode: 'insensitive' } }
+        ]
+      };
+    }
+
+    const pageNum = Math.max(1, parseInt(filters.page) || 1);
+    const limitNum = Math.min(1000, Math.max(1, parseInt(filters.limit) || 20));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [deliveries, total] = await Promise.all([
+      prisma.uniformDelivery.findMany({
+        where,
+        skip,
+        take: limitNum,
+        include: {
+          empleado: { select: { id: true, nombres: true, apellidoPaterno: true, clave: true } },
+          entregadoPor: { select: { id: true, nombres: true, apellidoPaterno: true } }
+        },
+        orderBy: { fechaEntrega: 'desc' }
+      }),
+      prisma.uniformDelivery.count({ where })
+    ]);
+
+    return {
+      deliveries,
+      pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) }
+    };
   }
 
   static async getDeliveryById(id) {

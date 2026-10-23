@@ -39,13 +39,20 @@ async function listMovements(filters = {}) {
   if (filters.tipoMovimiento) where.tipoMovimiento = filters.tipoMovimiento;
   if (filters.itemId) where.itemId = filters.itemId;
 
-  const limit = Math.min(500, parseInt(filters.limit) || 100);
+  // Antes solo existía `take` (tope de 500) sin `skip`, por lo que la UI
+  // nunca podía avanzar más allá de los movimientos más recientes. Se agrega
+  // page/skip con la misma fórmula usada en el resto de módulos de Compras,
+  // manteniendo el tope de 500 en el límite.
+  const pageNum = Math.max(1, parseInt(filters.page) || 1);
+  const limitNum = Math.min(500, Math.max(1, parseInt(filters.limit) || 100));
+  const skip = (pageNum - 1) * limitNum;
 
   const [movements, total] = await Promise.all([
     prisma.inventoryMovement.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      take: limit,
+      skip,
+      take: limitNum,
       include: {
         usuario: { select: { id: true, name: true, email: true } }
       }
@@ -53,7 +60,11 @@ async function listMovements(filters = {}) {
     prisma.inventoryMovement.count({ where })
   ]);
 
-  return { movements, total };
+  return {
+    movements,
+    total,
+    pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) }
+  };
 }
 
 module.exports = { recordMovement, listMovements };

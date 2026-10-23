@@ -50,7 +50,7 @@ exports.createAdjustment = async (userId, data) => {
 exports.listAdjustments = async (req) => {
   const userRole = req.user.role;
   const userId = req.user.id;
-  const { estatus } = req.query;
+  const { estatus, search, page = '1', limit = '20' } = req.query;
   const where = {};
   if (estatus) where.estatus = estatus;
 
@@ -59,14 +59,36 @@ exports.listAdjustments = async (req) => {
     where.solicitanteId = employee ? employee.id : '__none__';
   }
 
-  return prisma.inventoryAdjustmentRequest.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    include: {
-      solicitante: { select: { id: true, nombre: true } },
-      aprobadoPorUser: { select: { id: true, name: true, email: true } }
-    }
-  });
+  // Búsqueda por folio (id corto mostrado en la UI) o nombre del solicitante
+  if (search) {
+    where.OR = [
+      { id: { contains: search, mode: 'insensitive' } },
+      { solicitante: { nombre: { contains: search, mode: 'insensitive' } } }
+    ];
+  }
+
+  const pageNum = Math.max(1, parseInt(page) || 1);
+  const limitNum = Math.min(1000, Math.max(1, parseInt(limit) || 20));
+  const skip = (pageNum - 1) * limitNum;
+
+  const [requests, total] = await Promise.all([
+    prisma.inventoryAdjustmentRequest.findMany({
+      where,
+      skip,
+      take: limitNum,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        solicitante: { select: { id: true, nombre: true } },
+        aprobadoPorUser: { select: { id: true, name: true, email: true } }
+      }
+    }),
+    prisma.inventoryAdjustmentRequest.count({ where })
+  ]);
+
+  return {
+    requests,
+    pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) }
+  };
 };
 
 // ─── 3. Aprobar y aplicar el ajuste ───

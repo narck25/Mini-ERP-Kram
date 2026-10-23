@@ -12,8 +12,8 @@ class InventoryAdjustmentController {
 
   static async list(req, res) {
     try {
-      const requests = await AdjustmentService.listAdjustments(req);
-      res.json({ data: requests });
+      const { requests, pagination } = await AdjustmentService.listAdjustments(req);
+      res.json({ data: requests, pagination });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }

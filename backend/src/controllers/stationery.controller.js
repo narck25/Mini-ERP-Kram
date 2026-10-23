@@ -50,9 +50,9 @@ class StationeryController {
 
   static async getAllRequests(req, res) {
     try {
-      const { estatus, departamentoId } = req.query;
-      const requests = await StationeryService.getAllRequests({ estatus, departamentoId });
-      res.json({ data: requests });
+      const { estatus, departamentoId, search, page, limit } = req.query;
+      const { requests, pagination } = await StationeryService.getAllRequests({ estatus, departamentoId, search, page, limit });
+      res.json({ data: requests, pagination });
     } catch (error) {
       console.error('Error al obtener solicitudes:', error);
       res.status(500).json({ error: error.message });

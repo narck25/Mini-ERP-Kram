@@ -28,16 +28,42 @@ class StationeryService {
     if (filters.estatus) where.estatus = filters.estatus;
     if (filters.departamentoId) where.departamentoId = filters.departamentoId;
 
-    return prisma.stationeryRequest.findMany({
-      where,
-      include: {
-        items: true,
-        solicitante: { select: { id: true, nombres: true, apellidoPaterno: true, clave: true } },
-        departamento: { select: { id: true, nombre: true } },
-        entregadoPor: { select: { id: true, nombres: true, apellidoPaterno: true } }
-      },
-      orderBy: { fechaSolicitud: 'desc' }
-    });
+    // Búsqueda por folio (id corto mostrado en la UI) o nombre del solicitante
+    if (filters.search) {
+      const search = filters.search;
+      where.OR = [
+        { id: { contains: search, mode: 'insensitive' } },
+        { solicitante: { nombre: { contains: search, mode: 'insensitive' } } },
+        { solicitante: { nombres: { contains: search, mode: 'insensitive' } } },
+        { solicitante: { apellidoPaterno: { contains: search, mode: 'insensitive' } } },
+        { solicitante: { apellidoMaterno: { contains: search, mode: 'insensitive' } } }
+      ];
+    }
+
+    const pageNum = Math.max(1, parseInt(filters.page) || 1);
+    const limitNum = Math.min(1000, Math.max(1, parseInt(filters.limit) || 20));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [requests, total] = await Promise.all([
+      prisma.stationeryRequest.findMany({
+        where,
+        skip,
+        take: limitNum,
+        include: {
+          items: true,
+          solicitante: { select: { id: true, nombres: true, apellidoPaterno: true, clave: true } },
+          departamento: { select: { id: true, nombre: true } },
+          entregadoPor: { select: { id: true, nombres: true, apellidoPaterno: true } }
+        },
+        orderBy: { fechaSolicitud: 'desc' }
+      }),
+      prisma.stationeryRequest.count({ where })
+    ]);
+
+    return {
+      requests,
+      pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) }
+    };
   }
 
   /**
