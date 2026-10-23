@@ -17,29 +17,53 @@ class PermissionController {
         });
       }
 
-      const users = await prisma.user.findMany({
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          isActive: true,
-          accessibleModules: true,
-          employee: {
-            select: {
-              puesto: true,
-              departamento: {
-                select: {
-                  nombre: true
+      const { search, role, isActive, page = '1', limit = '20' } = req.query;
+      const where = {};
+
+      if (role) where.role = role;
+      if (isActive === 'true') where.isActive = true;
+      if (isActive === 'false') where.isActive = false;
+
+      if (search) {
+        where.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      const pageNum = Math.max(1, parseInt(page) || 1);
+      const limitNum = Math.min(1000, Math.max(1, parseInt(limit) || 20));
+      const skip = (pageNum - 1) * limitNum;
+
+      const [users, total] = await Promise.all([
+        prisma.user.findMany({
+          where,
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            isActive: true,
+            accessibleModules: true,
+            employee: {
+              select: {
+                puesto: true,
+                departamento: {
+                  select: {
+                    nombre: true
+                  }
                 }
               }
             }
-          }
-        },
-        orderBy: {
-          name: 'asc'
-        }
-      });
+          },
+          orderBy: {
+            name: 'asc'
+          },
+          skip,
+          take: limitNum,
+        }),
+        prisma.user.count({ where }),
+      ]);
 
       // Formatear la respuesta
       const formattedUsers = users.map(user => ({
@@ -55,7 +79,8 @@ class PermissionController {
 
       res.json({
         success: true,
-        users: formattedUsers
+        users: formattedUsers,
+        pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) }
       });
     } catch (error) {
       console.error('Error al obtener usuarios con permisos:', error);

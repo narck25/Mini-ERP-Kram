@@ -35,8 +35,17 @@ class TicketController {
 
   static async getAll(req, res) {
     try {
-      const { estatus, categoria, prioridad } = req.query;
-      const data = await TicketService.getAll({ estatus, categoria, prioridad });
+      const { estatus, categoria, prioridad, search, page, limit } = req.query;
+      const { tickets, pagination } = await TicketService.getAll({ estatus, categoria, prioridad, search, page, limit });
+      res.json({ data: tickets, pagination });
+    } catch (error) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  }
+
+  static async getStats(req, res) {
+    try {
+      const data = await TicketService.getStats();
       res.json({ data });
     } catch (error) {
       res.status(error.status || 500).json({ error: error.message });

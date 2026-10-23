@@ -1,14 +1,12 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import api, { systemApi } from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
 import { toast } from 'react-hot-toast';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { getAllRoles, getRoleName, getRoleColor } from '@/lib/rolesConfig';
-
-const ITEMS_PER_PAGE = 10;
 
 function UsersManagementPage() {
   const { user } = useAuth();
@@ -29,7 +27,7 @@ function UsersManagementPage() {
   // Búsqueda y filtros
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('');
-  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
 
   // Formularios
   const [createForm, setCreateForm] = useState({
@@ -40,14 +38,35 @@ function UsersManagementPage() {
     name: '', email: '', password: '', role: 'RH', isActive: true,
   });
 
-  useEffect(() => {
-    if (user && user.role === 'ADMIN') {
-      fetchUsers();
-      fetchStats();
-      fetchRoles();
+  const fetchUsers = useCallback(async (page = 1) => {
+    try {
+      setLoading(true);
+      const response = await api.get('/users', {
+        params: {
+          search: search || undefined,
+          role: filterRole || undefined,
+          page,
+          limit: 20,
+        },
+      });
+      setUsers(response.data.data || []);
+      setPagination(response.data.pagination || { page: 1, limit: 20, total: 0, totalPages: 0 });
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast.error('Error al cargar usuarios');
+    } finally {
+      setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [search, filterRole]);
+
+  const fetchStats = async () => {
+    try {
+      const response = await api.get('/users/stats');
+      setStats(response.data.data);
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+    }
+  };
 
   const fetchRoles = async () => {
     try {
@@ -59,51 +78,32 @@ function UsersManagementPage() {
     }
   };
 
-  const fetchUsers = async () => {
-    try {
-      const response = await api.get('/users');
-      setUsers(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      toast.error('Error al cargar usuarios');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (user && user.role === 'ADMIN') {
+      fetchStats();
+      fetchRoles();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // Debounce sobre el efecto, no sobre el handler del input: así el timeout
+  // siempre dispara con el cierre (closure) más reciente de fetchUsers
+  // (que ya trae el valor de búsqueda actual), en vez de capturar uno viejo
+  // y pisar el resultado correcto con uno de un caracter atrás.
+  useEffect(() => {
+    if (!user || user.role !== 'ADMIN') return;
+    const timeout = setTimeout(() => {
+      fetchUsers(1);
+    }, 300);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchUsers, user]);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      fetchUsers(newPage);
     }
   };
-
-  const fetchStats = async () => {
-    try {
-      const response = await api.get('/users/stats');
-      setStats(response.data.data);
-    } catch (error) {
-      console.error('Error fetching user stats:', error);
-    }
-  };
-
-  // ===== Filtrado y paginación =====
-  const filteredUsers = useMemo(() => {
-    let result = users;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(u =>
-        u.name.toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q) ||
-        (u.employee?.nombre || '').toLowerCase().includes(q)
-      );
-    }
-    if (filterRole) {
-      result = result.filter(u => u.role === filterRole);
-    }
-    return result;
-  }, [users, search, filterRole]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / ITEMS_PER_PAGE));
-  const paginatedUsers = filteredUsers.slice(
-    (page - 1) * ITEMS_PER_PAGE,
-    page * ITEMS_PER_PAGE
-  );
-
-  useEffect(() => { setPage(1); }, [search, filterRole]);
 
   // ===== Handlers =====
   const handleCreateFormChange = (e) => {
@@ -131,7 +131,7 @@ function UsersManagementPage() {
       toast.success('Usuario creado exitosamente');
       setShowCreateModal(false);
       setCreateForm({ name: '', email: '', password: '', role: 'RH' });
-      await fetchUsers();
+      await fetchUsers(pagination.page);
       await fetchStats();
     } catch (error) {
       toast.error(error.response?.data?.error || 'Error al crear usuario');
@@ -148,7 +148,7 @@ function UsersManagementPage() {
       toast.success('Usuario actualizado exitosamente');
       setShowEditModal(false);
       setSelectedUser(null);
-      await fetchUsers();
+      await fetchUsers(pagination.page);
       await fetchStats();
     } catch (error) {
       toast.error(error.response?.data?.error || 'Error al actualizar usuario');
@@ -162,7 +162,7 @@ function UsersManagementPage() {
     try {
       await api.delete(`/users/${userId}`);
       toast.success('Usuario eliminado exitosamente');
-      await fetchUsers();
+      await fetchUsers(pagination.page);
       await fetchStats();
     } catch (error) {
       toast.error(error.response?.data?.error || 'Error al eliminar usuario');
@@ -179,32 +179,6 @@ function UsersManagementPage() {
       isActive: user.isActive,
     });
     setShowEditModal(true);
-  };
-
-  // ===== Componente Paginación =====
-  const Pagination = () => {
-    if (totalPages <= 1) return null;
-    return (
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200">
-        <div className="text-sm text-gray-600">
-          Página <span className="font-medium">{page}</span> de{' '}
-          <span className="font-medium">{totalPages}</span>
-          <span className="ml-2 text-gray-400">({filteredUsers.length} resultados)</span>
-        </div>
-        <div className="flex space-x-2">
-          <button
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page <= 1}
-            className="px-3 py-1 border rounded text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
-          >← Anterior</button>
-          <button
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            disabled={page >= totalPages}
-            className="px-3 py-1 border rounded text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
-          >Siguiente →</button>
-        </div>
-      </div>
-    );
   };
 
   // ===== Verificar permisos =====
@@ -304,7 +278,7 @@ function UsersManagementPage() {
             ))}
           </select>
           <div className="text-sm text-gray-500 self-center">
-            {filteredUsers.length} de {users.length} usuarios
+            {pagination.total} usuario{pagination.total === 1 ? '' : 's'}
           </div>
         </div>
 
@@ -324,7 +298,7 @@ function UsersManagementPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedUsers.map((userItem) => (
+                {users.map((userItem) => (
                   <tr key={userItem.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{userItem.name}</div>
@@ -378,7 +352,7 @@ function UsersManagementPage() {
             </table>
           </div>
 
-          {filteredUsers.length === 0 && (
+          {users.length === 0 && (
             <div className="text-center py-8">
               <p className="text-gray-500">
                 {search || filterRole ? 'No se encontraron usuarios con esos criterios' : 'No hay usuarios registrados.'}
@@ -386,7 +360,60 @@ function UsersManagementPage() {
             </div>
           )}
 
-          <Pagination />
+          {/* Paginación */}
+          {pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between bg-white px-4 py-3 sm:px-6 border-t border-gray-200">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                  Anterior
+                </button>
+                <button onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page === pagination.totalPages} className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                  Siguiente
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Mostrando <span className="font-medium">{((pagination.page - 1) * pagination.limit) + 1}</span> a{' '}
+                    <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> de{' '}
+                    <span className="font-medium">{pagination.total}</span> usuarios
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <button onClick={() => handlePageChange(1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <span className="sr-only">Primera</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M15.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 010 1.414zm-6 0a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 1.414L5.414 10l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
+                    </button>
+                    <button onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <span className="sr-only">Anterior</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                    </button>
+                    {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                      .filter(p => p === 1 || p === pagination.totalPages || Math.abs(p - pagination.page) <= 1)
+                      .map((p, idx, arr) => (
+                        <span key={p}>
+                          {idx > 0 && arr[idx - 1] !== p - 1 && (
+                            <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>
+                          )}
+                          <button onClick={() => handlePageChange(p)} className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${p === pagination.page ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'}`}>
+                            {p}
+                          </button>
+                        </span>
+                      ))}
+                    <button onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page === pagination.totalPages} className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <span className="sr-only">Siguiente</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                    </button>
+                    <button onClick={() => handlePageChange(pagination.totalPages)} disabled={pagination.page === pagination.totalPages} className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <span className="sr-only">Última</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10.293 15.707a1 1 0 010-1.414L14.586 10l-4.293-4.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

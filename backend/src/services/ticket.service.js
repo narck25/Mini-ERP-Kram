@@ -94,11 +94,65 @@ const getAll = async (filters = {}) => {
   if (filters.categoria) where.categoria = filters.categoria;
   if (filters.prioridad) where.prioridad = filters.prioridad;
 
-  return prisma.ticket.findMany({
-    where,
-    include: TICKET_INCLUDE,
-    orderBy: { createdAt: 'desc' },
-  });
+  if (filters.search) {
+    const search = filters.search;
+    const searchOr = [
+      { asunto: { contains: search, mode: 'insensitive' } },
+      { solicitante: { nombres: { contains: search, mode: 'insensitive' } } },
+      { solicitante: { nombre: { contains: search, mode: 'insensitive' } } },
+      { solicitante: { apellidoPaterno: { contains: search, mode: 'insensitive' } } },
+    ];
+    const folioNum = parseInt(search.replace('#', ''), 10);
+    if (!isNaN(folioNum)) searchOr.push({ folio: folioNum });
+    where.OR = searchOr;
+  }
+
+  const pageNum = Math.max(1, parseInt(filters.page) || 1);
+  const limitNum = Math.min(1000, Math.max(1, parseInt(filters.limit) || 20));
+  const skip = (pageNum - 1) * limitNum;
+
+  const [tickets, total] = await Promise.all([
+    prisma.ticket.findMany({
+      where,
+      include: TICKET_INCLUDE,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limitNum,
+    }),
+    prisma.ticket.count({ where }),
+  ]);
+
+  return {
+    tickets,
+    pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
+  };
+};
+
+// Estadísticas de la cola completa (independientes de la paginación de
+// getAll — si se calcularan sobre `tickets` ya paginados, solo reflejarían
+// la página actual en vez del total real, igual que ya se corrigió en
+// Compras con `fetchFullData` separado de la tabla paginada).
+const getStats = async () => {
+  const hoy = new Date();
+  const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  const inicioMesSiguiente = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 1);
+
+  const [porEstatus, resueltosEsteMes, total] = await Promise.all([
+    prisma.ticket.groupBy({ by: ['estatus'], _count: true }),
+    prisma.ticket.count({
+      where: {
+        estatus: { in: ['RESUELTO', 'CERRADO'] },
+        fechaResolucion: { gte: inicioMes, lt: inicioMesSiguiente },
+      },
+    }),
+    prisma.ticket.count(),
+  ]);
+
+  const conteoPorEstatus = Object.fromEntries(porEstatus.map((g) => [g.estatus, g._count]));
+  const abiertos = conteoPorEstatus.ABIERTO || 0;
+  const enProceso = (conteoPorEstatus.EN_PROCESO || 0) + (conteoPorEstatus.EN_ESPERA || 0);
+
+  return { abiertos, enProceso, resueltosEsteMes, total };
 };
 
 const getById = async (id, user) => {
@@ -218,6 +272,7 @@ module.exports = {
   create,
   getMy,
   getAll,
+  getStats,
   getById,
   updateStatus,
   assign,

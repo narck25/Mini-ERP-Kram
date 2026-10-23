@@ -27,6 +27,10 @@ router.get('/tickets/my', AuthMiddleware.requireModule('TICKETS'), TicketControl
 // Cola completa de TI — solo Sistemas/Admin.
 router.get('/tickets', AuthMiddleware.requireSistemasOrAdmin(), TicketController.getAll);
 
+// Estadísticas de la cola completa (independiente de la paginación de /tickets).
+// IMPORTANTE: debe ir antes de /tickets/:id para evitar conflicto de rutas.
+router.get('/tickets/stats', AuthMiddleware.requireSistemasOrAdmin(), TicketController.getStats);
+
 router.get('/tickets/:id', AuthMiddleware.requireModule('TICKETS'), TicketController.getById);
 
 router.patch('/tickets/:id/status', AuthMiddleware.requireSistemasOrAdmin(), TicketController.updateStatus);

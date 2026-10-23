@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { SistemasProtectedRoute } from '@/components/ProtectedRoute';
@@ -21,54 +21,78 @@ function TicketsTIQueueContent() {
   const [filtroEstatus, setFiltroEstatus] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('');
   const [filtroPrioridad, setFiltroPrioridad] = useState('');
+  const [search, setSearch] = useState('');
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
   const [takingId, setTakingId] = useState(null);
+  const [stats, setStats] = useState({ abiertos: 0, enProceso: 0, resueltosEsteMes: 0, total: 0 });
 
-  const fetchTickets = async () => {
+  // Estadísticas de la cola completa — independientes de la paginación/
+  // filtros de la tabla (si se calcularan sobre `tickets` ya paginados,
+  // solo reflejarían la página actual en vez del total real).
+  const fetchStats = async () => {
+    try {
+      const res = await ticketApi.getStats();
+      setStats(res.data?.data || { abiertos: 0, enProceso: 0, resueltosEsteMes: 0, total: 0 });
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchTickets = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       const res = await ticketApi.getAll({
         estatus: filtroEstatus || undefined,
         categoria: filtroCategoria || undefined,
         prioridad: filtroPrioridad || undefined,
+        search: search || undefined,
+        page,
+        limit: 20,
       });
       setTickets(res.data?.data || []);
+      setPagination(res.data?.pagination || { page: 1, limit: 20, total: 0, totalPages: 0 });
     } catch (error) {
       console.error(error);
       toast.error('Error al cargar la cola de tickets');
     } finally {
       setLoading(false);
     }
-  };
+  }, [filtroEstatus, filtroCategoria, filtroPrioridad, search]);
 
+  // Debounce sobre el efecto, no sobre el handler del input: así el timeout
+  // siempre dispara con el cierre (closure) más reciente de fetchTickets
+  // (que ya trae el valor de búsqueda actual), en vez de capturar uno viejo
+  // y pisar el resultado correcto con uno de un caracter atrás.
   useEffect(() => {
-    fetchTickets();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtroEstatus, filtroCategoria, filtroPrioridad]);
+    const timeout = setTimeout(() => {
+      fetchTickets(1);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [fetchTickets]);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      fetchTickets(newPage);
+    }
+  };
 
   const handleTomar = async (ticketId) => {
     try {
       setTakingId(ticketId);
       await ticketApi.assign(ticketId, user.id);
       toast.success('Ticket asignado a ti');
-      fetchTickets();
+      fetchTickets(pagination.page);
+      fetchStats();
     } catch (error) {
       toast.error(error.response?.data?.error || 'No se pudo tomar el ticket');
     } finally {
       setTakingId(null);
     }
   };
-
-  const stats = useMemo(() => {
-    const abiertos = tickets.filter((t) => t.estatus === 'ABIERTO').length;
-    const enProceso = tickets.filter((t) => t.estatus === 'EN_PROCESO' || t.estatus === 'EN_ESPERA').length;
-    const hoy = new Date();
-    const resueltosEsteMes = tickets.filter((t) => {
-      if (!['RESUELTO', 'CERRADO'].includes(t.estatus) || !t.fechaResolucion) return false;
-      const f = new Date(t.fechaResolucion);
-      return f.getMonth() === hoy.getMonth() && f.getFullYear() === hoy.getFullYear();
-    }).length;
-    return { abiertos, enProceso, resueltosEsteMes, total: tickets.length };
-  }, [tickets]);
 
   return (
     <DashboardLayout>
@@ -93,11 +117,18 @@ function TicketsTIQueueContent() {
           </div>
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <p className="text-xs text-gray-500 uppercase">Total (filtro actual)</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+            <p className="text-2xl font-bold text-gray-900">{pagination.total}</p>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-3 mb-4">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por folio, asunto o solicitante..."
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm flex-1 min-w-[220px]"
+          />
           <select value={filtroEstatus} onChange={(e) => setFiltroEstatus(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md text-sm">
             <option value="">Todos los estatus</option>
             {ESTATUS_OPTIONS.map((e) => <option key={e} value={e}>{getStatusText(e)}</option>)}
@@ -177,6 +208,61 @@ function TicketsTIQueueContent() {
             </div>
           )}
         </div>
+
+        {/* Paginación */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between bg-white px-4 py-3 sm:px-6 mt-4 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex-1 flex justify-between sm:hidden">
+              <button onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                Anterior
+              </button>
+              <button onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page === pagination.totalPages} className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                Siguiente
+              </button>
+            </div>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Mostrando <span className="font-medium">{((pagination.page - 1) * pagination.limit) + 1}</span> a{' '}
+                  <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> de{' '}
+                  <span className="font-medium">{pagination.total}</span> tickets
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                  <button onClick={() => handlePageChange(1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span className="sr-only">Primera</span>
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M15.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 010 1.414zm-6 0a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 1.414L5.414 10l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
+                  </button>
+                  <button onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span className="sr-only">Anterior</span>
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                  </button>
+                  {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                    .filter(p => p === 1 || p === pagination.totalPages || Math.abs(p - pagination.page) <= 1)
+                    .map((p, idx, arr) => (
+                      <span key={p}>
+                        {idx > 0 && arr[idx - 1] !== p - 1 && (
+                          <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>
+                        )}
+                        <button onClick={() => handlePageChange(p)} className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${p === pagination.page ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'}`}>
+                          {p}
+                        </button>
+                      </span>
+                    ))}
+                  <button onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page === pagination.totalPages} className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span className="sr-only">Siguiente</span>
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                  </button>
+                  <button onClick={() => handlePageChange(pagination.totalPages)} disabled={pagination.page === pagination.totalPages} className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span className="sr-only">Última</span>
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10.293 15.707a1 1 0 010-1.414L14.586 10l-4.293-4.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

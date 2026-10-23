@@ -7,36 +7,60 @@ class UserController {
   // Obtener todos los usuarios (solo ADMIN)
   static async getAllUsers(req, res) {
     try {
-      const users = await prisma.user.findMany({
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          isActive: true,
-          accessibleModules: true,
-          createdAt: true,
-          updatedAt: true,
-          employee: {
-            select: {
-              id: true,
-              nombre: true,
-              puesto: {
-                select: {
-                  nombre: true,
+      const { search, role, page = '1', limit = '20' } = req.query;
+      const where = {};
+
+      if (role) where.role = role;
+
+      if (search) {
+        where.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { employee: { nombre: { contains: search, mode: 'insensitive' } } },
+        ];
+      }
+
+      const pageNum = Math.max(1, parseInt(page) || 1);
+      const limitNum = Math.min(1000, Math.max(1, parseInt(limit) || 20));
+      const skip = (pageNum - 1) * limitNum;
+
+      const [users, total] = await Promise.all([
+        prisma.user.findMany({
+          where,
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            isActive: true,
+            accessibleModules: true,
+            createdAt: true,
+            updatedAt: true,
+            employee: {
+              select: {
+                id: true,
+                nombre: true,
+                puesto: {
+                  select: {
+                    nombre: true,
+                  }
                 }
               }
             }
-          }
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-      });
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+          skip,
+          take: limitNum,
+        }),
+        prisma.user.count({ where }),
+      ]);
 
       return res.status(200).json({
         success: true,
         data: users,
+        pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
         message: 'Usuarios obtenidos exitosamente',
       });
     } catch (error) {

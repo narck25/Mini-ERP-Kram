@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { permissionApi, systemApi } from '@/lib/api';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -25,6 +25,7 @@ function AccesosPageContent() {
   const [allRoles, setAllRoles] = useState([]);
   const [modules, setModules] = useState([]);
   const [rolePresets, setRolePresets] = useState({});
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
 
   const canManagePermissions = user?.role === 'ADMIN' || user?.role === 'RH';
 
@@ -48,9 +49,49 @@ function AccesosPageContent() {
     fetchRoles();
   }, []);
 
+  const fetchUsers = useCallback(async (page = 1) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const isActiveParam = statusFilter === 'active' ? 'true' : statusFilter === 'inactive' ? 'false' : undefined;
+      const response = await permissionApi.getAllUsersWithPermissions({
+        search: searchTerm || undefined,
+        role: roleFilter || undefined,
+        isActive: isActiveParam,
+        page,
+        limit: 20,
+      });
+      if (response.data.success) {
+        setUsers(response.data.users);
+        setPagination(response.data.pagination || { page: 1, limit: 20, total: 0, totalPages: 0 });
+      } else {
+        setError('Error al cargar usuarios');
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      setError('No se pudieron cargar los usuarios. Verifica tu conexión.');
+    } finally {
+      setLoading(false);
+    }
+  }, [searchTerm, roleFilter, statusFilter]);
+
+  // Debounce sobre el efecto, no sobre el handler del input: así el timeout
+  // siempre dispara con el cierre (closure) más reciente de fetchUsers
+  // (que ya trae el valor de búsqueda actual), en vez de capturar uno viejo
+  // y pisar el resultado correcto con uno de un caracter atrás.
   useEffect(() => {
-    if (canManagePermissions) fetchUsers();
-  }, [canManagePermissions]);
+    if (!canManagePermissions) return;
+    const timeout = setTimeout(() => {
+      fetchUsers(1);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [canManagePermissions, fetchUsers]);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      fetchUsers(newPage);
+    }
+  };
 
   // Cargar módulos y presets desde la API (systemApi como fuente única)
   useEffect(() => {
@@ -73,37 +114,6 @@ function AccesosPageContent() {
     };
     fetchModulesAndPresets();
   }, []);
-
-  const filteredUsers = useMemo(() => {
-    return users.filter(u => {
-      const matchesSearch = !searchTerm || 
-        u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.email?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesRole = !roleFilter || u.role === roleFilter;
-      const matchesStatus = !statusFilter || 
-        (statusFilter === 'active' && u.isActive) || 
-        (statusFilter === 'inactive' && !u.isActive);
-      return matchesSearch && matchesRole && matchesStatus;
-    });
-  }, [users, searchTerm, roleFilter, statusFilter]);
-
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await permissionApi.getAllUsersWithPermissions();
-      if (response.data.success) {
-        setUsers(response.data.users);
-      } else {
-        setError('Error al cargar usuarios');
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      setError('No se pudieron cargar los usuarios. Verifica tu conexión.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleToggleModule = async (userId, moduleId, isChecked) => {
     if (userId === user.id) {
@@ -183,7 +193,7 @@ function AccesosPageContent() {
       const response = await permissionApi.updateUserPermissions(userId, presetModules, presetRole);
       if (response.data.success) {
         // Refrescar todos los usuarios desde el backend para asegurar datos consistentes
-        await fetchUsers();
+        await fetchUsers(pagination.page);
         setSuccessMessage(`Preset "${getRoleName(presetRole)}" aplicado a ${userToUpdate.name}`);
         setTimeout(() => setSuccessMessage(null), 3000);
       } else {
@@ -278,7 +288,7 @@ function AccesosPageContent() {
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 <p className="mt-2 text-gray-600">Cargando usuarios...</p>
               </div>
-            ) : filteredUsers.length === 0 ? (
+            ) : users.length === 0 ? (
               <div className="p-8 text-center">
                 <p className="text-gray-600">{users.length === 0 ? 'No hay usuarios para mostrar.' : 'No se encontraron usuarios con los filtros seleccionados.'}</p>
               </div>
@@ -295,7 +305,7 @@ function AccesosPageContent() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredUsers.map(userItem => {
+                    {users.map(userItem => {
                       const isUpdating = updating[userItem.id];
                       const isExpanded = expandedUser === userItem.id;
                       const activeModules = userItem.accessibleModules || [];
@@ -352,6 +362,61 @@ function AccesosPageContent() {
               </div>
             )}
           </div>
+
+          {/* Paginación */}
+          {pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between bg-white px-4 py-3 sm:px-6 mt-4 rounded-xl shadow-sm border border-gray-200">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                  Anterior
+                </button>
+                <button onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page === pagination.totalPages} className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                  Siguiente
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    Mostrando <span className="font-medium">{((pagination.page - 1) * pagination.limit) + 1}</span> a{' '}
+                    <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> de{' '}
+                    <span className="font-medium">{pagination.total}</span> usuarios
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <button onClick={() => handlePageChange(1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <span className="sr-only">Primera</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M15.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 010 1.414zm-6 0a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 1.414L5.414 10l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
+                    </button>
+                    <button onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <span className="sr-only">Anterior</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                    </button>
+                    {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                      .filter(p => p === 1 || p === pagination.totalPages || Math.abs(p - pagination.page) <= 1)
+                      .map((p, idx, arr) => (
+                        <span key={p}>
+                          {idx > 0 && arr[idx - 1] !== p - 1 && (
+                            <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>
+                          )}
+                          <button onClick={() => handlePageChange(p)} className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${p === pagination.page ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'}`}>
+                            {p}
+                          </button>
+                        </span>
+                      ))}
+                    <button onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page === pagination.totalPages} className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <span className="sr-only">Siguiente</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                    </button>
+                    <button onClick={() => handlePageChange(pagination.totalPages)} disabled={pagination.page === pagination.totalPages} className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <span className="sr-only">Última</span>
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10.293 15.707a1 1 0 010-1.414L14.586 10l-4.293-4.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          )}
 
           {expandedUser && (
             <div className="mt-4 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
