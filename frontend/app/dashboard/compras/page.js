@@ -26,8 +26,10 @@ export default function ComprasAdminPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
-  const [anioFilter, setAnioFilter] = useState('');
-  const [mesFilter, setMesFilter] = useState('');
+  // Por defecto, el mes actual — así la pantalla abre mostrando lo relevante
+  // en vez de todo el historial. "Todos" sigue disponible limpiando el filtro.
+  const [anioFilter, setAnioFilter] = useState(() => String(new Date().getFullYear()));
+  const [mesFilter, setMesFilter] = useState(() => String(new Date().getMonth() + 1));
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [selectedRequestForAuth, setSelectedRequestForAuth] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
@@ -96,6 +98,14 @@ export default function ComprasAdminPage() {
   // Debounce sobre el efecto (no sobre el onChange del input de búsqueda):
   // así siempre corre con el closure más reciente de fetchTableRequests, sin
   // el riesgo de carrera que ya encontramos antes en el buscador de empleados.
+  // IMPORTANTE: `hasAccess` va en las deps además de `fetchTableRequests` —
+  // `user` carga async desde el contexto de auth, así que en el primer
+  // render `hasAccess` suele ser false y este efecto no dispara nada; sin
+  // `hasAccess` aquí, la tabla se quedaba en "Cargando..." para siempre una
+  // vez que `user` sí llegaba, porque `fetchTableRequests` no cambia de
+  // identidad solo porque `user`/`hasAccess` cambien (sus deps son los
+  // filtros, no el usuario) — solo se "arreglaba" al presionar Actualizar,
+  // que llama fetchTableRequests directo sin pasar por este guard.
   useEffect(() => {
     if (!hasAccess) return;
     const timeout = setTimeout(() => {
@@ -103,7 +113,7 @@ export default function ComprasAdminPage() {
     }, 300);
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchTableRequests]);
+  }, [fetchTableRequests, hasAccess]);
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
@@ -157,37 +167,37 @@ export default function ComprasAdminPage() {
 
   const calculateTotal = (request) => {
     if (!request?.quotes?.length) return 0;
-    
+
     // Primero buscar cotización seleccionada
     const selectedQuote = request.quotes.find(q => q.isSelected);
     if (selectedQuote) return selectedQuote.monto;
-    
+
     // Si no hay seleccionada, mostrar la cotización con el monto más bajo
     const lowestQuote = request.quotes.reduce((lowest, current) => {
       return current.monto < lowest.monto ? current : lowest;
     });
-    
+
     return lowestQuote?.monto || 0;
   };
 
   const getAmountDisplay = (request) => {
     if (!request?.quotes?.length) return 'Sin cotización';
-    
+
     // Primero buscar cotización seleccionada
     const selectedQuote = request.quotes.find(q => q.isSelected);
     if (selectedQuote) return formatCurrency(selectedQuote.monto);
-    
+
     // Si no hay seleccionada, mostrar la cotización con el monto más bajo
     const lowestQuote = request.quotes.reduce((lowest, current) => {
       return current.monto < lowest.monto ? current : lowest;
     });
-    
+
     return formatCurrency(lowestQuote?.monto || 0);
   };
 
   const handleMarkAsDelivered = async (requestId) => {
     if (!confirm('¿Marcar esta solicitud como entregada?')) return;
-    
+
     try {
       await api.post(`/purchases/${requestId}/deliver`);
       toast.success('Solicitud marcada como entregada');
@@ -228,7 +238,7 @@ export default function ComprasAdminPage() {
         // Obtener el monto de la cotización seleccionada o la más baja
         let monto = 0;
         let montoTexto = 'Sin cotización';
-        
+
         if (request?.quotes?.length) {
           const selectedQuote = request.quotes.find(q => q.isSelected);
           if (selectedQuote) {
@@ -266,7 +276,7 @@ export default function ComprasAdminPage() {
 
       // Crear hoja de trabajo
       const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-      
+
       // Ajustar el ancho de las columnas
       const maxWidth = dataToExport.reduce((acc, row) => {
         Object.keys(row).forEach(key => {
@@ -275,7 +285,7 @@ export default function ComprasAdminPage() {
         });
         return acc;
       }, {});
-      
+
       const colWidths = Object.keys(maxWidth).map(key => ({ wch: Math.min(maxWidth[key] + 2, 50) }));
       worksheet['!cols'] = colWidths;
 
@@ -289,7 +299,7 @@ export default function ComprasAdminPage() {
 
       // Descargar archivo
       XLSX.writeFile(workbook, fileName);
-      
+
       toast.success(`Reporte exportado exitosamente: ${fileName}`);
     } catch (error) {
       console.error('Error exporting to Excel:', error);
@@ -303,19 +313,19 @@ export default function ComprasAdminPage() {
   const gastosPorDepto = (() => {
     const deptos = {};
     const estadosGasto = ['APROBADO', 'ENTREGADO'];
-    
+
     requests.forEach(req => {
       if (!estadosGasto.includes(req.estatus)) return;
       const depto = req.departamento?.nombre || 'Sin departamento';
       const monto = calculateTotal(req);
-      
+
       if (!deptos[depto]) {
         deptos[depto] = { departamento: depto, total: 0, cantidad: 0 };
       }
       deptos[depto].total += monto;
       deptos[depto].cantidad += 1;
     });
-    
+
     return Object.values(deptos).sort((a, b) => b.total - a.total);
   })();
   // Solo para la gráfica — la tabla de abajo sigue mostrando todos.
@@ -404,7 +414,7 @@ export default function ComprasAdminPage() {
     try {
       const totalGeneral = gastosPorDepto.reduce((s, d) => s + d.total, 0);
       const totalCantidad = gastosPorDepto.reduce((s, d) => s + d.cantidad, 0);
-      
+
       const dataToExport = [
         ...gastosPorDepto.map(d => ({
           "Departamento": d.departamento,
@@ -432,7 +442,7 @@ export default function ComprasAdminPage() {
 
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Gastos por Departamento");
-      
+
       const fecha = new Date().toISOString().split('T')[0].replace(/-/g, '');
       XLSX.writeFile(workbook, `Gastos_por_Departamento_${fecha}.xlsx`);
       toast.success('Reporte de gastos por departamento exportado exitosamente');
@@ -467,6 +477,277 @@ export default function ComprasAdminPage() {
             </div>
           </div>
         </div>
+
+        {/* Filtros */}
+        <div className="mb-6 bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex flex-wrap gap-4 items-center">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Buscar:
+              </label>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Folio, solicitante, departamento..."
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Filtrar por estado:
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Todos los estados</option>
+                <option value="NUEVO">Nuevo</option>
+                <option value="EN_PROCESO">En Proceso</option>
+                <option value="PENDIENTE">Pendiente</option>
+                <option value="EN_AUTORIZACION">En Autorización</option>
+                <option value="APROBADO">Aprobado</option>
+                <option value="ENTREGADO">Entregado</option>
+                <option value="CANCELADO">Cancelado</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Año</label>
+              <select
+                value={anioFilter}
+                onChange={(e) => { setAnioFilter(e.target.value); if (!e.target.value) setMesFilter(''); }}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Todos</option>
+                {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mes</label>
+              <select
+                value={mesFilter}
+                onChange={(e) => setMesFilter(e.target.value)}
+                disabled={!anioFilter}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">Todos</option>
+                {MESES.map((m, idx) => (
+                  <option key={idx} value={idx + 1}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1"></div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleExportExcel}
+                disabled={!requests.length}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Exportar a Excel
+              </button>
+              <button
+                onClick={refreshAll}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
+              >
+                Actualizar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabla de solicitudes */}
+        {loading ? (
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="mt-2 text-gray-600">Cargando solicitudes...</p>
+          </div>
+        ) : tableRequests.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-md p-8 text-center">
+            <div className="text-gray-400 mb-4">
+              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No hay solicitudes de compra</h3>
+            <p className="text-gray-600">No se encontraron solicitudes con los filtros aplicados.</p>
+          </div>
+        ) : (
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Folio
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Solicitante
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Departamento
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Fecha
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Estado
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Monto
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Ítems
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {tableRequests.map((request) => {
+                    const amountDisplay = getAmountDisplay(request);
+
+                    return (
+                      <tr key={request.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            #{request.folio}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm">
+                            <div className="font-medium text-gray-900">
+                              {request.solicitante?.nombre || 'N/A'}
+                            </div>
+                            <div className="text-gray-500 text-xs">
+                              {request.solicitante?.user?.email || ''}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {request.departamento?.nombre || 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(request.fechaSolicitud)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(request.estatus)}`}>
+                            {getStatusText(request.estatus)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {amountDisplay}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {request.items?.length || 0}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <Link
+                            href={`/dashboard/compras/${request.id}`}
+                            className="text-blue-600 hover:text-blue-900 mr-3"
+                          >
+                            Gestionar
+                          </Link>
+                          {(request.estatus === 'PENDIENTE' || request.estatus === 'EN_AUTORIZACION') && (
+                            <button
+                              onClick={() => {
+                                setSelectedRequestForAuth(request);
+                                setShowAuthModal(true);
+                              }}
+                              className="text-purple-600 hover:text-purple-900 mr-3"
+                            >
+                              {request.estatus === 'EN_AUTORIZACION' ? 'Reenviar' : 'Autorizar'}
+                            </button>
+                          )}
+                          {request.estatus === 'APROBADO' && (
+                            <button
+                              onClick={() => handleMarkAsDelivered(request.id)}
+                              className="text-green-600 hover:text-green-900 mr-3"
+                            >
+                              Entregar
+                            </button>
+                          )}
+                          {/* Botón Eliminar: solo ADMIN y COMPRAS, solo en estatus NUEVO, PENDIENTE o CANCELADO */}
+                          {['NUEVO', 'EN_PROCESO', 'PENDIENTE', 'CANCELADO'].includes(request.estatus) && (
+                            <button
+                              onClick={() => handleDelete(request.id)}
+                              disabled={deletingId === request.id}
+                              className="text-red-700 hover:text-red-900 disabled:opacity-50"
+                            >
+                              {deletingId === request.id ? 'Eliminando...' : 'Eliminar'}
+                            </button>
+                          )}
+                        </td>
+
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Paginación */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between bg-white px-4 py-3 sm:px-6 mt-4 mb-6 rounded-lg shadow-sm border border-gray-200">
+            <div className="flex-1 flex justify-between sm:hidden">
+              <button onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                Anterior
+              </button>
+              <button onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page === pagination.totalPages} className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                Siguiente
+              </button>
+            </div>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Mostrando <span className="font-medium">{((pagination.page - 1) * pagination.limit) + 1}</span> a{' '}
+                  <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> de{' '}
+                  <span className="font-medium">{pagination.total}</span> solicitudes
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                  <button onClick={() => handlePageChange(1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span className="sr-only">Primera</span>
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M15.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 010 1.414zm-6 0a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 1.414L5.414 10l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
+                  </button>
+                  <button onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span className="sr-only">Anterior</span>
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                  </button>
+                  {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                    .filter(p => p === 1 || p === pagination.totalPages || Math.abs(p - pagination.page) <= 1)
+                    .map((p, idx, arr) => (
+                      <span key={p}>
+                        {idx > 0 && arr[idx - 1] !== p - 1 && (
+                          <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>
+                        )}
+                        <button onClick={() => handlePageChange(p)} className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${p === pagination.page ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'}`}>
+                          {p}
+                        </button>
+                      </span>
+                    ))}
+                  <button onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page === pagination.totalPages} className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span className="sr-only">Siguiente</span>
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                  </button>
+                  <button onClick={() => handlePageChange(pagination.totalPages)} disabled={pagination.page === pagination.totalPages} className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span className="sr-only">Última</span>
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10.293 15.707a1 1 0 010-1.414L14.586 10l-4.293-4.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Estadísticas */}
         {stats && (
@@ -650,277 +931,6 @@ export default function ComprasAdminPage() {
                   </tr>
                 </tbody>
               </table>
-            </div>
-          </div>
-        )}
-
-        {/* Filtros */}
-        <div className="mb-6 bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex flex-wrap gap-4 items-center">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Buscar:
-              </label>
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Folio, solicitante, departamento..."
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Filtrar por estado:
-              </label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Todos los estados</option>
-                <option value="NUEVO">Nuevo</option>
-                <option value="EN_PROCESO">En Proceso</option>
-                <option value="PENDIENTE">Pendiente</option>
-                <option value="EN_AUTORIZACION">En Autorización</option>
-                <option value="APROBADO">Aprobado</option>
-                <option value="ENTREGADO">Entregado</option>
-                <option value="CANCELADO">Cancelado</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Año</label>
-              <select
-                value={anioFilter}
-                onChange={(e) => { setAnioFilter(e.target.value); if (!e.target.value) setMesFilter(''); }}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Todos</option>
-                {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Mes</label>
-              <select
-                value={mesFilter}
-                onChange={(e) => setMesFilter(e.target.value)}
-                disabled={!anioFilter}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="">Todos</option>
-                {MESES.map((m, idx) => (
-                  <option key={idx} value={idx + 1}>{m}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex-1"></div>
-            <div className="flex gap-2">
-              <button
-                onClick={handleExportExcel}
-                disabled={!requests.length}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Exportar a Excel
-              </button>
-              <button
-                onClick={refreshAll}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
-              >
-                Actualizar
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabla de solicitudes */}
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="mt-2 text-gray-600">Cargando solicitudes...</p>
-          </div>
-        ) : tableRequests.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <div className="text-gray-400 mb-4">
-              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No hay solicitudes de compra</h3>
-            <p className="text-gray-600">No se encontraron solicitudes con los filtros aplicados.</p>
-          </div>
-        ) : (
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Folio
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Solicitante
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Departamento
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Fecha
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Estado
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Monto
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Ítems
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {tableRequests.map((request) => {
-                    const amountDisplay = getAmountDisplay(request);
-                    
-                    return (
-                      <tr key={request.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            #{request.folio}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm">
-                            <div className="font-medium text-gray-900">
-                              {request.solicitante?.nombre || 'N/A'}
-                            </div>
-                            <div className="text-gray-500 text-xs">
-                              {request.solicitante?.user?.email || ''}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {request.departamento?.nombre || 'N/A'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(request.fechaSolicitud)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(request.estatus)}`}>
-                            {getStatusText(request.estatus)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {amountDisplay}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {request.items?.length || 0}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <Link
-                            href={`/dashboard/compras/${request.id}`}
-                            className="text-blue-600 hover:text-blue-900 mr-3"
-                          >
-                            Gestionar
-                          </Link>
-                          {(request.estatus === 'PENDIENTE' || request.estatus === 'EN_AUTORIZACION') && (
-                            <button
-                              onClick={() => {
-                                setSelectedRequestForAuth(request);
-                                setShowAuthModal(true);
-                              }}
-                              className="text-purple-600 hover:text-purple-900 mr-3"
-                            >
-                              {request.estatus === 'EN_AUTORIZACION' ? 'Reenviar' : 'Autorizar'}
-                            </button>
-                          )}
-                          {request.estatus === 'APROBADO' && (
-                            <button
-                              onClick={() => handleMarkAsDelivered(request.id)}
-                              className="text-green-600 hover:text-green-900 mr-3"
-                            >
-                              Entregar
-                            </button>
-                          )}
-                          {/* Botón Eliminar: solo ADMIN y COMPRAS, solo en estatus NUEVO, PENDIENTE o CANCELADO */}
-                          {['NUEVO', 'EN_PROCESO', 'PENDIENTE', 'CANCELADO'].includes(request.estatus) && (
-                            <button
-                              onClick={() => handleDelete(request.id)}
-                              disabled={deletingId === request.id}
-                              className="text-red-700 hover:text-red-900 disabled:opacity-50"
-                            >
-                              {deletingId === request.id ? 'Eliminando...' : 'Eliminar'}
-                            </button>
-                          )}
-                        </td>
-
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* Paginación */}
-        {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between bg-white px-4 py-3 sm:px-6 mt-4 rounded-lg shadow-sm border border-gray-200">
-            <div className="flex-1 flex justify-between sm:hidden">
-              <button onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                Anterior
-              </button>
-              <button onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page === pagination.totalPages} className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                Siguiente
-              </button>
-            </div>
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Mostrando <span className="font-medium">{((pagination.page - 1) * pagination.limit) + 1}</span> a{' '}
-                  <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> de{' '}
-                  <span className="font-medium">{pagination.total}</span> solicitudes
-                </p>
-              </div>
-              <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                  <button onClick={() => handlePageChange(1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <span className="sr-only">Primera</span>
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M15.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 010 1.414zm-6 0a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 1.414L5.414 10l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
-                  </button>
-                  <button onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page === 1} className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <span className="sr-only">Anterior</span>
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                  </button>
-                  {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
-                    .filter(p => p === 1 || p === pagination.totalPages || Math.abs(p - pagination.page) <= 1)
-                    .map((p, idx, arr) => (
-                      <span key={p}>
-                        {idx > 0 && arr[idx - 1] !== p - 1 && (
-                          <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>
-                        )}
-                        <button onClick={() => handlePageChange(p)} className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${p === pagination.page ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'}`}>
-                          {p}
-                        </button>
-                      </span>
-                    ))}
-                  <button onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page === pagination.totalPages} className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <span className="sr-only">Siguiente</span>
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
-                  </button>
-                  <button onClick={() => handlePageChange(pagination.totalPages)} disabled={pagination.page === pagination.totalPages} className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <span className="sr-only">Última</span>
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10.293 15.707a1 1 0 010-1.414L14.586 10l-4.293-4.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
-                  </button>
-                </nav>
-              </div>
             </div>
           </div>
         )}
