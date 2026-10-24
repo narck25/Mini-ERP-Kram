@@ -477,6 +477,7 @@ model PurchaseRequest {
   autorizadoPorId      String?
   autorizadoPor        Employee?            @relation("ComprasAutorizador", fields: [autorizadoPorId], references: [id])
   fechaAutorizacion    DateTime?
+  fechaEntrega         DateTime?
   comments             PurchaseComment[]
   approvers            PurchaseApprover[]
   purchaseOrder        PurchaseOrder?

@@ -549,7 +549,7 @@ exports.markAsDelivered = async (userId, requestId, { entregadoAId, departamento
 
     return tx.purchaseRequest.update({
       where: { id: requestId },
-      data: { estatus: 'ENTREGADO' },
+      data: { estatus: 'ENTREGADO', fechaEntrega: new Date() },
       include: {
         items: true,
         responsivas: {

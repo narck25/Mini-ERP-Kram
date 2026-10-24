@@ -195,6 +195,18 @@ export default function ComprasAdminPage() {
     return formatCurrency(lowestQuote?.monto || 0);
   };
 
+  // KPI de cumplimiento: días transcurridos entre la fecha de solicitud y la
+  // fecha de entrega real. Mientras no se haya entregado, cuenta hasta hoy
+  // (para ver cuáles llevan más tiempo sin resolverse). En CANCELADO no
+  // aplica — no hay un "fin" real que medir, y seguir contando días daría
+  // una lectura falsa de demora en algo que ya se cerró.
+  const getDiasTranscurridos = (request) => {
+    if (request.estatus === 'CANCELADO') return null;
+    const inicio = new Date(request.fechaSolicitud);
+    const fin = request.fechaEntrega ? new Date(request.fechaEntrega) : new Date();
+    return Math.max(0, Math.floor((fin - inicio) / (1000 * 60 * 60 * 24)));
+  };
+
   const handleMarkAsDelivered = async (requestId) => {
     if (!confirm('¿Marcar esta solicitud como entregada?')) return;
 
@@ -257,6 +269,8 @@ export default function ComprasAdminPage() {
           "ID Solicitud": request.id,
           "Folio": `#${request.folio}`,
           "Fecha Solicitud": formatDate(request.fechaSolicitud),
+          "Fecha Entrega": request.fechaEntrega ? formatDate(request.fechaEntrega) : 'N/A',
+          "Días Transcurridos": getDiasTranscurridos(request) ?? 'N/A',
           "Fecha Creación": formatDate(request.createdAt),
           "Departamento": request.departamento?.nombre || 'N/A',
           "Solicitante": request.solicitante?.nombre || 'N/A',
@@ -593,7 +607,13 @@ export default function ComprasAdminPage() {
                       Departamento
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Fecha
+                      Fecha Solicitud
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Fecha Entrega
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Días Transcurridos
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Estado
@@ -612,6 +632,7 @@ export default function ComprasAdminPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {tableRequests.map((request) => {
                     const amountDisplay = getAmountDisplay(request);
+                    const diasTranscurridos = getDiasTranscurridos(request);
 
                     return (
                       <tr key={request.id} className="hover:bg-gray-50">
@@ -635,6 +656,19 @@ export default function ComprasAdminPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {formatDate(request.fechaSolicitud)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {request.fechaEntrega ? formatDate(request.fechaEntrega) : '—'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {diasTranscurridos === null ? (
+                            <span className="text-gray-400">—</span>
+                          ) : (
+                            <span className={request.fechaEntrega ? 'text-gray-700' : 'text-orange-600 font-medium'}>
+                              {diasTranscurridos} {diasTranscurridos === 1 ? 'día' : 'días'}
+                              {!request.fechaEntrega && ' (en curso)'}
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(request.estatus)}`}>
