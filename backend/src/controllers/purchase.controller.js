@@ -319,6 +319,43 @@ class PurchaseController {
     }
   }
 
+  // Backfill manual de fecha de entrega — solo para solicitudes ENTREGADO
+  // que nunca la tuvieron (de antes de que este campo existiera).
+  static async setFechaEntregaManual(req, res) {
+    try {
+      const { id } = req.params;
+      const { fechaEntrega } = req.body;
+      if (!fechaEntrega) {
+        return res.status(400).json({ error: 'Datos inválidos', message: 'Debe indicar la fecha de entrega' });
+      }
+
+      const updatedRequest = await PurchaseService.setFechaEntregaManual(id, fechaEntrega);
+
+      await audit.logWithReq(
+        id,
+        req.user.id,
+        audit.ACCIONES.ACTUALIZACION,
+        { fechaEntrega: null },
+        { fechaEntrega: updatedRequest.fechaEntrega },
+        req
+      );
+
+      res.json({
+        message: 'Fecha de entrega registrada exitosamente',
+        data: updatedRequest
+      });
+    } catch (error) {
+      if (error.status) {
+        return res.status(error.status).json({ error: error.error, message: error.message });
+      }
+      console.error("🔥 ERROR PRISMA:", error);
+      res.status(500).json({
+        error: 'Error interno del servidor',
+        message: 'No se pudo registrar la fecha de entrega'
+      });
+    }
+  }
+
   // ───────────────────────────────────────────────────────────
   // REFACTORIZADO → purchase.service.js :: uploadQuoteFile
   // ───────────────────────────────────────────────────────────

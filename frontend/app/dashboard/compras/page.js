@@ -33,6 +33,11 @@ export default function ComprasAdminPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [selectedRequestForAuth, setSelectedRequestForAuth] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  // Backfill manual de fecha de entrega — id de la fila en edición y el
+  // valor del input mientras se captura (solo aplica a ENTREGADO sin fecha).
+  const [editingFechaEntregaId, setEditingFechaEntregaId] = useState(null);
+  const [fechaEntregaInput, setFechaEntregaInput] = useState('');
+  const [savingFechaEntregaId, setSavingFechaEntregaId] = useState(null);
 
   const hasAccess = user && user.accessibleModules?.includes('COMPRAS');
 
@@ -234,6 +239,36 @@ export default function ComprasAdminPage() {
       toast.error(error.response?.data?.message || 'Error al eliminar la solicitud');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const startEditingFechaEntrega = (requestId) => {
+    setEditingFechaEntregaId(requestId);
+    setFechaEntregaInput(new Date().toISOString().split('T')[0]);
+  };
+
+  const cancelEditingFechaEntrega = () => {
+    setEditingFechaEntregaId(null);
+    setFechaEntregaInput('');
+  };
+
+  const handleSaveFechaEntrega = async (requestId) => {
+    if (!fechaEntregaInput) {
+      toast.error('Indica una fecha');
+      return;
+    }
+    try {
+      setSavingFechaEntregaId(requestId);
+      await api.patch(`/purchases/${requestId}/fecha-entrega`, { fechaEntrega: fechaEntregaInput });
+      toast.success('Fecha de entrega registrada');
+      setEditingFechaEntregaId(null);
+      setFechaEntregaInput('');
+      refreshAll();
+    } catch (error) {
+      console.error('Error saving fecha de entrega:', error);
+      toast.error(error.response?.data?.message || 'Error al registrar la fecha de entrega');
+    } finally {
+      setSavingFechaEntregaId(null);
     }
   };
 
@@ -658,7 +693,36 @@ export default function ComprasAdminPage() {
                           {formatDate(request.fechaSolicitud)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {request.fechaEntrega ? formatDate(request.fechaEntrega) : '—'}
+                          {request.fechaEntrega ? (
+                            formatDate(request.fechaEntrega)
+                          ) : request.estatus === 'ENTREGADO' && editingFechaEntregaId === request.id ? (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="date"
+                                value={fechaEntregaInput}
+                                onChange={(e) => setFechaEntregaInput(e.target.value)}
+                                max={new Date().toISOString().split('T')[0]}
+                                className="px-2 py-1 border border-gray-300 rounded text-xs"
+                              />
+                              <button
+                                onClick={() => handleSaveFechaEntrega(request.id)}
+                                disabled={savingFechaEntregaId === request.id}
+                                className="text-green-600 hover:text-green-800 disabled:opacity-50"
+                                title="Guardar"
+                              >
+                                ✓
+                              </button>
+                              <button onClick={cancelEditingFechaEntrega} className="text-gray-400 hover:text-gray-600" title="Cancelar">
+                                ✕
+                              </button>
+                            </div>
+                          ) : request.estatus === 'ENTREGADO' ? (
+                            <button onClick={() => startEditingFechaEntrega(request.id)} className="text-blue-600 hover:underline text-xs">
+                              — (registrar)
+                            </button>
+                          ) : (
+                            '—'
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           {diasTranscurridos === null ? (

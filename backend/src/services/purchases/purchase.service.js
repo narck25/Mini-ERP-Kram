@@ -565,6 +565,45 @@ exports.markAsDelivered = async (userId, requestId, { entregadoAId, departamento
 };
 
 // ─────────────────────────────────────────────────────────────
+// 6.1 Registrar manualmente la fecha de entrega de una solicitud ya
+//     ENTREGADA de antes de que este campo existiera (backfill). Solo
+//     llena el hueco — si ya tiene fechaEntrega (de una entrega marcada
+//     después de que el campo existe, o ya corregida una vez), se
+//     rechaza: esto no es para editar/corregir en general, solo para
+//     capturar el dato histórico que nunca se guardó.
+// ─────────────────────────────────────────────────────────────
+exports.setFechaEntregaManual = async (requestId, fechaEntregaInput) => {
+  const request = await prisma.purchaseRequest.findUnique({ where: { id: requestId } });
+  if (!request) {
+    throw { status: 404, error: 'Solicitud no encontrada', message: 'La solicitud de compra no existe' };
+  }
+
+  if (request.estatus !== 'ENTREGADO') {
+    throw { status: 400, error: 'Estado inválido', message: 'Solo se puede registrar fecha de entrega en solicitudes ENTREGADO' };
+  }
+
+  if (request.fechaEntrega) {
+    throw { status: 400, error: 'Ya tiene fecha de entrega', message: 'Esta solicitud ya tiene una fecha de entrega registrada' };
+  }
+
+  const fechaEntrega = new Date(fechaEntregaInput);
+  if (isNaN(fechaEntrega.getTime())) {
+    throw { status: 400, error: 'Fecha inválida', message: 'La fecha de entrega no es válida' };
+  }
+  if (fechaEntrega < request.fechaSolicitud) {
+    throw { status: 400, error: 'Fecha inválida', message: 'La fecha de entrega no puede ser anterior a la fecha de solicitud' };
+  }
+  if (fechaEntrega > new Date()) {
+    throw { status: 400, error: 'Fecha inválida', message: 'La fecha de entrega no puede ser en el futuro' };
+  }
+
+  return prisma.purchaseRequest.update({
+    where: { id: requestId },
+    data: { fechaEntrega }
+  });
+};
+
+// ─────────────────────────────────────────────────────────────
 // 7. Subir archivo a una cotización existente
 // ─────────────────────────────────────────────────────────────
 exports.uploadQuoteFile = async (requestId, quoteId, filename) => {

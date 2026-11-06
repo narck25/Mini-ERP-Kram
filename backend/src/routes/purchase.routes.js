@@ -62,6 +62,13 @@ router.post('/purchases/:id/deliver',
   PurchaseController.markAsDelivered
 );
 
+// Backfill manual de fecha de entrega (solicitudes ENTREGADO de antes de
+// que este campo existiera, que nunca la tuvieron).
+router.patch('/purchases/:id/fecha-entrega',
+  AuthMiddleware.requireModule('COMPRAS'),
+  PurchaseController.setFechaEntregaManual
+);
+
 // Ruta para obtener aprobadores potenciales (empleados con roles gerenciales)
 router.get('/purchases/:id/potential-approvers',
   AuthMiddleware.requireModule('COMPRAS'),
